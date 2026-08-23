@@ -77,8 +77,8 @@ export async function backupRestore(c: BackupContext) {
 		const metas = data.metas.map((item) => decryptRecord(item, password, encrypted) as MetaConfig);
 		const currentStorages = await listStorageConfigs(c.env.EDGE_CONFIG);
 		const currentMetas = (await readConfig(c.env.EDGE_CONFIG, CONFIG_KEYS.metas) ?? []) as MetaConfig[];
-		const restoredStorages = input.override ? mergeBy<StorageConfig>(currentStorages, storages, "mount_path") : storages.map((item) => ({ ...item, id: 0 }));
-		const restoredMetas = input.override ? mergeBy<MetaConfig>(currentMetas, metas, "path") : metas.map((item) => ({ ...item, id: 0 }));
+		const restoredStorages = assignIds(input.override ? mergeBy<StorageConfig>(currentStorages, storages, "mount_path") : storages.map((item) => ({ ...item, id: 0 })));
+		const restoredMetas = assignIds(input.override ? mergeBy<MetaConfig>(currentMetas, metas, "path") : metas.map((item) => ({ ...item, id: 0 })));
 		await c.env.EDGE_CONFIG.put(CONFIG_KEYS.storages, JSON.stringify(restoredStorages));
 		await c.env.EDGE_CONFIG.put(CONFIG_KEYS.metas, JSON.stringify(restoredMetas));
 		if (Array.isArray(data.settings)) {
@@ -96,4 +96,16 @@ function mergeBy<T extends Record<string, unknown>>(current: T[], incoming: T[],
 		if (index === -1) result.push(item); else result[index] = { ...result[index], ...item };
 	}
 	return result;
+}
+
+function assignIds<T extends { id: number }>(items: T[]): T[] {
+	let nextId = Math.max(0, ...items.map((item) => Number.isFinite(item.id) && item.id > 0 ? item.id : 0)) + 1;
+	const used = new Set<number>();
+	return items.map((item) => {
+		if (item.id > 0 && !used.has(item.id)) { used.add(item.id); return item; }
+		while (used.has(nextId)) nextId += 1;
+		const result = { ...item, id: nextId };
+		used.add(nextId); nextId += 1;
+		return result;
+	});
 }

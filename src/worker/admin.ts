@@ -16,6 +16,10 @@ async function saveArray(kv: KVNamespace, key: string, value: unknown[]) {
 	await kv.put(key, JSON.stringify(value));
 }
 
+export function removeByIdentity<T extends Record<string, unknown>>(items: T[], key: string, value: unknown): T[] {
+	return items.filter((item) => item[key] !== value);
+}
+
 export async function storageList(c: AdminContext) {
 	const storages = await readArray<StorageConfig>(c.env.EDGE_CONFIG, CONFIG_KEYS.storages);
 	return respond(c, { content: storages, total: storages.length });
@@ -37,8 +41,12 @@ export async function storageSave(c: AdminContext) {
 export async function storageDelete(c: AdminContext) {
 	try {
 		const input = await c.req.json<{ id?: number; mount_path?: string }>();
+		if (typeof input.id !== "number" && !input.mount_path) return failure("id or mount_path is required", 400);
 		const storages = await readArray<StorageConfig>(c.env.EDGE_CONFIG, CONFIG_KEYS.storages);
-		await saveArray(c.env.EDGE_CONFIG, CONFIG_KEYS.storages, storages.filter((item) => item.id !== input.id && item.mount_path !== input.mount_path));
+		const filtered = typeof input.id === "number"
+			? removeByIdentity(storages, "id", input.id)
+			: removeByIdentity(storages, "mount_path", input.mount_path);
+		await saveArray(c.env.EDGE_CONFIG, CONFIG_KEYS.storages, filtered);
 		return respond(c, null);
 	} catch (error) { return failure(error instanceof Error ? error.message : "Invalid storage", 400); }
 }
@@ -64,8 +72,12 @@ export async function metaSave(c: AdminContext) {
 export async function metaDelete(c: AdminContext) {
 	try {
 		const input = await c.req.json<{ id?: number; path?: string }>();
+		if (typeof input.id !== "number" && !input.path) return failure("id or path is required", 400);
 		const metas = await readArray<MetaConfig>(c.env.EDGE_CONFIG, CONFIG_KEYS.metas);
-		await saveArray(c.env.EDGE_CONFIG, CONFIG_KEYS.metas, metas.filter((item) => item.id !== input.id && item.path !== input.path));
+		const filtered = typeof input.id === "number"
+			? removeByIdentity(metas, "id", input.id)
+			: removeByIdentity(metas, "path", input.path);
+		await saveArray(c.env.EDGE_CONFIG, CONFIG_KEYS.metas, filtered);
 		return respond(c, null);
 	} catch (error) { return failure(error instanceof Error ? error.message : "Invalid metadata", 400); }
 }
