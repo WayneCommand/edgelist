@@ -54,3 +54,21 @@ export async function fsRemove(c: FsContext) {
 		return respond(c, null);
 	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to remove path", 400); }
 }
+
+export async function fsPut(c: FsContext) {
+	try {
+		const filePath = c.req.header("File-Path");
+		if (!filePath) return failure("File-Path header is required", 400);
+		const resolved = await resolveStorage(c.env, decodeURIComponent(filePath));
+		await resolved.adapter.write(resolved.path, c.req.raw);
+		return respond(c, null);
+	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to upload file", 400); }
+}
+
+export async function fileDownload(c: FsContext) {
+	try {
+		const path = `/${c.req.param("*") ?? ""}`;
+		const resolved = await resolveStorage(c.env, path);
+		return await resolved.adapter.read(resolved.path, c.req.header("Range"));
+	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to download file", 404); }
+}

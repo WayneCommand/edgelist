@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { EdgeListBindings } from "./env";
 import { respond } from "./response";
 import { currentUser, login, logout, requireAuth } from "./auth";
-import { fsGet, fsList, fsMkdir, fsRemove, fsRename } from "./fs";
+import { fileDownload, fsGet, fsList, fsMkdir, fsPut, fsRemove, fsRename } from "./fs";
 
 const app = new Hono<{ Bindings: Env & EdgeListBindings }>();
 
@@ -16,5 +16,7 @@ app.post("/api/fs/get", requireAuth, fsGet);
 app.post("/api/fs/mkdir", requireAuth, fsMkdir);
 app.post("/api/fs/rename", requireAuth, fsRename);
 app.post("/api/fs/remove", requireAuth, fsRemove);
+app.put("/api/fs/put", requireAuth, fsPut);
+app.on(["GET", "HEAD"], "/d/*", requireAuth, fileDownload);
 
 export default app;
