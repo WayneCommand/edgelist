@@ -1,7 +1,8 @@
 import type { Context } from "hono";
 import type { EdgeListBindings } from "./env";
+import { getStorageConfig, isVirtualMount, listVirtualMounts } from "./storage/config";
 import { resolveStorage } from "./storage/factory";
-import { normalizePath } from "./storage/types";
+import { normalizePath, type FileObject } from "./storage/types";
 import { failure, respond } from "./response";
 
 type FsContext = Context<{ Bindings: Env & EdgeListBindings }>;
@@ -13,6 +14,11 @@ async function body<T>(c: FsContext): Promise<T> {
 export async function fsList(c: FsContext) {
 	try {
 		const input = await body<{ path?: string; page?: number; per_page?: number; refresh?: boolean }>(c);
+		const requestedPath = normalizePath(input.path ?? "/");
+		if (!(await getStorageConfig(c.env.EDGE_CONFIG, requestedPath))) {
+			const mounts = await listVirtualMounts(c.env.EDGE_CONFIG, requestedPath);
+			if (mounts.length) return respond(c, { content: mounts, total: mounts.length });
+		}
 		const resolved = await resolveStorage(c.env, input.path ?? "/");
 		return respond(c, await resolved.adapter.list(resolved.path, { page: input.page ?? 1, per_page: input.per_page ?? 0, refresh: input.refresh ?? false }));
 	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to list path", 400); }
@@ -21,6 +27,12 @@ export async function fsList(c: FsContext) {
 export async function fsGet(c: FsContext) {
 	try {
 		const input = await body<{ path?: string }>(c);
+		const requestedPath = normalizePath(input.path ?? "/");
+		if (await isVirtualMount(c.env.EDGE_CONFIG, requestedPath)) {
+			const name = requestedPath.split("/").filter(Boolean).pop() ?? "/";
+			const virtual: FileObject = { name, size: 0, is_dir: true, modified: new Date(0).toISOString(), created: new Date(0).toISOString(), path: requestedPath };
+			return respond(c, virtual);
+		}
 		const resolved = await resolveStorage(c.env, input.path ?? "/");
 		return respond(c, await resolved.adapter.get(resolved.path));
 	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to get path", 404); }
@@ -86,6 +98,14 @@ export async function fsSearch(c: FsContext) {
 			const current = pending.shift()!;
 			if (visited.has(current)) continue;
 			visited.add(current);
+			if (!(await getStorageConfig(c.env.EDGE_CONFIG, current))) {
+				const virtual = await listVirtualMounts(c.env.EDGE_CONFIG, current);
+				for (const item of virtual) {
+					if (item.name.toLocaleLowerCase().includes(keywords) && (scope === 0 || scope === 1)) found.push({ parent: current, name: item.name, is_dir: true, size: 0, path: item.path });
+					pending.push(item.path);
+				}
+				continue;
+			}
 			const resolved = await resolveStorage(c.env, current);
 			const page = await resolved.adapter.list(resolved.path, { page: 1, per_page: 1000, refresh: false });
 			for (const item of page.content) {
