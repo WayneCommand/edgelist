@@ -55,7 +55,7 @@
 Worker 内部统一抽象为 list、stat、read、write、mkdir、remove、rename；路由挂载路径后将逻辑路径转换为驱动路径。
 
 - `openlist`：调用上游 OpenList 的 `/api/fs/*` API，并转发必要的文件流。
-- `object`：先实现 S3 兼容对象存储；Cloudflare R2 通过 S3 兼容配置接入。
+- `object`：使用标准 S3 REST API 和 Signature V4；Cloudflare R2 也可以通过其 S3 兼容 endpoint 接入，但不依赖 R2 原生绑定。
 - `webdav`：使用 Fetch 实现 PROPFIND、GET、PUT、MKCOL、DELETE、MOVE。
 
 ## 备份与还原
@@ -86,4 +86,3 @@ OpenList 前端备份文件是 JSON，顶层字段为：
 ## 非目标
 
 暂不实现 OpenList 的用户体系、分享、任务、离线下载、归档、WebAuthn、LDAP、SSO 以及未列出的驱动；备份 JSON 中这些字段可以保留和透传，但不作为 EdgeList 的运行功能。
-

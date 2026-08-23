@@ -1,7 +1,7 @@
 import type { EdgeListBindings } from "../env";
 import { listStorageConfigs } from "./config";
 import { OpenListAdapter } from "./openlist";
-import { R2Adapter } from "./r2";
+import { S3Adapter } from "./s3";
 import { WebdavAdapter } from "./webdav";
 import { normalizePath, type StorageAdapter, type StorageConfig } from "./types";
 
@@ -26,10 +26,10 @@ export async function resolveStorage(env: Env & EdgeListBindings, path: string):
 	return { config, path: relativeStoragePath(config.mount_path, normalized), adapter: createAdapter(env, config) };
 }
 
-export function createAdapter(env: Env & EdgeListBindings, config: StorageConfig): StorageAdapter {
+export function createAdapter(_env: Env & EdgeListBindings, config: StorageConfig): StorageAdapter {
 	switch (config.driver) {
 		case "openlist": return new OpenListAdapter(config);
-		case "object": return new R2Adapter(env.EDGE_OBJECTS, config);
+		case "object": return new S3Adapter(config);
 		case "webdav": return new WebdavAdapter(config);
 	}
 }

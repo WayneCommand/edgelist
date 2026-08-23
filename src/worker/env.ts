@@ -1,6 +1,5 @@
 export interface EdgeListBindings {
 	EDGE_CONFIG: KVNamespace;
-	EDGE_OBJECTS: R2Bucket;
 }
 
 export interface EdgeListConfig {

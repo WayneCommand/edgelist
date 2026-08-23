@@ -17,11 +17,5 @@
 			"binding": "EDGE_CONFIG",
 			"id": "REPLACE_WITH_EDGE_CONFIG_KV_NAMESPACE_ID"
 		}
-	],
-	"r2_buckets": [
-		{
-			"binding": "EDGE_OBJECTS",
-			"bucket_name": "edgelist-object-storage"
-		}
 	]
 }
