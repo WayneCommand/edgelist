@@ -11,5 +11,11 @@
 	"assets": {
 		"directory": "./dist/client",
 		"not_found_handling": "single-page-application"
-	}
+	},
+	"kv_namespaces": [
+		{
+			"binding": "EDGE_CONFIG",
+			"id": "REPLACE_WITH_EDGE_CONFIG_KV_NAMESPACE_ID"
+		}
+	]
 }

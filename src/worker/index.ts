@@ -1,6 +1,9 @@
 import { Hono } from "hono";
-const app = new Hono<{ Bindings: Env }>();
+import type { EdgeListBindings } from "./env";
+import { respond } from "./response";
 
-app.get("/api/", (c) => c.json({ name: "Cloudflare" }));
+const app = new Hono<{ Bindings: Env & EdgeListBindings }>();
+
+app.get("/api/", (c) => respond(c, { name: "EdgeList" }));
 
 export default app;
