@@ -144,7 +144,25 @@ export class S3Adapter implements StorageAdapter {
 	}
 
 	async remove(path: string) {
-		const response = await this.request("DELETE", objectPath(path));
+		const key = objectPath(path).replace(/\/$/, "");
+		const prefix = `${key}/`;
+		let continuationToken = "";
+		do {
+			const query: Record<string, string> = { "list-type": "2", prefix, "max-keys": "1000" };
+			if (continuationToken) query["continuation-token"] = continuationToken;
+			const listed = await this.request("GET", "", { query });
+			if (!listed.ok) throw new Error(`S3 list for delete failed with ${listed.status}`);
+			const xml = await listed.text();
+			for (const item of xmlItems(xml, "Contents")) {
+				const childKey = xmlValue(item, "Key");
+				if (childKey) {
+					const deleted = await this.request("DELETE", childKey);
+					if (!deleted.ok && deleted.status !== 404) throw new Error(`S3 delete failed with ${deleted.status}`);
+				}
+			}
+			continuationToken = xmlValue(xml, "NextContinuationToken");
+		} while (continuationToken);
+		const response = await this.request("DELETE", key);
 		if (!response.ok && response.status !== 404) throw new Error(`S3 delete failed with ${response.status}`);
 	}
 
