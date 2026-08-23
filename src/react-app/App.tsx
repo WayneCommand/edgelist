@@ -41,6 +41,8 @@ function FilesView({ notify }: { notify: (message: string, error?: boolean) => v
 		catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to load files"); }
 		finally { setLoading(false); }
 	}
+	// The initial request intentionally uses the root path, independent of later navigation.
+	// eslint-disable-next-line react-hooks/exhaustive-deps
 	useEffect(() => { void load("/"); }, []);
 	async function search(event?: FormEvent) {
 		event?.preventDefault(); if (!query.trim()) return load(path); setSearching(true); setLoading(true); setError("");
@@ -59,6 +61,8 @@ function FilesView({ notify }: { notify: (message: string, error?: boolean) => v
 function StoragesView({ notify }: { notify: (message: string, error?: boolean) => void }) {
 	const [items, setItems] = useState<Storage[]>([]); const [editing, setEditing] = useState<Storage | null>(null); const [loading, setLoading] = useState(true);
 	async function load() { try { const data = await api<{ content: Storage[] }>("/api/admin/storage/list"); setItems(data.content ?? []); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to load storages", true); } finally { setLoading(false); } }
+	// The storage list is loaded once when the management view opens.
+	// eslint-disable-next-line react-hooks/exhaustive-deps
 	useEffect(() => { void load(); }, []);
 	async function save(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!editing) return; try { await api("/api/admin/storage/create", { method: "POST", body: JSON.stringify(editing) }); notify("Storage saved"); setEditing(null); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to save storage", true); } }
 	async function remove(item: Storage) { if (!confirm(`Delete ${item.mount_path}?`)) return; try { await api("/api/admin/storage/delete", { method: "POST", body: JSON.stringify({ id: item.id }) }); notify("Storage deleted"); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to delete storage", true); } }

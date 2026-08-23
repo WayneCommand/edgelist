@@ -20,6 +20,8 @@ AK/SK 只在 Worker 侧从 KV 读取；前端不会获得 `secretKey`。
 详细的 OpenList API、存储和备份兼容范围见
 [`docs/OPENLIST-COMPATIBILITY.md`](docs/OPENLIST-COMPATIBILITY.md)。
 
+部署步骤见 [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)。
+
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cloudflare/templates/tree/main/vite-react-template)
 
 This template provides a minimal setup for building a React application with TypeScript and Vite, designed to run on Cloudflare Workers. It features hot module replacement, ESLint integration, and the flexibility of Workers deployments.

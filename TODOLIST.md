@@ -32,16 +32,16 @@
 - [x] 15. 实现 OpenList 风格的文件浏览、搜索、操作和存储管理界面。
 - [x] 16. 实现前端登录态、鉴权失败处理和备份/还原界面。
 - [x] 17. 增加 API/适配器/备份还原测试与 OpenList 兼容性样例。
-- [ ] 18. 完成类型检查、lint、构建、Wrangler dry-run 和部署配置文档。
+- [x] 18. 完成类型检查、lint、构建、Wrangler dry-run 和部署配置文档。
 
 ## 验收清单
 
-- [ ] 未登录请求不能访问受保护 API。
-- [ ] AK/SK 只在 Worker 侧从 KV 读取并校验。
-- [ ] 三种存储均可完成基本浏览和文件操作。
-- [ ] OpenList 客户端可调用已实现的兼容 API。
-- [ ] OpenList 备份可以导入，导出的备份可以被 OpenList 还原。
-- [ ] `pnpm check` 通过，且不需要 push 即可完成本地验证。
+- [x] 未登录请求不能访问受保护 API。
+- [x] AK/SK 只在 Worker 侧从 KV 读取并校验。
+- [x] 三种存储均可完成基本浏览和文件操作。
+- [x] OpenList 客户端可调用已实现的兼容 API。
+- [x] OpenList 备份可以导入，导出的备份可以被 OpenList 还原。
+- [x] `pnpm check` 通过，且不需要 push 即可完成本地验证。
 
 ## Commit 约定
 
