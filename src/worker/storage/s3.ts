@@ -59,9 +59,9 @@ export class S3Adapter implements StorageAdapter {
 
 	constructor(config: StorageConfig) {
 		const addition = JSON.parse(config.addition || "{}") as S3Addition;
-		if (!addition.endpoint || !addition.region || !addition.bucket || !addition.access_key_id || !addition.secret_access_key) throw new Error("S3 storage requires endpoint, region, bucket, access_key_id and secret_access_key");
+		if (!addition.endpoint || !addition.bucket || !addition.access_key_id || !addition.secret_access_key) throw new Error("S3 storage requires endpoint, bucket, access_key_id and secret_access_key");
 		this.endpoint = new URL(addition.endpoint);
-		this.region = addition.region;
+		this.region = addition.region || "us-east-1";
 		this.bucket = addition.bucket;
 		this.accessKeyId = addition.access_key_id;
 		this.secretAccessKey = addition.secret_access_key;
