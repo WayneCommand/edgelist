@@ -21,7 +21,7 @@
 	"r2_buckets": [
 		{
 			"binding": "EDGE_OBJECTS",
-			"bucket_name": "REPLACE_WITH_EDGE_OBJECTS_BUCKET"
+			"bucket_name": "edgelist-object-storage"
 		}
 	]
 }
