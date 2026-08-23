@@ -4,7 +4,7 @@ import { normalizePath } from "./types";
 
 export async function listStorageConfigs(kv: KVNamespace): Promise<StorageConfig[]> {
 	const value = await readConfig(kv, CONFIG_KEYS.storages);
-	return Array.isArray(value) ? value.filter(isStorageConfig) : [];
+	return Array.isArray(value) ? value.filter(isStorageConfig).map(normalizeStorageConfig) : [];
 }
 
 export async function getStorageConfig(kv: KVNamespace, mountPath: string): Promise<StorageConfig | null> {
@@ -49,7 +49,26 @@ export function isStorageConfig(value: unknown): value is StorageConfig {
 }
 
 export function isStorageDriver(value: unknown): value is StorageDriver {
-	return value === "openlist" || value === "object" || value === "webdav";
+	return value === "openlist" || value === "OpenList" || value === "object" || value === "S3" || value === "Doge" || value === "webdav" || value === "WebDav" || value === "WebDAV";
+}
+
+export function normalizeStorageConfig(value: StorageConfig): StorageConfig {
+	const rawDriver = String(value.driver);
+	const driver: StorageDriver = rawDriver === "S3" || rawDriver === "Doge" || rawDriver === "object"
+		? "object"
+		: rawDriver === "WebDav" || rawDriver === "WebDAV" || rawDriver === "webdav"
+			? "webdav"
+			: "openlist";
+	let addition = value.addition || "{}";
+	try {
+		const config = JSON.parse(addition) as Record<string, unknown>;
+		if (driver === "openlist" && !config.base_url && typeof config.url === "string") config.base_url = config.url;
+		if (driver === "webdav" && !config.url && typeof config.address === "string") config.url = config.address;
+		addition = JSON.stringify(config);
+	} catch {
+		// The adapter will return a useful configuration error for malformed JSON.
+	}
+	return { ...value, driver, addition };
 }
 
 export function storageBindings(env: Env & EdgeListBindings) {

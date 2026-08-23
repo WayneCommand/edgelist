@@ -2,7 +2,7 @@ import CryptoJS from "crypto-js";
 import type { Context } from "hono";
 import { CONFIG_KEYS, readConfig, type EdgeListBindings } from "./env";
 import { failure } from "./response";
-import { listStorageConfigs } from "./storage";
+import { listStorageConfigs, normalizeStorageConfig } from "./storage";
 import type { MetaConfig } from "./meta";
 import type { StorageConfig } from "./storage";
 
@@ -73,7 +73,7 @@ export async function backupRestore(c: BackupContext) {
 		const password = input.password ?? "";
 		const encrypted = Boolean(data.encrypted);
 		if (encrypted && decrypt(data.encrypted, password, true) !== "encrypted") return failure("Invalid backup password", 401);
-		const storages = data.storages.map((item) => decryptRecord(item, password, encrypted) as StorageConfig);
+		const storages = data.storages.map((item) => normalizeStorageConfig(decryptRecord(item, password, encrypted) as StorageConfig));
 		const metas = data.metas.map((item) => decryptRecord(item, password, encrypted) as MetaConfig);
 		const currentStorages = await listStorageConfigs(c.env.EDGE_CONFIG);
 		const currentMetas = (await readConfig(c.env.EDGE_CONFIG, CONFIG_KEYS.metas) ?? []) as MetaConfig[];
