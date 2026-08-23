@@ -17,16 +17,39 @@ export class OpenListAdapter implements StorageAdapter {
 	readonly driver = "openlist" as const;
 	private readonly baseUrl: string;
 	private readonly headers: Headers;
+	private readonly username?: string;
+	private readonly password?: string;
+	private authPromise?: Promise<void>;
 
 	constructor(config: StorageConfig) {
 		const addition = JSON.parse(config.addition || "{}") as OpenListAddition;
 		if (!addition.base_url) throw new Error("OpenList storage requires addition.base_url");
 		this.baseUrl = addition.base_url.replace(/\/$/, "");
 		this.headers = new Headers({ "content-type": "application/json" });
+		this.username = addition.username;
+		this.password = addition.password;
 		if (addition.token) this.headers.set("Authorization", addition.token);
 	}
 
+	private async authenticate() {
+		if (this.headers.has("Authorization") || !this.username || !this.password) return;
+		if (!this.authPromise) {
+			this.authPromise = (async () => {
+				const response = await fetch(`${this.baseUrl}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: this.username, password: this.password }) });
+				const result = await response.json() as OpenListEnvelope<{ token: string }>;
+				if (!response.ok || result.code !== 200 || !result.data?.token) throw new Error(result.message || "OpenList login failed");
+				this.headers.set("Authorization", result.data.token);
+			})();
+		}
+		await this.authPromise;
+	}
+
+	private pathUrl(path: string) {
+		return `${this.baseUrl}${path.split("/").map((part) => part ? encodeURIComponent(part) : "").join("/")}`;
+	}
+
 	private async json<T>(path: string, init: RequestInit): Promise<T> {
+		await this.authenticate();
 		const response = await fetch(`${this.baseUrl}/api${path}`, {
 			...init,
 			headers: new Headers({ ...Object.fromEntries(this.headers), ...(init.headers ?? {}) }),
@@ -48,13 +71,15 @@ export class OpenListAdapter implements StorageAdapter {
 	}
 
 	async read(path: string, range?: string) {
+		await this.authenticate();
 		const headers = new Headers(this.headers);
 		headers.delete("content-type");
 		if (range) headers.set("Range", range);
-		return fetch(`${this.baseUrl}/d${path}`, { headers });
+		return fetch(this.pathUrl(`/d${path}`), { headers });
 	}
 
 	async write(path: string, request: Request) {
+		await this.authenticate();
 		const headers = new Headers(request.headers);
 		headers.set("File-Path", encodeURIComponent(path));
 		if (!headers.has("Authorization") && this.headers.has("Authorization")) headers.set("Authorization", this.headers.get("Authorization")!);

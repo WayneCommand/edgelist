@@ -20,6 +20,10 @@ function encode(value: string): string {
 	return encodeURIComponent(value).replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
 }
 
+function canonicalPath(pathname: string): string {
+	return pathname.split("/").map((segment) => encode(decodeURIComponent(segment))).join("/") || "/";
+}
+
 function hex(buffer: ArrayBuffer): string {
 	return [...new Uint8Array(buffer)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -92,7 +96,7 @@ export class S3Adapter implements StorageAdapter {
 		const canonicalHeaders = [...headers.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([name, value]) => `${name.toLowerCase()}:${value.trim().replace(/\s+/g, " ")}\n`).join("");
 		const signedHeaders = [...headers.keys()].map((name) => name.toLowerCase()).sort().join(";");
 		const canonicalQuery = [...url.searchParams.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([name, value]) => `${encode(name)}=${encode(value)}`).join("&");
-		const canonicalRequest = [method, url.pathname.split("/").map(encode).join("/").replace(/%2F/g, "/"), canonicalQuery, canonicalHeaders, signedHeaders, payloadHash].join("\n");
+		const canonicalRequest = [method, canonicalPath(url.pathname), canonicalQuery, canonicalHeaders, signedHeaders, payloadHash].join("\n");
 		const scope = `${date}/${this.region}/s3/aws4_request`;
 		const stringToSign = ["AWS4-HMAC-SHA256", amzDate, scope, await sha256(canonicalRequest)].join("\n");
 		const kDate = await hmac(encoder.encode(`AWS4${this.secretAccessKey}`), date);
@@ -148,7 +152,7 @@ export class S3Adapter implements StorageAdapter {
 		const source = objectPath(path);
 		const target = `${source.slice(0, source.lastIndexOf("/") + 1)}${name}`;
 		if (!overwrite && (await this.request("HEAD", target)).ok) throw new Error("Target already exists");
-		const copied = await this.request("PUT", target, { headers: { "x-amz-copy-source": `/${this.bucket}/${source}` } });
+		const copied = await this.request("PUT", target, { headers: { "x-amz-copy-source": `/${encode(this.bucket)}/${source.split("/").map(encode).join("/")}` } });
 		if (!copied.ok) throw new Error(`S3 copy failed with ${copied.status}`);
 		await this.remove(source);
 	}
