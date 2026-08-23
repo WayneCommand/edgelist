@@ -41,9 +41,9 @@ export async function storageSave(c: AdminContext) {
 export async function storageDelete(c: AdminContext) {
 	try {
 		const input = await c.req.json<{ id?: number; mount_path?: string }>();
-		if (typeof input.id !== "number" && !input.mount_path) return failure("id or mount_path is required", 400);
+		if (!(typeof input.id === "number" && input.id > 0) && !input.mount_path) return failure("id or mount_path is required", 400);
 		const storages = await readArray<StorageConfig>(c.env.EDGE_CONFIG, CONFIG_KEYS.storages);
-		const filtered = typeof input.id === "number"
+		const filtered = typeof input.id === "number" && input.id > 0
 			? removeByIdentity(storages, "id", input.id)
 			: removeByIdentity(storages, "mount_path", input.mount_path);
 		await saveArray(c.env.EDGE_CONFIG, CONFIG_KEYS.storages, filtered);
@@ -72,9 +72,9 @@ export async function metaSave(c: AdminContext) {
 export async function metaDelete(c: AdminContext) {
 	try {
 		const input = await c.req.json<{ id?: number; path?: string }>();
-		if (typeof input.id !== "number" && !input.path) return failure("id or path is required", 400);
+		if (!(typeof input.id === "number" && input.id > 0) && !input.path) return failure("id or path is required", 400);
 		const metas = await readArray<MetaConfig>(c.env.EDGE_CONFIG, CONFIG_KEYS.metas);
-		const filtered = typeof input.id === "number"
+		const filtered = typeof input.id === "number" && input.id > 0
 			? removeByIdentity(metas, "id", input.id)
 			: removeByIdentity(metas, "path", input.path);
 		await saveArray(c.env.EDGE_CONFIG, CONFIG_KEYS.metas, filtered);
