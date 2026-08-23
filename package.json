@@ -13,6 +13,7 @@
 		"publish": true
 	},
 	"dependencies": {
+		"crypto-js": "^4.2.0",
 		"hono": "4.11.1",
 		"react": "19.2.1",
 		"react-dom": "19.2.1"
@@ -21,6 +22,7 @@
 		"@cloudflare/vite-plugin": "1.52.1",
 		"@eslint/js": "9.39.1",
 		"@tailwindcss/vite": "^4.3.3",
+		"@types/crypto-js": "^4.2.2",
 		"@types/node": "24.10.1",
 		"@types/react": "19.2.7",
 		"@types/react-dom": "19.2.3",

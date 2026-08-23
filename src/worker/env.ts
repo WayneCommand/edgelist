@@ -13,6 +13,7 @@ export const CONFIG_KEYS = {
 	auth: "config:auth",
 	storages: "config:storages",
 	metas: "config:metas",
+	settings: "config:settings",
 } as const;
 
 export async function readConfig(

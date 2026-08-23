@@ -4,6 +4,7 @@ import { respond } from "./response";
 import { currentUser, login, logout, requireAuth } from "./auth";
 import { fileDownload, fsGet, fsList, fsMkdir, fsPut, fsRemove, fsRename } from "./fs";
 import { metaDelete, metaList, metaSave, storageDelete, storageList, storageSave } from "./admin";
+import { backupExport } from "./backup";
 
 const app = new Hono<{ Bindings: Env & EdgeListBindings }>();
 
@@ -27,5 +28,6 @@ app.get("/api/admin/meta/list", requireAuth, metaList);
 app.post("/api/admin/meta/create", requireAuth, metaSave);
 app.post("/api/admin/meta/update", requireAuth, metaSave);
 app.post("/api/admin/meta/delete", requireAuth, metaDelete);
+app.post("/api/admin/backup/export", requireAuth, backupExport);
 
 export default app;
