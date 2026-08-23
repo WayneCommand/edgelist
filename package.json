@@ -35,6 +35,7 @@
 		"typescript": "5.9.3",
 		"typescript-eslint": "8.48.0",
 		"vite": "^7.0.0",
+		"vitest": "^4.1.11",
 		"wrangler": "4.123.0"
 	},
 	"private": true,
@@ -45,6 +46,7 @@
 		"deploy": "wrangler deploy",
 		"dev": "vite",
 		"lint": "eslint .",
+		"test": "vitest run --config vitest.config.ts",
 		"preview": "pnpm build && vite preview"
 	},
 	"type": "module"
