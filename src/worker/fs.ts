@@ -72,3 +72,32 @@ export async function fileDownload(c: FsContext) {
 		return await resolved.adapter.read(resolved.path, c.req.header("Range"));
 	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to download file", 404); }
 }
+
+export async function fsSearch(c: FsContext) {
+	try {
+		const input = await body<{ parent?: string; keywords?: string; scope?: number; page?: number; per_page?: number }>(c);
+		const parent = input.parent ?? "/";
+		const keywords = (input.keywords ?? "").toLocaleLowerCase();
+		const scope = input.scope ?? 0;
+		const found: Array<{ parent: string; name: string; is_dir: boolean; size: number; path: string }> = [];
+		const pending = [parent];
+		const visited = new Set<string>();
+		while (pending.length && visited.size < 1000) {
+			const current = pending.shift()!;
+			if (visited.has(current)) continue;
+			visited.add(current);
+			const resolved = await resolveStorage(c.env, current);
+			const page = await resolved.adapter.list(resolved.path, { page: 1, per_page: 1000, refresh: false });
+			for (const item of page.content) {
+				const itemPath = normalizePath(`${current}/${item.name}`);
+				const matchesName = item.name.toLocaleLowerCase().includes(keywords);
+				const matchesScope = scope === 0 || (scope === 1 && item.is_dir) || (scope === 2 && !item.is_dir);
+				if (matchesName && matchesScope) found.push({ parent: current, name: item.name, is_dir: item.is_dir, size: item.size, path: itemPath });
+				if (item.is_dir) pending.push(itemPath);
+			}
+		}
+		const pageSize = Math.max(1, input.per_page ?? 100);
+		const start = Math.max(0, ((input.page ?? 1) - 1) * pageSize);
+		return respond(c, { content: found.slice(start, start + pageSize), total: found.length });
+	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to search files", 400); }
+}
