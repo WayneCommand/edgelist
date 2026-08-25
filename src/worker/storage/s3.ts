@@ -17,6 +17,11 @@ function objectPath(path: string): string {
 	return path.replace(/^\/+/, "");
 }
 
+function endpointUrl(endpoint: string): URL {
+	const value = endpoint.trim();
+	return new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(value) ? value : `https://${value}`);
+}
+
 function encode(value: string): string {
 	return encodeURIComponent(value).replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
 }
@@ -66,7 +71,7 @@ export class S3Adapter implements StorageAdapter {
 	constructor(config: StorageConfig) {
 		const addition = JSON.parse(config.addition || "{}") as S3Addition;
 		if (!addition.endpoint || !addition.bucket || !addition.access_key_id || !addition.secret_access_key) throw new Error("S3 storage requires endpoint, bucket, access_key_id and secret_access_key");
-		this.endpoint = new URL(addition.endpoint);
+		this.endpoint = endpointUrl(addition.endpoint);
 		this.region = addition.region || "us-east-1";
 		this.bucket = addition.bucket;
 		this.accessKeyId = addition.access_key_id;

@@ -6,9 +6,9 @@ function config(addition: Record<string, unknown>): StorageConfig {
 	return { id: 1, mount_path: "/", order: 0, driver: "object", status: "work", addition: JSON.stringify(addition), remark: "", disabled: false, disable_index: false, enable_sign: false };
 }
 
-describe("S3 adapter compatibility", () => {
+	describe("S3 adapter compatibility", () => {
 	it("follows OpenList defaults for custom endpoints", () => {
-		const adapter = new S3Adapter(config({ endpoint: "https://s3.example.test", bucket: "bucket", access_key_id: "key", secret_access_key: "secret" }));
+		const adapter = new S3Adapter(config({ endpoint: "s3.example.test", bucket: "bucket", access_key_id: "key", secret_access_key: "secret" }));
 		expect(adapter).toBeDefined();
 	});
 
