@@ -19,9 +19,10 @@ describe("storage configuration", () => {
 	it("accepts only supported drivers", () => {
 		expect(isStorageConfig({ mount_path: "/files", driver: "object" })).toBe(true);
 		expect(isStorageConfig({ mount_path: "/files", driver: "S3" })).toBe(true);
+		expect(isStorageConfig({ mount_path: "/files", driver: "s3" })).toBe(true);
 		expect(normalizeStorageConfig({ mount_path: "/files", driver: "WebDav", addition: '{"address":"https://dav.example"}' } as never)).toMatchObject({ driver: "webdav", addition: '{"address":"https://dav.example","url":"https://dav.example"}' });
 		expect(normalizeStorageConfig({ mount_path: "/files", driver: "OpenList", addition: '{"url":"https://list.example"}' } as never)).toMatchObject({ driver: "openlist", addition: '{"url":"https://list.example","base_url":"https://list.example"}' });
-		expect(isStorageConfig({ mount_path: "/files", driver: "s3" })).toBe(false);
+		expect(isStorageConfig({ mount_path: "/files", driver: "minio" })).toBe(false);
 		expect(isStorageConfig({ driver: "webdav" })).toBe(false);
 	});
 });

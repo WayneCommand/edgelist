@@ -8,6 +8,7 @@ interface S3Addition {
 	secret_access_key?: string;
 	session_token?: string;
 	force_path_style?: boolean;
+	list_object_version?: "v1" | "v2";
 }
 
 const encoder = new TextEncoder();
@@ -60,6 +61,7 @@ export class S3Adapter implements StorageAdapter {
 	private readonly secretAccessKey: string;
 	private readonly sessionToken?: string;
 	private readonly forcePathStyle: boolean;
+	private readonly listObjectVersion: "v1" | "v2";
 
 	constructor(config: StorageConfig) {
 		const addition = JSON.parse(config.addition || "{}") as S3Addition;
@@ -70,7 +72,8 @@ export class S3Adapter implements StorageAdapter {
 		this.accessKeyId = addition.access_key_id;
 		this.secretAccessKey = addition.secret_access_key;
 		this.sessionToken = addition.session_token;
-		this.forcePathStyle = addition.force_path_style ?? true;
+		this.forcePathStyle = addition.force_path_style ?? false;
+		this.listObjectVersion = addition.list_object_version ?? "v1";
 	}
 
 	private url(key = "", query?: Record<string, string>): URL {
@@ -110,7 +113,9 @@ export class S3Adapter implements StorageAdapter {
 
 	async list(path: string, options: ListOptions) {
 		const prefix = objectPath(path).replace(/\/$/, "");
-		const response = await this.request("GET", "", { query: { "list-type": "2", delimiter: "/", prefix: prefix ? `${prefix}/` : "", "max-keys": String(options.per_page || 1000) } });
+		const query: Record<string, string> = { delimiter: "/", prefix: prefix ? `${prefix}/` : "", "max-keys": String(options.per_page || 1000) };
+		if (this.listObjectVersion === "v2") query["list-type"] = "2";
+		const response = await this.request("GET", "", { query });
 		if (!response.ok) throw new Error(`S3 list failed with ${response.status}`);
 		const xml = await response.text();
 		const directories = xmlItems(xml, "CommonPrefixes").map((item) => fileObject(xmlValue(item, "Prefix").replace(/\/$/, ""), "0", "", undefined, true));

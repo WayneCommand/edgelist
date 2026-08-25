@@ -49,14 +49,15 @@ export function isStorageConfig(value: unknown): value is StorageConfig {
 }
 
 export function isStorageDriver(value: unknown): value is StorageDriver {
-	return value === "openlist" || value === "OpenList" || value === "object" || value === "S3" || value === "Doge" || value === "webdav" || value === "WebDav" || value === "WebDAV";
+	return value === "openlist" || value === "OpenList" || value === "object" || value === "s3" || value === "S3" || value === "Doge" || value === "webdav" || value === "WebDav" || value === "WebDAV";
 }
 
 export function normalizeStorageConfig(value: StorageConfig): StorageConfig {
 	const rawDriver = String(value.driver);
-	const driver: StorageDriver = rawDriver === "S3" || rawDriver === "Doge" || rawDriver === "object"
+	const normalizedDriver = rawDriver.toLowerCase();
+	const driver: StorageDriver = normalizedDriver === "s3" || normalizedDriver === "doge" || normalizedDriver === "object"
 		? "object"
-		: rawDriver === "WebDav" || rawDriver === "WebDAV" || rawDriver === "webdav"
+		: normalizedDriver === "webdav"
 			? "webdav"
 			: "openlist";
 	let addition = value.addition || "{}";
