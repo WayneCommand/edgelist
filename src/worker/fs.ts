@@ -7,6 +7,10 @@ import { failure, respond } from "./response";
 
 type FsContext = Context<{ Bindings: Env & EdgeListBindings }>;
 
+export function publicFilePath(parentPath: string, name: string) {
+	return normalizePath(`${parentPath}/${name}`);
+}
+
 async function body<T>(c: FsContext): Promise<T> {
 	return c.req.json<T>();
 }
@@ -20,7 +24,8 @@ export async function fsList(c: FsContext) {
 			if (mounts.length) return respond(c, { content: mounts, total: mounts.length });
 		}
 		const resolved = await resolveStorage(c.env, input.path ?? "/");
-		return respond(c, await resolved.adapter.list(resolved.path, { page: input.page ?? 1, per_page: input.per_page ?? 0, refresh: input.refresh ?? false }));
+		const result = await resolved.adapter.list(resolved.path, { page: input.page ?? 1, per_page: input.per_page ?? 0, refresh: input.refresh ?? false });
+		return respond(c, { ...result, content: result.content.map((item) => ({ ...item, path: publicFilePath(requestedPath, item.name) })) });
 	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to list path", 400); }
 }
 
