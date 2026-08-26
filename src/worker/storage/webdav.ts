@@ -1,7 +1,7 @@
 import type { FileObject, ListOptions, StorageAdapter, StorageConfig } from "./types";
 import { normalizePath } from "./types";
 
-interface WebdavAddition { url?: string; address?: string; username?: string; password?: string }
+interface WebdavAddition { url?: string; address?: string; username?: string; password?: string; root_folder_path?: string; skip_tls_verify?: boolean }
 
 function xmlValue(xml: string, tag: string): string { return xml.match(new RegExp(`<[^>]*${tag}[^>]*>([^<]*)<`, "i"))?.[1] ?? ""; }
 
@@ -22,7 +22,8 @@ export class WebdavAdapter implements StorageAdapter {
 		const endpoint = addition.url ?? addition.address;
 		if (!endpoint) throw new Error("WebDAV storage requires addition.url or addition.address");
 		this.endpoint = new URL(endpoint);
-		this.rootPath = this.endpoint.pathname.replace(/\/$/, "");
+		const configuredRoot = normalizePath(addition.root_folder_path ?? "/");
+		this.rootPath = `${this.endpoint.pathname.replace(/\/$/, "")}${configuredRoot === "/" ? "" : configuredRoot}`;
 		this.headers = new Headers();
 		if (addition.username || addition.password) this.headers.set("Authorization", `Basic ${btoa(`${addition.username ?? ""}:${addition.password ?? ""}`)}`);
 	}
