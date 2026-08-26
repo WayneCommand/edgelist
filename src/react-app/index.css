@@ -96,3 +96,29 @@ button,
 input {
 	font: inherit;
 }
+
+input:not([type="file"]),
+select,
+textarea {
+	border-color: var(--border);
+	border-radius: var(--field-radius);
+	background: var(--field-background);
+	color: var(--field-foreground);
+}
+
+input:not([type="file"])::placeholder,
+textarea::placeholder {
+	color: var(--field-placeholder);
+}
+
+input:not([type="file"]):focus,
+select:focus,
+textarea:focus {
+	border-color: var(--focus);
+	outline: 2px solid color-mix(in oklch, var(--focus) 20%, transparent);
+	outline-offset: 1px;
+}
+
+input[type="checkbox"] {
+	accent-color: var(--accent);
+}
