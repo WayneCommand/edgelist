@@ -3,7 +3,7 @@ import type { EdgeListBindings } from "./env";
 import { CONFIG_KEYS, readConfig } from "./env";
 import { failure, respond } from "./response";
 import type { MetaConfig } from "./meta";
-import type { StorageConfig } from "./storage";
+import { normalizePath, type StorageConfig } from "./storage";
 
 type AdminContext = Context<{ Bindings: Env & EdgeListBindings }>;
 
@@ -30,8 +30,11 @@ export async function storageSave(c: AdminContext) {
 		const input = await c.req.json<StorageConfig>();
 		if (!input.mount_path || !input.driver) return failure("mount_path and driver are required", 400);
 		const storages = await readArray<StorageConfig>(c.env.EDGE_CONFIG, CONFIG_KEYS.storages);
-		const index = storages.findIndex((item) => item.id === input.id || item.mount_path === input.mount_path);
-		const item = { ...input, id: input.id || Math.max(0, ...storages.map((storage) => storage.id || 0)) + 1 };
+		const mountPath = normalizePath(input.mount_path);
+		const duplicate = storages.some((item) => item.id !== input.id && normalizePath(item.mount_path) === mountPath);
+		if (duplicate) return failure("mount_path must be unique", 409);
+		const index = storages.findIndex((item) => item.id === input.id || normalizePath(item.mount_path) === mountPath);
+		const item = { ...input, mount_path: mountPath, id: input.id || Math.max(0, ...storages.map((storage) => storage.id || 0)) + 1 };
 		if (index === -1) storages.push(item); else storages[index] = item;
 		await saveArray(c.env.EDGE_CONFIG, CONFIG_KEYS.storages, storages);
 		return respond(c, null);
