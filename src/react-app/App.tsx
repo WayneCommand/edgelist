@@ -1,5 +1,5 @@
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
-import { Button as HeroButton, Card as HeroCard } from "@heroui/react";
+import { Button as HeroButton, Card as HeroCard, Modal as HeroModal } from "@heroui/react";
 import { normalizeRoutePath, routeFor } from "./routes";
 
 type LoginResponse = { code: number; message: string; data?: { token: string } };
@@ -23,7 +23,7 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 function formatSize(size: number) { if (size < 1024) return `${size} B`; if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`; return `${(size / 1024 / 1024).toFixed(1)} MB`; }
 
 function Modal({ title, children, onClose, wide = false }: { title: string; children: ReactNode; onClose: () => void; wide?: boolean }) {
-	return <div className="fixed inset-0 z-20 flex items-center justify-center bg-slate-900/30 p-4"><div className={`w-full rounded-xl bg-white p-6 shadow-2xl ${wide ? "max-w-4xl" : "max-w-md"}`}><div className="mb-5 flex items-center justify-between"><h2 className="text-lg font-semibold">{title}</h2><button className="text-xl text-slate-400 hover:text-slate-700" onClick={onClose}>×</button></div>{children}</div></div>;
+	return <HeroModal><HeroModal.Backdrop isOpen onOpenChange={(open) => { if (!open) onClose(); }}><HeroModal.Container size={wide ? "lg" : "sm"}><HeroModal.Dialog><HeroModal.CloseTrigger /><HeroModal.Header><HeroModal.Heading>{title}</HeroModal.Heading></HeroModal.Header><HeroModal.Body>{children}</HeroModal.Body></HeroModal.Dialog></HeroModal.Container></HeroModal.Backdrop></HeroModal>;
 }
 
 function FilesView({ notify, initialPath, navigate }: { notify: (message: string, error?: boolean) => void; initialPath: string; navigate: (path: string) => void }) {
