@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { StorageConfig } from "./types";
-import { listVirtualMounts, mergeFileObjects, paginateFileObjects } from "./config";
+import { hasValidStorageAddition, listVirtualMounts, mergeFileObjects, paginateFileObjects } from "./config";
 
 function storage(mountPath: string, order = 0, disabled = false): StorageConfig {
 	return {
@@ -55,5 +55,16 @@ describe("virtual mounts", () => {
 		const items = [item("a"), item("b"), item("c")];
 		expect(paginateFileObjects(items, 2, 2)).toEqual({ content: [items[2]], total: 3 });
 		expect(paginateFileObjects(items, 0, 0).content).toHaveLength(3);
+	});
+});
+
+describe("storage addition validation", () => {
+	it("requires driver-specific fields", () => {
+		expect(hasValidStorageAddition({ driver: "openlist", addition: JSON.stringify({ base_url: "https://list.example" }) })).toBe(true);
+		expect(hasValidStorageAddition({ driver: "openlist", addition: "{}" })).toBe(false);
+		expect(hasValidStorageAddition({ driver: "object", addition: JSON.stringify({ endpoint: "https://s3.example", bucket: "bucket", access_key_id: "key", secret_access_key: "secret" }) })).toBe(true);
+		expect(hasValidStorageAddition({ driver: "object", addition: JSON.stringify({ endpoint: "https://s3.example" }) })).toBe(false);
+		expect(hasValidStorageAddition({ driver: "webdav", addition: JSON.stringify({ address: "https://dav.example" }) })).toBe(true);
+		expect(hasValidStorageAddition({ driver: "webdav", addition: "not-json" })).toBe(false);
 	});
 });

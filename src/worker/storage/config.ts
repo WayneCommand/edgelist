@@ -85,6 +85,22 @@ export function normalizeStorageConfig(value: StorageConfig): StorageConfig {
 	return { ...value, driver, addition };
 }
 
+export function hasValidStorageAddition(config: Pick<StorageConfig, "driver" | "addition">): boolean {
+	let addition: Record<string, unknown>;
+	try {
+		const value = JSON.parse(config.addition || "{}");
+		if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+		addition = value as Record<string, unknown>;
+	} catch {
+		return false;
+	}
+	const required = (names: string[]) => names.every((name) => typeof addition[name] === "string" && addition[name].length > 0);
+	if (config.driver === "openlist") return required(["base_url"]) || required(["url"]);
+	if (config.driver === "object") return required(["endpoint", "bucket", "access_key_id", "secret_access_key"]);
+	if (config.driver === "webdav") return required(["url"]) || required(["address"]);
+	return false;
+}
+
 export function storageBindings(env: Env & EdgeListBindings) {
 	return env.EDGE_CONFIG;
 }

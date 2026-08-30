@@ -50,6 +50,8 @@
 
 存储管理 API 保留 `/api/admin/storage/list|get|create|update|delete|enable|disable`，仅允许 `openlist`、对象存储和 `webdav` 三类适配器。
 
+创建和更新存储时会校验 `addition` JSON 以及当前驱动的必需字段；`enable`、`disable` 和 `load_all` 会同步刷新状态字段。Worker 不保存长生命周期驱动实例，`load_all` 主要保持客户端兼容。
+
 文件对象至少包含 OpenList 前端依赖的 `name`、`size`、`is_dir`、`modified`、`created`、`path`、`hashinfo` 等元信息字段；具体驱动差异通过适配器隐藏。
 
 ## 存储适配器

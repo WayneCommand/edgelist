@@ -3,7 +3,7 @@ import type { EdgeListBindings } from "./env";
 import { CONFIG_KEYS, readConfig } from "./env";
 import { failure, respond } from "./response";
 import type { MetaConfig } from "./meta";
-import { normalizePath, type StorageConfig } from "./storage";
+import { hasValidStorageAddition, isStorageDriver, listStorageConfigs, normalizePath, normalizeStorageConfig, type StorageConfig } from "./storage";
 
 type AdminContext = Context<{ Bindings: Env & EdgeListBindings }>;
 
@@ -21,24 +21,69 @@ export function removeByIdentity<T extends Record<string, unknown>>(items: T[], 
 }
 
 export async function storageList(c: AdminContext) {
-	const storages = await readArray<StorageConfig>(c.env.EDGE_CONFIG, CONFIG_KEYS.storages);
+	const storages = await listStorageConfigs(c.env.EDGE_CONFIG);
 	return respond(c, { content: storages, total: storages.length });
+}
+
+export async function storageGet(c: AdminContext) {
+	const id = Number(c.req.query("id"));
+	if (!Number.isInteger(id) || id <= 0) return failure("A positive storage id is required", 400);
+	const storage = (await listStorageConfigs(c.env.EDGE_CONFIG)).find((item) => item.id === id);
+	if (!storage) return failure("Storage not found", 404);
+	return respond(c, storage);
 }
 
 export async function storageSave(c: AdminContext) {
 	try {
-		const input = await c.req.json<StorageConfig>();
+	const input = await c.req.json<StorageConfig>();
 		if (!input.mount_path || !input.driver) return failure("mount_path and driver are required", 400);
+		if (!isStorageDriver(input.driver)) return failure("Unsupported storage driver", 400);
 		const storages = await readArray<StorageConfig>(c.env.EDGE_CONFIG, CONFIG_KEYS.storages);
 		const mountPath = normalizePath(input.mount_path);
 		const duplicate = storages.some((item) => item.id !== input.id && normalizePath(item.mount_path) === mountPath);
 		if (duplicate) return failure("mount_path must be unique", 409);
 		const index = storages.findIndex((item) => item.id === input.id || normalizePath(item.mount_path) === mountPath);
-		const item = { ...input, mount_path: mountPath, id: input.id || Math.max(0, ...storages.map((storage) => storage.id || 0)) + 1 };
+		const normalized = normalizeStorageConfig({ ...input, mount_path: mountPath });
+		if (!hasValidStorageAddition(normalized)) return failure("The storage addition is missing required fields", 400);
+		const item = {
+			...normalized,
+			id: input.id || Math.max(0, ...storages.map((storage) => storage.id || 0)) + 1,
+			modified: new Date().toISOString(),
+			status: normalized.disabled ? "disabled" : normalized.status || "work",
+		};
 		if (index === -1) storages.push(item); else storages[index] = item;
 		await saveArray(c.env.EDGE_CONFIG, CONFIG_KEYS.storages, storages);
 		return respond(c, null);
 	} catch (error) { return failure(error instanceof Error ? error.message : "Invalid storage", 400); }
+}
+
+async function changeStorageDisabled(c: AdminContext, disabled: boolean) {
+	const id = Number(c.req.query("id"));
+	if (!Number.isInteger(id) || id <= 0) return failure("A positive storage id is required", 400);
+	const storages = await readArray<StorageConfig>(c.env.EDGE_CONFIG, CONFIG_KEYS.storages);
+	const storage = storages.find((item) => item.id === id);
+	if (!storage) return failure("Storage not found", 404);
+	const updated = {
+		...storage,
+		disabled,
+		modified: new Date().toISOString(),
+		status: disabled ? "disabled" : "work",
+	};
+	await saveArray(c.env.EDGE_CONFIG, CONFIG_KEYS.storages, storages.map((item) => item.id === id ? updated : item));
+	return respond(c, null);
+}
+
+export async function storageEnable(c: AdminContext) {
+	return changeStorageDisabled(c, false);
+}
+
+export async function storageDisable(c: AdminContext) {
+	return changeStorageDisabled(c, true);
+}
+
+export async function storageLoadAll(c: AdminContext) {
+	await listStorageConfigs(c.env.EDGE_CONFIG);
+	return respond(c, null);
 }
 
 export async function storageDelete(c: AdminContext) {
