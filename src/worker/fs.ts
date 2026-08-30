@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import type { EdgeListBindings } from "./env";
-import { getStorageConfig, isVirtualMount, listVirtualMounts } from "./storage/config";
+import { getStorageConfig, isVirtualMount, listVirtualMounts, mergeFileObjects, paginateFileObjects } from "./storage/config";
 import { resolveStorage } from "./storage/factory";
 import { normalizePath, type FileObject } from "./storage/types";
 import { failure, respond } from "./response";
@@ -19,13 +19,20 @@ export async function fsList(c: FsContext) {
 	try {
 		const input = await body<{ path?: string; page?: number; per_page?: number; refresh?: boolean }>(c);
 		const requestedPath = normalizePath(input.path ?? "/");
-		if (!(await getStorageConfig(c.env.EDGE_CONFIG, requestedPath))) {
-			const mounts = await listVirtualMounts(c.env.EDGE_CONFIG, requestedPath);
-			if (mounts.length) return respond(c, { content: mounts, total: mounts.length });
+		const virtualMounts = await listVirtualMounts(c.env.EDGE_CONFIG, requestedPath);
+		let physicalItems: FileObject[] = [];
+		try {
+			const resolved = await resolveStorage(c.env, input.path ?? "/");
+			const result = await resolved.adapter.list(resolved.path, { page: 1, per_page: 0, refresh: input.refresh ?? false });
+			physicalItems = result.content.map((item) => ({ ...item, path: publicFilePath(requestedPath, item.name) }));
+		} catch (error) {
+			if (!virtualMounts.length) throw error;
 		}
-		const resolved = await resolveStorage(c.env, input.path ?? "/");
-		const result = await resolved.adapter.list(resolved.path, { page: input.page ?? 1, per_page: input.per_page ?? 0, refresh: input.refresh ?? false });
-		return respond(c, { ...result, content: result.content.map((item) => ({ ...item, path: publicFilePath(requestedPath, item.name) })) });
+		return respond(c, paginateFileObjects(
+			mergeFileObjects(physicalItems, virtualMounts),
+			input.page ?? 1,
+			input.per_page ?? 0,
+		));
 	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to list path", 400); }
 }
 

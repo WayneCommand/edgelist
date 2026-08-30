@@ -16,7 +16,9 @@ export async function getStorageConfig(kv: KVNamespace, mountPath: string): Prom
 export async function listVirtualMounts(kv: KVNamespace, parentPath: string): Promise<FileObject[]> {
 	const parent = normalizePath(parentPath);
 	const prefix = parent === "/" ? "/" : `${parent}/`;
-	const mounts = await listStorageConfigs(kv);
+	const mounts = (await listStorageConfigs(kv))
+		.filter((storage) => !storage.disabled)
+		.sort((left, right) => left.order - right.order || normalizePath(left.mount_path).localeCompare(normalizePath(right.mount_path)));
 	const children = new Map<string, FileObject>();
 	for (const storage of mounts) {
 		const mount = normalizePath(storage.mount_path);
@@ -34,6 +36,17 @@ export async function listVirtualMounts(kv: KVNamespace, parentPath: string): Pr
 		});
 	}
 	return [...children.values()];
+}
+
+export function mergeFileObjects(items: FileObject[], virtualMounts: FileObject[]): FileObject[] {
+	const seen = new Set(items.map((item) => item.name));
+	return [...items, ...virtualMounts.filter((mount) => !seen.has(mount.name))];
+}
+
+export function paginateFileObjects(items: FileObject[], page: number, perPage: number): { content: FileObject[]; total: number } {
+	if (perPage <= 0) return { content: items, total: items.length };
+	const start = Math.max(0, (Math.max(1, page) - 1) * perPage);
+	return { content: items.slice(start, start + perPage), total: items.length };
 }
 
 export async function isVirtualMount(kv: KVNamespace, path: string): Promise<boolean> {
