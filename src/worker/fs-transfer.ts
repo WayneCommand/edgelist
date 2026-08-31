@@ -1,0 +1,146 @@
+import type { FileObject, StorageAdapter, StorageConfig, TransferOptions } from "./storage/types";
+import { joinPath, normalizePath } from "./storage/types";
+
+export type TransferKind = "copy" | "move";
+
+export interface TransferInput {
+	src_dir?: string;
+	dst_dir?: string;
+	names?: unknown;
+	overwrite?: boolean;
+	skip_existing?: boolean;
+	merge?: boolean;
+}
+
+export interface TransferItemResult {
+	name: string;
+	source: string;
+	destination?: string;
+	status: "accepted" | "skipped" | "failed";
+	error?: string;
+}
+
+export interface TransferResult {
+	operation: TransferKind;
+	results: TransferItemResult[];
+	accepted: number;
+	skipped: number;
+	failed: number;
+}
+
+export interface ResolvedTransferStorage {
+	config: StorageConfig;
+	path: string;
+	adapter: StorageAdapter;
+}
+
+export interface TransferPlannerDependencies {
+	resolve(path: string): Promise<ResolvedTransferStorage>;
+	isVirtualMount(path: string): Promise<boolean>;
+	listVirtualMounts(path: string): Promise<FileObject[]>;
+}
+
+const MAX_TRANSFER_ITEMS = 100;
+
+export class TransferValidationError extends Error {}
+
+function requireDirectoryPath(value: string | undefined, field: "src_dir" | "dst_dir"): string {
+	const path = normalizePath(value ?? "/");
+	if (value && typeof value !== "string") throw new TransferValidationError(`${field} must be a string`);
+	return path;
+}
+
+function transferNames(value: unknown): string[] {
+	if (!Array.isArray(value) || !value.length) throw new TransferValidationError("names must be a non-empty array");
+	if (value.length > MAX_TRANSFER_ITEMS) throw new TransferValidationError(`names cannot contain more than ${MAX_TRANSFER_ITEMS} items`);
+	const names = value.map((item) => {
+		if (typeof item !== "string") throw new TransferValidationError("every name must be a string");
+		const name = item.trim();
+		if (!name || name === "." || name === ".." || name.includes("/") || name.includes("\\") || name.includes("\0")) {
+			throw new TransferValidationError(`Invalid transfer name: ${item}`);
+		}
+		return name;
+	});
+	if (new Set(names).size !== names.length) throw new TransferValidationError("names must be unique");
+	return names;
+}
+
+function notFoundError(error: unknown): boolean {
+	return error instanceof Error && /not found/i.test(error.message);
+}
+
+async function findObject(adapter: StorageAdapter, path: string): Promise<FileObject | null> {
+	try {
+		return await adapter.get(path);
+	} catch (error) {
+		if (notFoundError(error)) return null;
+		throw error;
+	}
+}
+
+function transferOptions(kind: TransferKind, source: FileObject, target: FileObject | null, input: TransferInput, adapter: StorageAdapter): TransferOptions | "skip" {
+	if (!target) return { overwrite: false, merge: false };
+	if (input.skip_existing) return "skip";
+	if (input.overwrite) return { overwrite: true, merge: false };
+	if (kind === "copy" && input.merge && source.is_dir && target.is_dir && adapter.capabilities.has("merge")) return { overwrite: false, merge: true };
+	throw new Error("Target already exists");
+}
+
+export async function planTransfers(kind: TransferKind, input: TransferInput, dependencies: TransferPlannerDependencies): Promise<TransferResult> {
+	const sourceDirectory = requireDirectoryPath(input.src_dir, "src_dir");
+	const destinationDirectory = requireDirectoryPath(input.dst_dir, "dst_dir");
+	const names = transferNames(input.names);
+	if (await dependencies.isVirtualMount(destinationDirectory)) throw new TransferValidationError("Destination is a virtual mount directory");
+	const destination = await dependencies.resolve(destinationDirectory);
+	const destinationObject = await destination.adapter.get(destination.path);
+	if (!destinationObject.is_dir) throw new TransferValidationError("Destination is not a directory");
+
+	const results: TransferItemResult[] = [];
+	for (const name of names) {
+		const sourcePath = joinPath(sourceDirectory, name);
+		const targetPath = joinPath(destination.path, name);
+		try {
+			if (await dependencies.isVirtualMount(sourcePath)) throw new Error("Virtual mount directories cannot be transferred");
+
+			const source = await dependencies.resolve(sourcePath);
+			if (source.config.mount_path !== destination.config.mount_path) throw new Error("Cross-storage transfer is not supported");
+			if (!source.adapter.capabilities.has(kind)) throw new Error(`Storage does not support ${kind}`);
+			if (source.path === "/") throw new Error("A storage root cannot be transferred");
+
+			const sourceObject = await source.adapter.get(source.path);
+			if (sourcePath === targetPath) throw new Error("Source and destination are the same");
+			if (sourceObject.is_dir && targetPath.startsWith(`${sourcePath}/`)) throw new Error("A directory cannot be transferred into itself");
+			if (sourceObject.is_dir && (await dependencies.listVirtualMounts(sourcePath)).length) {
+				throw new Error("A directory containing mounted storages cannot be transferred synchronously");
+			}
+
+			const targetResolution = await dependencies.resolve(targetPath);
+			if (targetResolution.config.mount_path !== source.config.mount_path) throw new Error("Cross-storage transfer is not supported");
+			if (targetResolution.path === "/") throw new Error("A storage mount cannot be overwritten");
+			const target = await findObject(targetResolution.adapter, targetPath);
+			const options = transferOptions(kind, sourceObject, target, input, source.adapter);
+			if (options === "skip") {
+				results.push({ name, source: sourcePath, destination: targetPath, status: "skipped" });
+				continue;
+			}
+			await source.adapter[kind](source.path, targetPath, options);
+			results.push({ name, source: sourcePath, destination: targetPath, status: "accepted" });
+		} catch (error) {
+			results.push({
+				name,
+				source: sourcePath,
+				destination: targetPath,
+				status: "failed",
+				error: error instanceof Error ? error.message : "Transfer failed",
+			});
+		}
+	}
+
+	return {
+		operation: kind,
+		results,
+		accepted: results.filter((result) => result.status === "accepted").length,
+		skipped: results.filter((result) => result.status === "skipped").length,
+		failed: results.filter((result) => result.status === "failed").length,
+	};
+}

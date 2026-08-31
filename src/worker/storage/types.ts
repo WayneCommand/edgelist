@@ -1,5 +1,15 @@
 export type StorageDriver = "openlist" | "object" | "webdav";
 
+export type StorageCapability =
+	| "read"
+	| "write"
+	| "mkdir"
+	| "remove"
+	| "rename"
+	| "copy"
+	| "move"
+	| "merge";
+
 export interface StorageConfig {
 	id: number;
 	mount_path: string;
@@ -31,8 +41,14 @@ export interface ListOptions {
 	refresh: boolean;
 }
 
+export interface TransferOptions {
+	overwrite: boolean;
+	merge: boolean;
+}
+
 export interface StorageAdapter {
 	readonly driver: StorageDriver;
+	readonly capabilities: ReadonlySet<StorageCapability>;
 	list(path: string, options: ListOptions): Promise<{ content: FileObject[]; total: number }>;
 	get(path: string): Promise<FileObject>;
 	read(path: string, range?: string): Promise<Response>;
@@ -40,6 +56,8 @@ export interface StorageAdapter {
 	mkdir(path: string): Promise<void>;
 	remove(path: string): Promise<void>;
 	rename(path: string, name: string, overwrite: boolean): Promise<void>;
+	copy(source: string, destination: string, options: TransferOptions): Promise<void>;
+	move(source: string, destination: string, options: TransferOptions): Promise<void>;
 }
 
 export function normalizePath(path: string): string {

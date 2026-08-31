@@ -1,4 +1,4 @@
-import type { FileObject, ListOptions, StorageAdapter, StorageConfig } from "./types";
+import type { FileObject, ListOptions, StorageAdapter, StorageConfig, TransferOptions } from "./types";
 import { normalizePath } from "./types";
 
 interface WebdavAddition { url?: string; address?: string; username?: string; password?: string; root_folder_path?: string; skip_tls_verify?: boolean }
@@ -13,6 +13,7 @@ function toObject(path: string, size: string, modified: string, isDir: boolean):
 
 export class WebdavAdapter implements StorageAdapter {
 	readonly driver = "webdav" as const;
+	readonly capabilities = new Set(["read", "write", "mkdir", "remove", "rename", "copy", "move"] as const);
 	private readonly endpoint: URL;
 	private readonly rootPath: string;
 	private readonly headers: Headers;
@@ -92,5 +93,22 @@ export class WebdavAdapter implements StorageAdapter {
 		const target = normalizePath(`${path.slice(0, path.lastIndexOf("/") + 1)}${name}`);
 		const response = await this.request(path, { method: "MOVE", headers: { Destination: this.url(target).toString(), Overwrite: overwrite ? "T" : "F" } });
 		if (!response.ok) throw new Error(`WebDAV rename failed with ${response.status}`);
+	}
+
+	private transfer(method: "COPY" | "MOVE", source: string, destination: string, options: TransferOptions) {
+		return this.request(source, {
+			method,
+			headers: { Destination: this.url(destination).toString(), Overwrite: options.overwrite ? "T" : "F" },
+		}).then((response) => {
+			if (!response.ok) throw new Error(`WebDAV ${method.toLowerCase()} failed with ${response.status}`);
+		});
+	}
+
+	copy(source: string, destination: string, options: TransferOptions) {
+		return this.transfer("COPY", source, destination, options);
+	}
+
+	move(source: string, destination: string, options: TransferOptions) {
+		return this.transfer("MOVE", source, destination, options);
 	}
 }

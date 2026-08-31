@@ -1,4 +1,4 @@
-import type { FileObject, ListOptions, StorageAdapter, StorageConfig } from "./types";
+import type { FileObject, ListOptions, StorageAdapter, StorageConfig, TransferOptions } from "./types";
 
 interface OpenListAddition {
 	base_url?: string;
@@ -15,6 +15,7 @@ interface OpenListEnvelope<T> {
 
 export class OpenListAdapter implements StorageAdapter {
 	readonly driver = "openlist" as const;
+	readonly capabilities = new Set(["read", "write", "mkdir", "remove", "rename", "copy", "move", "merge"] as const);
 	private readonly baseUrl: string;
 	private readonly headers: Headers;
 	private readonly username?: string;
@@ -101,5 +102,29 @@ export class OpenListAdapter implements StorageAdapter {
 
 	async rename(path: string, name: string, overwrite: boolean) {
 		await this.json<null>("/fs/rename", { method: "POST", body: JSON.stringify({ path, name, overwrite }) });
+	}
+
+	private async transfer(kind: "copy" | "move", source: string, destination: string, options: TransferOptions): Promise<void> {
+		const sourceDirectory = source.slice(0, source.lastIndexOf("/")) || "/";
+		const destinationDirectory = destination.slice(0, destination.lastIndexOf("/")) || "/";
+		await this.json<unknown>(`/fs/${kind}`, {
+			method: "POST",
+			body: JSON.stringify({
+				src_dir: sourceDirectory,
+				dst_dir: destinationDirectory,
+				names: [source.slice(source.lastIndexOf("/") + 1)],
+				overwrite: options.overwrite,
+				skip_existing: false,
+				merge: options.merge,
+			}),
+		});
+	}
+
+	async copy(source: string, destination: string, options: TransferOptions): Promise<void> {
+		return this.transfer("copy", source, destination, options);
+	}
+
+	async move(source: string, destination: string, options: TransferOptions): Promise<void> {
+		return this.transfer("move", source, destination, options);
 	}
 }

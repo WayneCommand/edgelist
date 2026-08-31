@@ -1,4 +1,4 @@
-import type { FileObject, ListOptions, StorageAdapter, StorageConfig } from "./types";
+import type { FileObject, ListOptions, StorageAdapter, StorageConfig, TransferOptions } from "./types";
 
 interface S3Addition {
 	endpoint?: string;
@@ -59,6 +59,7 @@ function fileObject(key: string, size: string, modified: string, etag?: string, 
 
 export class S3Adapter implements StorageAdapter {
 	readonly driver = "object" as const;
+	readonly capabilities = new Set(["read", "write", "mkdir", "remove", "rename", "copy", "move", "merge"] as const);
 	private readonly endpoint: URL;
 	private readonly region: string;
 	private readonly bucket: string;
@@ -131,10 +132,36 @@ export class S3Adapter implements StorageAdapter {
 		return { content: content.slice(start, start + pageSize), total: content.length };
 	}
 
+	private async listObjectKeys(prefix: string): Promise<string[]> {
+		const keys: string[] = [];
+		let continuationToken = "";
+		do {
+			const query: Record<string, string> = { "list-type": "2", prefix, "max-keys": "1000" };
+			if (continuationToken) query["continuation-token"] = continuationToken;
+			const response = await this.request("GET", "", { query });
+			if (!response.ok) throw new Error(`S3 list failed with ${response.status}`);
+			const xml = await response.text();
+			keys.push(...xmlItems(xml, "Contents").map((item) => xmlValue(item, "Key")).filter(Boolean));
+			continuationToken = xmlValue(xml, "NextContinuationToken");
+		} while (continuationToken);
+		return keys;
+	}
+
+	private async objectExists(key: string): Promise<boolean> {
+		if (!key) return true;
+		return (await this.request("HEAD", key)).ok;
+	}
+
 	async get(path: string) {
-		const response = await this.request("HEAD", objectPath(path));
-		if (!response.ok) throw new Error("File not found");
-		return fileObject(objectPath(path), response.headers.get("content-length") ?? "0", response.headers.get("last-modified") ?? "", response.headers.get("etag") ?? undefined);
+		const key = objectPath(path);
+		if (!key) return fileObject("/", "0", "", undefined, true);
+		const response = await this.request("HEAD", key);
+		if (response.ok) {
+			return fileObject(key, response.headers.get("content-length") ?? "0", response.headers.get("last-modified") ?? "", response.headers.get("etag") ?? undefined);
+		}
+		const directory = await this.request("HEAD", `${key}/`);
+		if (!directory.ok) throw new Error("File not found");
+		return fileObject(key, "0", directory.headers.get("last-modified") ?? "", undefined, true);
 	}
 
 	async read(path: string, range?: string) {
@@ -182,6 +209,45 @@ export class S3Adapter implements StorageAdapter {
 		if (!overwrite && (await this.request("HEAD", target)).ok) throw new Error("Target already exists");
 		const copied = await this.request("PUT", target, { headers: { "x-amz-copy-source": `/${encode(this.bucket)}/${source.split("/").map(encode).join("/")}` } });
 		if (!copied.ok) throw new Error(`S3 copy failed with ${copied.status}`);
+		await this.remove(source);
+	}
+
+	private async copyKey(source: string, destination: string) {
+		const copied = await this.request("PUT", destination, {
+			headers: { "x-amz-copy-source": `/${encode(this.bucket)}/${source.split("/").map(encode).join("/")}` },
+		});
+		if (!copied.ok) throw new Error(`S3 copy failed with ${copied.status}`);
+	}
+
+	private async copyDirectory(source: string, destination: string) {
+		const sourcePrefix = `${source}/`;
+		const destinationPrefix = `${destination}/`;
+		const keys = await this.listObjectKeys(sourcePrefix);
+		if (!keys.length) {
+			await this.mkdir(destination);
+			return;
+		}
+		for (const key of keys) {
+			await this.copyKey(key, `${destinationPrefix}${key.slice(sourcePrefix.length)}`);
+		}
+	}
+
+	private async transfer(source: string, destination: string) {
+		const sourceKey = objectPath(source);
+		const destinationKey = objectPath(destination);
+		if (!sourceKey || !destinationKey) throw new Error("Cannot transfer a storage root");
+		const sourcePrefix = `${sourceKey}/`;
+		const isDirectory = (await this.objectExists(`${sourceKey}/`)) || (await this.listObjectKeys(sourcePrefix)).length > 0;
+		if (isDirectory) await this.copyDirectory(sourceKey, destinationKey);
+		else await this.copyKey(sourceKey, destinationKey);
+	}
+
+	async copy(source: string, destination: string, _options: TransferOptions) {
+		await this.transfer(source, destination);
+	}
+
+	async move(source: string, destination: string, _options: TransferOptions) {
+		await this.transfer(source, destination);
 		await this.remove(source);
 	}
 }

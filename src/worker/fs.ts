@@ -1,11 +1,37 @@
 import type { Context } from "hono";
 import type { EdgeListBindings } from "./env";
+import { planTransfers, type TransferInput, type TransferKind, type TransferPlannerDependencies } from "./fs-transfer";
 import { getStorageConfig, isVirtualMount, listVirtualMounts, mergeFileObjects, paginateFileObjects } from "./storage/config";
 import { resolveStorage } from "./storage/factory";
 import { normalizePath, type FileObject } from "./storage/types";
 import { failure, respond } from "./response";
 
 type FsContext = Context<{ Bindings: Env & EdgeListBindings }>;
+
+function transferDependencies(c: FsContext): TransferPlannerDependencies {
+	return {
+		resolve: (path) => resolveStorage(c.env, path),
+		isVirtualMount: (path) => isVirtualMount(c.env.EDGE_CONFIG, path),
+		listVirtualMounts: (path) => listVirtualMounts(c.env.EDGE_CONFIG, path),
+	};
+}
+
+async function transfer(c: FsContext, kind: TransferKind) {
+	try {
+		const input = await body<TransferInput>(c);
+		return respond(c, await planTransfers(kind, input, transferDependencies(c)));
+	} catch (error) {
+		return failure(error instanceof Error ? error.message : `Unable to ${kind} paths`, 400);
+	}
+}
+
+export async function fsCopy(c: FsContext) {
+	return transfer(c, "copy");
+}
+
+export async function fsMove(c: FsContext) {
+	return transfer(c, "move");
+}
 
 export function publicFilePath(parentPath: string, name: string) {
 	return normalizePath(`${parentPath}/${name}`);
