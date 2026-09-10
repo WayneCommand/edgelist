@@ -76,6 +76,8 @@
 - [x] 0.6 `webdav_policy` 取值统一为 `302_redirect / use_proxy_url / native_proxy`，旧值（`302` / `proxy`）在 `normalizeStorageConfig` 迁移（配合 0.3：当前字段不生效，备份仍透传）。
 - [x] 0.7 补单测：备份导入含旧字段名/旧值时迁移正确，导出后能被 OpenList 识别。
 
+> ✅ **阶段零已完成**（7/7）。归一化统一收敛在 `normalizeStorageConfig` 的 `SelectRule`（`EXTRACT_FOLDER` / `ORDER_BY` / `WEBDAV_POLICY`）。
+
 ## 阶段一：文件对象模型与挂载解析
 
 - [x] 1.1 新增 `ObjMask` 位定义与常量（`Virtual / NoRename / NoRemove / NoMove / NoCopy / NoWrite / Locked / ReadOnly`），对齐 `internal/model/obj.go:239-257`。
@@ -89,6 +91,9 @@
 - [x] 1.9 `sort.ts` 补单测：自然序（`file-2` < `file-10`）、size/modified、asc/desc、目录前置/后置稳定性。
 - [x] 1.10 `fsList` 在合并虚拟目录后、分页前应用排序（先 `sortObjects` 再 `extractFolder`）；优先级：请求参数 > 命中 storage 的 `extract_folder`（0.4 已就绪）> 全局默认。
 - [x] 1.11 `fsGet` 虚拟目录返回 storage 的 `modified` 与 `mask`，不再固定返回 epoch 时间。
+
+> ✅ **阶段一已完成**（11/11）。新增 `src/worker/sort.ts`；挂载选择走 `selectStorage`（深度优先 + 跳过 disabled）；
+> 虚拟目录带 `mask`（`Locked|Virtual` / `ReadOnly|Virtual`）与所属 storage 的 `modified`。
 
 ## 阶段二：驱动注册表与配置项
 
