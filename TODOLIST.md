@@ -74,7 +74,7 @@
 - [x] 0.4 `folder_order` → `extract_folder` 改名（决策 2）：值 `before/after` → `front/back`，`normalizeStorageConfig` 双向迁移。
 - [x] 0.5 `order_by` 合法值统一为 `name / size / modified`，移除 `created`；`refresh` 参数保留（客户端兼容）并在文档标注为 no-op。
 - [x] 0.6 `webdav_policy` 取值统一为 `302_redirect / use_proxy_url / native_proxy`，旧值（`302` / `proxy`）在 `normalizeStorageConfig` 迁移（配合 0.3：当前字段不生效，备份仍透传）。
-- [ ] 0.7 补单测：备份导入含旧字段名/旧值时迁移正确，导出后能被 OpenList 识别。
+- [x] 0.7 补单测：备份导入含旧字段名/旧值时迁移正确，导出后能被 OpenList 识别。
 
 ## 阶段一：文件对象模型与挂载解析
 
