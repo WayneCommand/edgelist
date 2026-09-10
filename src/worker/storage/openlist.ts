@@ -1,4 +1,5 @@
 import type { FileObject, ListOptions, StorageAdapter, StorageConfig, TransferOptions } from "./types";
+import { findDriver } from "./registry";
 
 interface OpenListAddition {
 	base_url?: string;
@@ -22,7 +23,7 @@ function normalizeObject(item: FileObject): FileObject {
 
 export class OpenListAdapter implements StorageAdapter {
 	readonly driver = "openlist" as const;
-	readonly capabilities = new Set(["read", "write", "mkdir", "remove", "rename", "copy", "move", "merge"] as const);
+	readonly capabilities = findDriver("openlist")!.capabilities;
 	private readonly baseUrl: string;
 	private readonly headers: Headers;
 	private readonly username?: string;

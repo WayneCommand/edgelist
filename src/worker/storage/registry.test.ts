@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { hasValidStorageAddition } from "./config";
-import { DRIVERS, DRIVER_ITEM_TYPES, findDriver } from "./registry";
+import { DRIVERS, DRIVER_ITEM_TYPES, findDriver, getDriverInfo } from "./registry";
+import { OpenListAdapter } from "./openlist";
+import { S3Adapter } from "./s3";
+import { WebdavAdapter } from "./webdav";
+import type { StorageConfig } from "./types";
 
 describe("driver registry", () => {
 	it("finds a driver by EdgeList key or by OpenList name", () => {
@@ -13,16 +17,16 @@ describe("driver registry", () => {
 
 	it("uses only the OpenList item types", () => {
 		for (const driver of DRIVERS) {
-			expect(driver.items.length).toBeGreaterThan(0);
-			for (const item of driver.items) expect(DRIVER_ITEM_TYPES).toContain(item.type);
+			expect(driver.additionalItems.length).toBeGreaterThan(0);
+			for (const item of driver.additionalItems) expect(DRIVER_ITEM_TYPES).toContain(item.type);
 		}
 	});
 
 	it("declares exactly the required fields the storage validation needs", () => {
 		for (const driver of DRIVERS) {
-			const filled = Object.fromEntries(driver.items.map((item) => [item.name, item.default || "value"]));
+			const filled = Object.fromEntries(driver.additionalItems.map((item) => [item.name, item.default || "value"]));
 			expect(hasValidStorageAddition({ driver: driver.key, addition: JSON.stringify(filled) })).toBe(true);
-			for (const item of driver.items.filter((entry) => entry.required)) {
+			for (const item of driver.additionalItems.filter((entry) => entry.required)) {
 				const partial = { ...filled };
 				delete partial[item.name];
 				expect(hasValidStorageAddition({ driver: driver.key, addition: JSON.stringify(partial) })).toBe(false);
@@ -32,6 +36,78 @@ describe("driver registry", () => {
 
 	it("keeps the WebDAV TLS bypass out of the form", () => {
 		const webdav = findDriver("webdav");
-		expect(webdav?.items.map((item) => item.name)).not.toContain("skip_tls_verify");
+		expect(webdav?.additionalItems.map((item) => item.name)).not.toContain("skip_tls_verify");
+	});
+});
+
+describe("getDriverInfo", () => {
+	it("includes common items with localSort drivers", () => {
+		const info = getDriverInfo(findDriver("object")!);
+		expect(info.common.map((item) => item.name)).toContain("order_by");
+		expect(info.common.map((item) => item.name)).toContain("extract_folder");
+		expect(info.common.map((item) => item.name)).toContain("mount_path");
+	});
+
+	it("excludes cache/index/sign fields", () => {
+		for (const driver of DRIVERS) {
+			const info = getDriverInfo(driver);
+			const allNames = [...info.common, ...info.additional].map((item) => item.name);
+			expect(allNames).not.toContain("cache_expiration");
+			expect(allNames).not.toContain("custom_cache_policies");
+			expect(allNames).not.toContain("disable_index");
+			expect(allNames).not.toContain("enable_sign");
+			expect(allNames).not.toContain("web_proxy");
+			expect(allNames).not.toContain("down_proxy_url");
+			expect(allNames).not.toContain("disable_proxy_sign");
+			expect(allNames).not.toContain("webdav_policy");
+		}
+	});
+
+	it("returns correct structure", () => {
+		const info = getDriverInfo(findDriver("openlist")!);
+		expect(info.name).toBe("OpenList");
+		expect(info.config).toBeDefined();
+		expect(Array.isArray(info.common)).toBe(true);
+		expect(Array.isArray(info.additional)).toBe(true);
+	});
+});
+
+describe("adapter capabilities match registry", () => {
+	const mockConfig = (driver: string, addition: Record<string, unknown>): StorageConfig => ({
+		id: 1,
+		mount_path: "/test",
+		order: 0,
+		driver: driver as StorageConfig["driver"],
+		status: "work",
+		addition: JSON.stringify(addition),
+		remark: "",
+		disabled: false,
+	});
+
+	it("S3Adapter capabilities match registry", () => {
+		const adapter = new S3Adapter(mockConfig("object", {
+			endpoint: "https://s3.example.com",
+			bucket: "test",
+			access_key_id: "key",
+			secret_access_key: "secret",
+		}));
+		const registry = findDriver("object")!;
+		expect([...adapter.capabilities]).toEqual([...registry.capabilities]);
+	});
+
+	it("WebdavAdapter capabilities match registry", () => {
+		const adapter = new WebdavAdapter(mockConfig("webdav", {
+			url: "https://webdav.example.com",
+		}));
+		const registry = findDriver("webdav")!;
+		expect([...adapter.capabilities]).toEqual([...registry.capabilities]);
+	});
+
+	it("OpenListAdapter capabilities match registry", () => {
+		const adapter = new OpenListAdapter(mockConfig("openlist", {
+			base_url: "https://openlist.example.com",
+		}));
+		const registry = findDriver("openlist")!;
+		expect([...adapter.capabilities]).toEqual([...registry.capabilities]);
 	});
 });

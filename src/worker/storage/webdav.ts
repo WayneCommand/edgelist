@@ -1,5 +1,6 @@
 import type { FileObject, ListOptions, StorageAdapter, StorageConfig, TransferOptions } from "./types";
 import { normalizePath } from "./types";
+import { findDriver } from "./registry";
 
 interface WebdavAddition { url?: string; address?: string; username?: string; password?: string; root_folder_path?: string; skip_tls_verify?: boolean }
 
@@ -13,7 +14,7 @@ function toObject(path: string, size: string, modified: string, isDir: boolean):
 
 export class WebdavAdapter implements StorageAdapter {
 	readonly driver = "webdav" as const;
-	readonly capabilities = new Set(["read", "write", "mkdir", "remove", "rename", "copy", "move"] as const);
+	readonly capabilities = findDriver("webdav")!.capabilities;
 	private readonly endpoint: URL;
 	private readonly rootPath: string;
 	private readonly headers: Headers;

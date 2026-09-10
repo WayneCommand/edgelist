@@ -1,4 +1,5 @@
 import type { FileObject, ListOptions, StorageAdapter, StorageConfig, TransferOptions } from "./types";
+import { findDriver } from "./registry";
 
 interface S3Addition {
 	endpoint?: string;
@@ -9,12 +10,18 @@ interface S3Addition {
 	session_token?: string;
 	force_path_style?: boolean;
 	list_object_version?: "v1" | "v2";
+	root_folder_path?: string;
 }
 
 const encoder = new TextEncoder();
 
-function objectPath(path: string): string {
-	return path.replace(/^\/+/, "");
+function objectPath(path: string, rootPath?: string): string {
+	const normalized = path.replace(/^\/+/, "");
+	if (rootPath && rootPath !== "/") {
+		const root = rootPath.replace(/^\/+/, "").replace(/\/+$/, "");
+		return root ? `${root}/${normalized}` : normalized;
+	}
+	return normalized;
 }
 
 function endpointUrl(endpoint: string): URL {
@@ -67,7 +74,7 @@ function fileObject(key: string, size: string, modified: string, etag?: string, 
 
 export class S3Adapter implements StorageAdapter {
 	readonly driver = "object" as const;
-	readonly capabilities = new Set(["read", "write", "mkdir", "remove", "rename", "copy", "move", "merge"] as const);
+	readonly capabilities = findDriver("object")!.capabilities;
 	private readonly endpoint: URL;
 	private readonly region: string;
 	private readonly bucket: string;
@@ -76,6 +83,7 @@ export class S3Adapter implements StorageAdapter {
 	private readonly sessionToken?: string;
 	private readonly forcePathStyle: boolean;
 	private readonly listObjectVersion: "v1" | "v2";
+	private readonly rootPath?: string;
 
 	constructor(config: StorageConfig) {
 		const addition = JSON.parse(config.addition || "{}") as S3Addition;
@@ -88,6 +96,7 @@ export class S3Adapter implements StorageAdapter {
 		this.sessionToken = addition.session_token;
 		this.forcePathStyle = addition.force_path_style ?? false;
 		this.listObjectVersion = addition.list_object_version ?? "v1";
+		this.rootPath = addition.root_folder_path;
 	}
 
 	private url(key = "", query?: Record<string, string>): URL {
@@ -126,7 +135,7 @@ export class S3Adapter implements StorageAdapter {
 	}
 
 	async list(path: string, options: ListOptions) {
-		const prefix = objectPath(path).replace(/\/$/, "");
+		const prefix = objectPath(path, this.rootPath).replace(/\/$/, "");
 		const query: Record<string, string> = { delimiter: "/", prefix: prefix ? `${prefix}/` : "", "max-keys": String(options.per_page || 1000) };
 		if (this.listObjectVersion === "v2") query["list-type"] = "2";
 		const response = await this.request("GET", "", { query });
@@ -161,7 +170,7 @@ export class S3Adapter implements StorageAdapter {
 	}
 
 	async get(path: string) {
-		const key = objectPath(path);
+		const key = objectPath(path, this.rootPath);
 		if (!key) return fileObject("/", "0", "", undefined, true);
 		const response = await this.request("HEAD", key);
 		if (response.ok) {
@@ -173,23 +182,23 @@ export class S3Adapter implements StorageAdapter {
 	}
 
 	async read(path: string, range?: string) {
-		const response = await this.request("GET", objectPath(path), { headers: range ? { range } : undefined });
+		const response = await this.request("GET", objectPath(path, this.rootPath), { headers: range ? { range } : undefined });
 		if (!response.ok) return new Response("Not found", { status: response.status });
 		return response;
 	}
 
 	async write(path: string, request: Request) {
-		const response = await this.request("PUT", objectPath(path), { headers: { "content-type": request.headers.get("content-type") ?? "application/octet-stream" }, body: request.body });
+		const response = await this.request("PUT", objectPath(path, this.rootPath), { headers: { "content-type": request.headers.get("content-type") ?? "application/octet-stream" }, body: request.body });
 		if (!response.ok) throw new Error(`S3 upload failed with ${response.status}`);
 	}
 
 	async mkdir(path: string) {
-		const response = await this.request("PUT", `${objectPath(path).replace(/\/$/, "")}/`, { body: new Uint8Array() });
+		const response = await this.request("PUT", `${objectPath(path, this.rootPath).replace(/\/$/, "")}/`, { body: new Uint8Array() });
 		if (!response.ok) throw new Error(`S3 mkdir failed with ${response.status}`);
 	}
 
 	async remove(path: string) {
-		const key = objectPath(path).replace(/\/$/, "");
+		const key = objectPath(path, this.rootPath).replace(/\/$/, "");
 		const prefix = `${key}/`;
 		let continuationToken = "";
 		do {
@@ -212,7 +221,7 @@ export class S3Adapter implements StorageAdapter {
 	}
 
 	async rename(path: string, name: string, overwrite: boolean) {
-		const source = objectPath(path);
+		const source = objectPath(path, this.rootPath);
 		const target = `${source.slice(0, source.lastIndexOf("/") + 1)}${name}`;
 		if (!overwrite && (await this.request("HEAD", target)).ok) throw new Error("Target already exists");
 		const copied = await this.request("PUT", target, { headers: { "x-amz-copy-source": `/${encode(this.bucket)}/${source.split("/").map(encode).join("/")}` } });
@@ -241,8 +250,8 @@ export class S3Adapter implements StorageAdapter {
 	}
 
 	private async transfer(source: string, destination: string) {
-		const sourceKey = objectPath(source);
-		const destinationKey = objectPath(destination);
+		const sourceKey = objectPath(source, this.rootPath);
+		const destinationKey = objectPath(destination, this.rootPath);
 		if (!sourceKey || !destinationKey) throw new Error("Cannot transfer a storage root");
 		const sourcePrefix = `${sourceKey}/`;
 		const isDirectory = (await this.objectExists(`${sourceKey}/`)) || (await this.listObjectKeys(sourcePrefix)).length > 0;

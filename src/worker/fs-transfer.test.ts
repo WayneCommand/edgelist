@@ -100,7 +100,8 @@ describe("synchronous same-storage transfers", () => {
 		const deps = dependencies([one, two], ["/", "/nested"], { virtual: ["/group"] });
 		const cross = await planTransfers("copy", { src_dir: "/", dst_dir: "/nested/directory", names: ["file.txt"] }, deps);
 		expect(cross.failed).toBe(1);
-		expect(cross.results[0].error).toBe("Cross-storage transfer is not supported");
+		expect(cross.results[0].error).toBe("跨存储复制/移动不支持");
+		expect(cross.results[0].code).toBe("CROSS_STORAGE_TRANSFER");
 
 		await expect(planTransfers("copy", { src_dir: "/", dst_dir: "/group", names: ["file.txt"] }, deps)).rejects.toThrow("Destination is a virtual mount directory");
 	});

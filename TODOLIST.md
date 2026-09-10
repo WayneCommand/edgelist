@@ -100,26 +100,26 @@
 - [x] 2.1 新增 `src/worker/storage/registry.ts`，定义 `DriverDefinition { name, key, config, items, create, checkStatus? }`。
 - [x] 2.2 定义 `DriverConfig`（`localSort / noCache / noUpload / onlyProxy / noLinkUrl / preferProxy / noOverwriteUpload`）与 `Item { name, type, default, options, required, help }`，对齐 `internal/driver/config.go`、`internal/driver/item.go`。
 - [x] 2.3 为三个驱动声明 `additional` items（S3：endpoint/region/bucket/access_key_id/secret_access_key/session_token/force_path_style/list_object_version 等；WebDAV：url/username/password/root_folder_path 等；OpenList：base_url/token/username/password）。
-- [ ] 2.4 实现公共 items 生成，字段集合**以阶段零清理后的结果为准**（不再含 cache/index/sign 字段）。
-- [ ] 2.5 新增 `GET /api/admin/driver/names`、`GET /api/admin/driver/list`、`GET /api/admin/driver/info?driver=xxx`。
-- [ ] 2.6 适配器 `capabilities` 改为从 registry 读取（三个适配器的 `new Set([...])` 内联声明全部移除）。已核实：`openlist` 的 `merge` 确实传给了上游，声明属实。
-- [ ] 2.7 补单测：driver 端点输出、items 字段名与默认值、能力集合与 registry 一致。
+- [x] 2.4 实现公共 items 生成，字段集合**以阶段零清理后的结果为准**（不再含 cache/index/sign 字段）。
+- [x] 2.5 新增 `GET /api/admin/driver/names`、`GET /api/admin/driver/list`、`GET /api/admin/driver/info?driver=xxx`。
+- [x] 2.6 适配器 `capabilities` 改为从 registry 读取（三个适配器的 `new Set([...])` 内联声明全部移除）。已核实：`openlist` 的 `merge` 确实传给了上游，声明属实。
+- [x] 2.7 补单测：driver 端点输出、items 字段名与默认值、能力集合与 registry 一致。
 
 ## 阶段三：后端 API 补齐
 
-- [ ] 3.1 新增 `POST /api/fs/dirs`，返回目录树供复制/移动目标选择；含虚拟挂载目录。
-- [ ] 3.2 新增 `POST /api/fs/remove_empty_directory`，递归清理空目录并拒绝虚拟挂载点。
-- [ ] 3.3 `fsMkdir` 支持递归创建父目录（对齐 `internal/op/fs.go:305`）。
-- [ ] 3.4 `fsRemove` 改为并发执行并逐项返回结果，失败不再中断整批。
-- [ ] 3.5 新增 `POST /api/fs/link`，返回直链（要求已登录，对齐 OpenList 的 admin 约束）。
-- [ ] 3.6 `/d/*` 下载补 `Content-Disposition` 文件名与 RFC 5987 编码。
-- [ ] 3.7 `fsSearch` 增加深度与目录数上限，避免 Workers CPU 超时；返回截断标记。
-- [ ] 3.8 存储列表接口支持 `page/per_page` 分页。
-- [ ] 3.9 新增 `PUT /api/fs/form`（multipart/form-data 上传）。
-- [ ] 3.10 新增 `/api/fs/multipart/{init,chunk,complete,status,abort}` 分片上传骨架；**仅 S3 驱动可用**，其他驱动超阈值时直接拒绝并返回明确错误。
-- [ ] 3.11 分离 create / update 语义：`/api/admin/storage/update` 校验 `id > 0`，新增走 `/create`。
-- [ ] 3.12 跨存储复制/移动统一错误码与消息（决策 3），让前端能识别并给出确定性中文提示，而非透传后端英文原文。
-- [ ] 3.13 S3 适配器支持 `root_folder_path`（阶段二建 registry 时发现：UI 一直有这个字段且标为必填，但 S3 把路径直接当 key，从未读取，属假字段）。二选一：实现前缀拼接到 `objectPath()`，或从表单彻底移除；目前 registry 已暂不声明它。
+- [x] 3.1 新增 `POST /api/fs/dirs`，返回目录树供复制/移动目标选择；含虚拟挂载目录。
+- [x] 3.2 新增 `POST /api/fs/remove_empty_directory`，递归清理空目录并拒绝虚拟挂载点。
+- [x] 3.3 `fsMkdir` 支持递归创建父目录（对齐 `internal/op/fs.go:305`）。
+- [x] 3.4 `fsRemove` 改为并发执行并逐项返回结果，失败不再中断整批。
+- [x] 3.5 新增 `POST /api/fs/link`，返回直链（要求已登录，对齐 OpenList 的 admin 约束）。
+- [x] 3.6 `/d/*` 下载补 `Content-Disposition` 文件名与 RFC 5987 编码。
+- [x] 3.7 `fsSearch` 增加深度与目录数上限，避免 Workers CPU 超时；返回截断标记。
+- [x] 3.8 存储列表接口支持 `page/per_page` 分页。
+- [x] 3.9 新增 `PUT /api/fs/form`（multipart/form-data 上传）。
+- [x] 3.10 新增 `/api/fs/multipart/{init,chunk,complete,status,abort}` 分片上传骨架；**仅 S3 驱动可用**，其他驱动超阈值时直接拒绝并返回明确错误。
+- [x] 3.11 分离 create / update 语义：`/api/admin/storage/update` 校验 `id > 0`，新增走 `/create`。
+- [x] 3.12 跨存储复制/移动统一错误码与消息（决策 3），让前端能识别并给出确定性中文提示，而非透传后端英文原文。
+- [x] 3.13 S3 适配器支持 `root_folder_path`（阶段二建 registry 时发现：UI 一直有这个字段且标为必填，但 S3 把路径直接当 key，从未读取，属假字段）。二选一：实现前缀拼接到 `objectPath()`，或从表单彻底移除；目前 registry 已暂不声明它。
 
 ## 阶段四：Meta ACL 与权限
 

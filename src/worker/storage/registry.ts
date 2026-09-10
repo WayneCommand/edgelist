@@ -43,10 +43,42 @@ export interface DriverDefinition {
 	/** OpenList driver name, used when talking to an upstream OpenList. */
 	name: string;
 	config: DriverConfig;
-	items: DriverItem[];
+	additionalItems: DriverItem[];
 	capabilities: ReadonlySet<StorageCapability>;
 	checkStatus?: boolean;
 	create: (config: StorageConfig) => StorageAdapter;
+}
+
+// Common items shared by every storage mount. Conditionally includes sort
+// fields based on the driver's `localSort` flag. Fields that were removed
+// during the Phase 0 cleanup (cache_expiration, custom_cache_policies,
+// disable_index, enable_sign, web_proxy, down_proxy_url, disable_proxy_sign,
+// webdav_policy) are intentionally absent: they were never implemented or
+// their UI presence was a lie. They may reappear in Phase 8 when caching is
+// added back.
+function buildCommonItems(config: DriverConfig): DriverItem[] {
+	const items: DriverItem[] = [
+		{ name: "mount_path", type: "string", default: "", required: true, help: "Unique mount path for this storage" },
+		{ name: "order", type: "number", default: "0", help: "Sort order when listing storages" },
+		{ name: "remark", type: "text", default: "" },
+	];
+	if (config.localSort) {
+		items.push(
+			{ name: "order_by", type: "select", default: "", options: "name,size,modified", help: "Primary sort key; empty means upstream order" },
+			{ name: "order_direction", type: "select", default: "asc", options: "asc,desc" },
+			{ name: "extract_folder", type: "select", default: "front", options: "front,back", help: "Folders before files (front) or after (back)" },
+		);
+	}
+	return items;
+}
+
+export function getDriverInfo(driver: DriverDefinition) {
+	return {
+		name: driver.name,
+		config: driver.config,
+		common: buildCommonItems(driver.config),
+		additional: driver.additionalItems,
+	};
 }
 
 // Field names follow what the adapters read, which is not always the upstream
@@ -95,7 +127,7 @@ export const DRIVERS: readonly DriverDefinition[] = [
 		key: "object",
 		name: "S3",
 		config: { localSort: true, defaultRoot: "/" },
-		items: S3_ITEMS,
+		additionalItems: S3_ITEMS,
 		capabilities: new Set<StorageCapability>(["read", "write", "mkdir", "remove", "rename", "copy", "move", "merge"]),
 		create: (config) => new S3Adapter(config),
 	},
@@ -103,7 +135,7 @@ export const DRIVERS: readonly DriverDefinition[] = [
 		key: "webdav",
 		name: "WebDav",
 		config: { localSort: true, defaultRoot: "/", preferProxy: true },
-		items: WEBDAV_ITEMS,
+		additionalItems: WEBDAV_ITEMS,
 		capabilities: new Set<StorageCapability>(["read", "write", "mkdir", "remove", "rename", "copy", "move"]),
 		create: (config) => new WebdavAdapter(config),
 	},
@@ -111,7 +143,7 @@ export const DRIVERS: readonly DriverDefinition[] = [
 		key: "openlist",
 		name: "OpenList",
 		config: { localSort: true, defaultRoot: "/" },
-		items: OPENLIST_ITEMS,
+		additionalItems: OPENLIST_ITEMS,
 		capabilities: new Set<StorageCapability>(["read", "write", "mkdir", "remove", "rename", "copy", "move", "merge"]),
 		create: (config) => new OpenListAdapter(config),
 	},
