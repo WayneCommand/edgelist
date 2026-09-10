@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { StorageConfig } from "./types";
-import { hasValidStorageAddition, listVirtualMounts, mergeFileObjects, normalizeStorageConfig, paginateFileObjects } from "./config";
+import { hasValidStorageAddition, listVirtualMounts, mergeFileObjects, mountDepth, normalizeStorageConfig, paginateFileObjects, selectStorage } from "./config";
 
 function storage(mountPath: string, order = 0, disabled = false): StorageConfig {
 	return {
@@ -106,6 +106,49 @@ describe("storage normalization", () => {
 
 	it("leaves a missing webdav_policy untouched", () => {
 		expect(normalizeStorageConfig(storage("/a")).webdav_policy).toBeUndefined();
+	});
+});
+
+describe("storage selection", () => {
+	it("counts mount depth in segments", () => {
+		expect([mountDepth("/"), mountDepth("/a"), mountDepth("/a/b")]).toEqual([0, 1, 2]);
+	});
+
+	it("matches a root mount for every path", () => {
+		expect(selectStorage([storage("/")], "/anything/deep/file.txt")?.mount_path).toBe("/");
+	});
+
+	it("prefers a specific mount over the root mount", () => {
+		expect(selectStorage([storage("/"), storage("/a")], "/a/b.txt")?.mount_path).toBe("/a");
+	});
+
+	it("matches a mount path itself and anything below it", () => {
+		expect(selectStorage([storage("/a")], "/a")?.mount_path).toBe("/a");
+		expect(selectStorage([storage("/a")], "/a/b.txt")?.mount_path).toBe("/a");
+	});
+
+	it("prefers the deepest of several nested mounts", () => {
+		const configs = [storage("/a"), storage("/a/b"), storage("/a/b/c")];
+		expect(selectStorage(configs, "/a/b/c/file.txt")?.mount_path).toBe("/a/b/c");
+		expect(selectStorage(configs, "/a/b/other.txt")?.mount_path).toBe("/a/b");
+		expect(selectStorage(configs, "/a/top.txt")?.mount_path).toBe("/a");
+	});
+
+	it("does not treat /ab as a child of /a", () => {
+		expect(selectStorage([storage("/a")], "/ab")).toBeUndefined();
+		expect(selectStorage([storage("/a")], "/abc/d.txt")).toBeUndefined();
+	});
+
+	it("falls back to an outer mount when the nested one is disabled", () => {
+		expect(selectStorage([storage("/a"), storage("/a/b", 0, true)], "/a/b/c.txt")?.mount_path).toBe("/a");
+	});
+
+	it("returns nothing when every candidate is disabled", () => {
+		expect(selectStorage([storage("/a", 0, true)], "/a/b")).toBeUndefined();
+	});
+
+	it("ignores paths outside every mount", () => {
+		expect(selectStorage([storage("/a")], "/b/c.txt")).toBeUndefined();
 	});
 });
 
