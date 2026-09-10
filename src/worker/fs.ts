@@ -3,7 +3,8 @@ import type { EdgeListBindings } from "./env";
 import { planTransfers, type TransferInput, type TransferKind, type TransferPlannerDependencies } from "./fs-transfer";
 import { getStorageConfig, isVirtualMount, listVirtualMounts, mergeFileObjects, paginateFileObjects } from "./storage/config";
 import { resolveStorage } from "./storage/factory";
-import { normalizePath, type FileObject } from "./storage/types";
+import { normalizePath, type FileObject, type StorageConfig } from "./storage/types";
+import { applySort, resolveSort } from "./sort";
 import { failure, respond } from "./response";
 
 type FsContext = Context<{ Bindings: Env & EdgeListBindings }>;
@@ -43,22 +44,23 @@ async function body<T>(c: FsContext): Promise<T> {
 
 export async function fsList(c: FsContext) {
 	try {
-		const input = await body<{ path?: string; page?: number; per_page?: number; refresh?: boolean }>(c);
+		const input = await body<{ path?: string; page?: number; per_page?: number; refresh?: boolean; order_by?: string; order_direction?: string; extract_folder?: string }>(c);
 		const requestedPath = normalizePath(input.path ?? "/");
 		const virtualMounts = await listVirtualMounts(c.env.EDGE_CONFIG, requestedPath);
 		let physicalItems: FileObject[] = [];
+		let storage: StorageConfig | undefined;
 		try {
 			const resolved = await resolveStorage(c.env, input.path ?? "/");
+			storage = resolved.config;
 			const result = await resolved.adapter.list(resolved.path, { page: 1, per_page: 0, refresh: input.refresh ?? false });
 			physicalItems = result.content.map((item) => ({ ...item, path: publicFilePath(requestedPath, item.name) }));
 		} catch (error) {
 			if (!virtualMounts.length) throw error;
 		}
-		return respond(c, paginateFileObjects(
-			mergeFileObjects(physicalItems, virtualMounts),
-			input.page ?? 1,
-			input.per_page ?? 0,
-		));
+		// Sorting runs over the merged list but before pagination, so pages are
+		// cut from the order the user actually sees.
+		const sorted = applySort(mergeFileObjects(physicalItems, virtualMounts), resolveSort(input, storage));
+		return respond(c, paginateFileObjects(sorted, input.page ?? 1, input.per_page ?? 0));
 	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to list path", 400); }
 }
 

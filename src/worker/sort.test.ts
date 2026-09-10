@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FileObject } from "./storage/types";
-import { compareNatural, extractFolder, sortObjects } from "./sort";
+import { applySort, compareNatural, DEFAULT_SORT, extractFolder, resolveSort, sortObjects } from "./sort";
 
 function item(name: string, extra: Partial<FileObject> = {}): FileObject {
 	return { name, size: 0, is_dir: false, modified: "", created: "", path: `/${name}`, ...extra };
@@ -79,5 +79,44 @@ describe("folder extraction", () => {
 
 	it("leaves the order alone when no position is configured", () => {
 		expect(extractFolder(items, "").map((entry) => entry.name)).toEqual(["a.txt", "dir1", "b.txt", "dir2"]);
+	});
+});
+
+describe("sort settings", () => {
+	it("prefers the request over the storage", () => {
+		expect(resolveSort({ order_by: "size" }, { order_by: "name" })).toMatchObject({ orderBy: "size" });
+	});
+
+	it("falls back to the storage", () => {
+		expect(resolveSort({}, { order_by: "modified", order_direction: "desc", extract_folder: "back" })).toEqual({
+			orderBy: "modified",
+			orderDirection: "desc",
+			extractFolder: "back",
+		});
+	});
+
+	it("falls back to the defaults when nothing is configured", () => {
+		expect(resolveSort()).toEqual(DEFAULT_SORT);
+		expect(resolveSort({}, undefined)).toEqual({ orderBy: "name", orderDirection: "asc", extractFolder: "front" });
+	});
+
+	it("honours an empty storage value instead of replacing it", () => {
+		expect(resolveSort({}, { order_by: "" })).toMatchObject({ orderBy: "" });
+	});
+
+	it("ignores values that are not strings", () => {
+		expect(resolveSort({}, { order_by: 42 })).toMatchObject({ orderBy: "name" });
+	});
+});
+
+describe("applySort", () => {
+	const items = [item("b.txt"), item("dirB", { is_dir: true }), item("a.txt"), item("dirA", { is_dir: true })];
+
+	it("sorts first and then pulls folders to the front", () => {
+		expect(applySort(items, { orderBy: "name", orderDirection: "asc", extractFolder: "front" }).map((entry) => entry.name)).toEqual(["dirA", "dirB", "a.txt", "b.txt"]);
+	});
+
+	it("keeps a descending sort when pulling folders to the back", () => {
+		expect(applySort(items, { orderBy: "name", orderDirection: "desc", extractFolder: "back" }).map((entry) => entry.name)).toEqual(["b.txt", "a.txt", "dirB", "dirA"]);
 	});
 });

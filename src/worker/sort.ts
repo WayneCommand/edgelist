@@ -1,5 +1,30 @@
 import type { FileObject } from "./storage/types";
 
+export interface SortSettings {
+	orderBy: string;
+	orderDirection: string;
+	extractFolder: string;
+}
+
+export const DEFAULT_SORT: SortSettings = { orderBy: "name", orderDirection: "asc", extractFolder: "front" };
+
+function pick(request: unknown, storage: unknown, fallback: string): string {
+	for (const candidate of [request, storage]) if (typeof candidate === "string") return candidate;
+	return fallback;
+}
+
+// A client may override the sort for a single request. Otherwise the storage the
+// path resolved to decides, and whatever it leaves unset falls back to the
+// defaults. An empty string is a meaningful OpenList value ("keep the upstream
+// order"), so it is honoured rather than replaced.
+export function resolveSort(request: Record<string, unknown> = {}, storage?: Record<string, unknown>): SortSettings {
+	return {
+		orderBy: pick(request.order_by, storage?.order_by, DEFAULT_SORT.orderBy),
+		orderDirection: pick(request.order_direction, storage?.order_direction, DEFAULT_SORT.orderDirection),
+		extractFolder: pick(request.extract_folder, storage?.extract_folder, DEFAULT_SORT.extractFolder),
+	};
+}
+
 // Splits a name into alternating text and number runs, so `file-2` sorts before
 // `file-10` the way a person would expect instead of comparing character by
 // character.
@@ -59,4 +84,10 @@ export function extractFolder(items: readonly FileObject[], position: string): F
 		if (left.is_dir === right.is_dir) return 0;
 		return left.is_dir === front ? -1 : 1;
 	});
+}
+
+// OpenList sorts first, then pulls folders to one end, so that is the order to
+// apply: it keeps the chosen ordering intact inside each group.
+export function applySort(items: readonly FileObject[], settings: SortSettings): FileObject[] {
+	return extractFolder(sortObjects(items, settings.orderBy, settings.orderDirection), settings.extractFolder);
 }
