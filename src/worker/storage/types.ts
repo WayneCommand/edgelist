@@ -19,6 +19,7 @@ export interface StorageConfig {
 	addition: string;
 	remark: string;
 	disabled: boolean;
+	extract_folder?: string;
 	[key: string]: unknown;
 }
 

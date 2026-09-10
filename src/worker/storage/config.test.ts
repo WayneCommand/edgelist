@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { StorageConfig } from "./types";
-import { hasValidStorageAddition, listVirtualMounts, mergeFileObjects, paginateFileObjects } from "./config";
+import { hasValidStorageAddition, listVirtualMounts, mergeFileObjects, normalizeStorageConfig, paginateFileObjects } from "./config";
 
 function storage(mountPath: string, order = 0, disabled = false): StorageConfig {
 	return {
@@ -53,6 +53,31 @@ describe("virtual mounts", () => {
 		const items = [item("a"), item("b"), item("c")];
 		expect(paginateFileObjects(items, 2, 2)).toEqual({ content: [items[2]], total: 3 });
 		expect(paginateFileObjects(items, 0, 0).content).toHaveLength(3);
+	});
+});
+
+describe("storage normalization", () => {
+	it("migrates the legacy folder_order field to OpenList extract_folder", () => {
+		expect(normalizeStorageConfig({ ...storage("/a"), folder_order: "before" }).extract_folder).toBe("front");
+		expect(normalizeStorageConfig({ ...storage("/a"), folder_order: "after" }).extract_folder).toBe("back");
+	});
+
+	it("prefers a native extract_folder value and drops the legacy key", () => {
+		const result = normalizeStorageConfig({ ...storage("/a"), folder_order: "after", extract_folder: "front" });
+		expect(result.extract_folder).toBe("front");
+		expect(result.folder_order).toBeUndefined();
+	});
+
+	it("maps legacy values written into the new field name", () => {
+		expect(normalizeStorageConfig({ ...storage("/a"), extract_folder: "before" }).extract_folder).toBe("front");
+	});
+
+	it("leaves storages without either field untouched", () => {
+		expect(normalizeStorageConfig(storage("/a")).extract_folder).toBeUndefined();
+	});
+
+	it("falls back to front for values it does not recognise", () => {
+		expect(normalizeStorageConfig({ ...storage("/a"), folder_order: "sideways" }).extract_folder).toBe("front");
 	});
 });
 

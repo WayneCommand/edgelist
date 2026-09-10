@@ -65,6 +65,16 @@ export function isStorageDriver(value: unknown): value is StorageDriver {
 	return value === "openlist" || value === "OpenList" || value === "object" || value === "s3" || value === "S3" || value === "Doge" || value === "webdav" || value === "WebDav" || value === "WebDAV";
 }
 
+// OpenList spells the "where do folders go" setting `extract_folder` with
+// `front`/`back`. Early EdgeList builds used `folder_order` with
+// `before`/`after`, so both spellings are accepted and folded into one field.
+const EXTRACT_FOLDER_ALIASES: Record<string, string> = { before: "front", after: "back" };
+
+function extractFolderValue(candidate: unknown): string | undefined {
+	if (typeof candidate !== "string" || !candidate) return undefined;
+	return EXTRACT_FOLDER_ALIASES[candidate] ?? (candidate === "front" || candidate === "back" ? candidate : "front");
+}
+
 export function normalizeStorageConfig(value: StorageConfig): StorageConfig {
 	const rawDriver = String(value.driver);
 	const normalizedDriver = rawDriver.toLowerCase();
@@ -82,7 +92,11 @@ export function normalizeStorageConfig(value: StorageConfig): StorageConfig {
 	} catch {
 		// The adapter will return a useful configuration error for malformed JSON.
 	}
-	return { ...value, driver, addition };
+	const result: StorageConfig = { ...value, driver, addition };
+	delete result.folder_order;
+	const extractFolder = extractFolderValue(result.extract_folder ?? value.folder_order);
+	if (extractFolder) result.extract_folder = extractFolder;
+	return result;
 }
 
 export function hasValidStorageAddition(config: Pick<StorageConfig, "driver" | "addition">): boolean {
