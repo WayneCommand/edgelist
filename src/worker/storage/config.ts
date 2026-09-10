@@ -50,6 +50,32 @@ export function paginateFileObjects(items: FileObject[], page: number, perPage: 
 	return { content: items.slice(start, start + perPage), total: items.length };
 }
 
+// Depth is the number of path segments, so `/a/b` (2) beats `/a` (1) no matter
+// how the two strings compare by length. Root is depth 0 and always loses.
+export function mountDepth(mountPath: string): number {
+	const mount = normalizePath(mountPath);
+	return mount === "/" ? 0 : mount.split("/").filter(Boolean).length;
+}
+
+// Longest-prefix match, OpenList style: every enabled mount that is the
+// requested path or one of its ancestors is a candidate, and the deepest wins.
+// Disabled mounts are skipped during selection instead of being rejected
+// afterwards, so a disabled nested mount falls back to the one above it.
+export function selectStorage(configs: StorageConfig[], path: string): StorageConfig | undefined {
+	const normalized = normalizePath(path);
+	return configs
+		.filter((item) => !item.disabled)
+		.filter((item) => {
+			const mount = normalizePath(item.mount_path);
+			return mount === "/" || normalized === mount || normalized.startsWith(`${mount}/`);
+		})
+		.sort((left, right) => {
+			const leftMount = normalizePath(left.mount_path);
+			const rightMount = normalizePath(right.mount_path);
+			return mountDepth(rightMount) - mountDepth(leftMount) || rightMount.length - leftMount.length || leftMount.localeCompare(rightMount);
+		})[0];
+}
+
 export async function isVirtualMount(kv: KVNamespace, path: string): Promise<boolean> {
 	const normalized = normalizePath(path);
 	if (await getStorageConfig(kv, normalized)) return false;

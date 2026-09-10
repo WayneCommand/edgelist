@@ -81,7 +81,7 @@
 - [x] 1.1 新增 `ObjMask` 位定义与常量（`Virtual / NoRename / NoRemove / NoMove / NoCopy / NoWrite / Locked / ReadOnly`），对齐 `internal/model/obj.go:239-257`。
 - [x] 1.2 `FileObject` 增加 `mask` 字段，三个适配器与虚拟目录生成处填默认值 `0`。
 - [x] 1.3 `FileObject` 增加 `provider`（驱动名）与 `hashinfo`；S3 填充时排除形如 `"etag-N"` 的分片 ETag（非 MD5）。顺带修了 S3 返回的 `&quot;` 实体未被剥离，导致 `hashinfo.etag` 带引号的老 bug。
-- [ ] 1.4 抽出纯函数 `selectStorage(configs, path)`：按挂载**层级深度**降序做最长前缀匹配，跳过 `disabled` 挂载；替换 `factory.ts` 的字符串长度排序。
+- [x] 1.4 抽出纯函数 `selectStorage(configs, path)`：按挂载**层级深度**降序做最长前缀匹配，跳过 `disabled` 挂载；替换 `factory.ts` 的字符串长度排序。
 - [ ] 1.5 `selectStorage` 补单测：root 挂载、一级挂载、嵌套 `/a` + `/a/b`、前缀误匹配 `/ab` vs `/a`、disabled 回退到外层挂载。
 - [ ] 1.6 `listVirtualMounts` 区分"真实挂载点"（`Locked | Virtual`）与"中间层"（`ReadOnly | Virtual`），参考 `internal/op/storage.go:378-443`。
 - [ ] 1.7 虚拟目录生成补单测：单层、多层嵌套、同名去重、被真实目录占用时的优先级。

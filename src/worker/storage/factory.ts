@@ -1,5 +1,5 @@
 import type { EdgeListBindings } from "../env";
-import { listStorageConfigs } from "./config";
+import { listStorageConfigs, selectStorage } from "./config";
 import { OpenListAdapter } from "./openlist";
 import { S3Adapter } from "./s3";
 import { WebdavAdapter } from "./webdav";
@@ -15,14 +15,8 @@ export function relativeStoragePath(mountPath: string, path: string): string {
 
 export async function resolveStorage(env: Env & EdgeListBindings, path: string): Promise<{ config: StorageConfig; path: string; adapter: StorageAdapter }> {
 	const normalized = normalizePath(path);
-	const configs = await listStorageConfigs(env.EDGE_CONFIG);
-	const config = configs
-		.filter((item) => {
-			const mount = normalizePath(item.mount_path);
-			return normalized === mount || normalized.startsWith(`${mount}/`) || mount === "/";
-		})
-		.sort((a, b) => normalizePath(b.mount_path).length - normalizePath(a.mount_path).length)[0];
-	if (!config || config.disabled) throw new Error("Storage not found");
+	const config = selectStorage(await listStorageConfigs(env.EDGE_CONFIG), normalized);
+	if (!config) throw new Error("Storage not found");
 	return { config, path: relativeStoragePath(config.mount_path, normalized), adapter: createAdapter(env, config) };
 }
 
