@@ -70,6 +70,8 @@ export async function storageUpdate(c: AdminContext) {
 	try {
 		const input = await c.req.json<StorageConfig>();
 		if (!input.id || input.id <= 0) return failure("id is required for update", 400);
+		const storages = await readArray<StorageConfig>(c.env.EDGE_CONFIG, CONFIG_KEYS.storages);
+		if (!storages.some((item) => item.id === input.id)) return failure("Storage not found", 404);
 		return storageSave(c);
 	} catch (error) { return failure(error instanceof Error ? error.message : "Invalid storage", 400); }
 }

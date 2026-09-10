@@ -133,6 +133,10 @@ export async function fsMkdir(c: FsContext) {
 			const parts = targetPath.split("/").filter(Boolean);
 			for (let i = 1; i <= parts.length; i++) {
 				const parentPath = `/${parts.slice(0, i).join("/")}`;
+				const parentMeta = await getNearestMeta(c.env.EDGE_CONFIG, parentPath);
+				if (!canWrite(user, parentMeta, parentPath)) {
+					return failure("Access denied", 403);
+				}
 				try {
 					const resolved = await resolveStorage(c.env, parentPath);
 					await resolved.adapter.mkdir(resolved.path);
@@ -273,8 +277,8 @@ export async function fsSearch(c: FsContext) {
 		const parent = normalizePath(input.parent ?? "/");
 		const keywords = (input.keywords ?? "").toLocaleLowerCase();
 		const scope = input.scope ?? 0;
-		const maxDepth = Math.min(Math.max(input.max_depth ?? 5), 20);
-		const maxDirs = Math.min(Math.max(input.max_dirs ?? 100), 1000);
+		const maxDepth = Math.min(Math.max(input.max_depth ?? 5, 1), 20);
+		const maxDirs = Math.min(Math.max(input.max_dirs ?? 100, 1), 1000);
 		const auth = c.get("auth") as Record<string, unknown> | undefined;
 		const user = auth ? { id: 0, permission: 3 } : null;
 		const found: Array<{ parent: string; name: string; is_dir: boolean; size: number; path: string }> = [];
@@ -365,6 +369,12 @@ export async function fsRemoveEmptyDirectory(c: FsContext) {
 	try {
 		const input = await body<{ path: string }>(c);
 		const targetPath = normalizePath(input.path);
+		const auth = c.get("auth") as Record<string, unknown> | undefined;
+		const user = auth ? { id: 0, permission: 3 } : null;
+		const meta = await getNearestMeta(c.env.EDGE_CONFIG, targetPath);
+		if (!canWrite(user, meta, targetPath)) {
+			return failure("Access denied", 403);
+		}
 		if (await isVirtualMount(c.env.EDGE_CONFIG, targetPath)) {
 			return failure("Cannot remove a virtual mount point", 400);
 		}
@@ -392,6 +402,12 @@ export async function fsLink(c: FsContext) {
 	try {
 		const input = await body<{ path: string }>(c);
 		const targetPath = normalizePath(input.path);
+		const auth = c.get("auth") as Record<string, unknown> | undefined;
+		const user = auth ? { id: 0, permission: 3 } : null;
+		const meta = await getNearestMeta(c.env.EDGE_CONFIG, targetPath);
+		if (!canAccess(user, meta, targetPath)) {
+			return failure("Access denied", 403);
+		}
 		if (await isVirtualMount(c.env.EDGE_CONFIG, targetPath)) {
 			return failure("Cannot get link for a virtual mount directory", 400);
 		}
@@ -402,74 +418,29 @@ export async function fsLink(c: FsContext) {
 	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to get link", 400); }
 }
 
-interface MultipartUploadSession {
-	uploadId: string;
-	path: string;
-	parts: Array<{ partNumber: number; etag: string }>;
-	createdAt: number;
+// TODO: Multipart upload is a non-functional skeleton.
+// Issues to resolve before production:
+// 1. Session store must use KV/D1 (in-memory Map is not shared across Worker isolates).
+// 2. fsMultipartChunk must read the request body and upload the binary chunk to S3.
+// 3. fsMultipartComplete must call S3 CompleteMultipartUpload API.
+// 4. Add session TTL/cleanup to prevent memory leaks.
+
+export async function fsMultipartInit(_c: FsContext) {
+	return failure("Multipart upload is not yet implemented", 501);
 }
 
-const multipartSessions = new Map<string, MultipartUploadSession>();
-
-export async function fsMultipartInit(c: FsContext) {
-	try {
-		const input = await body<{ path: string }>(c);
-		const targetPath = normalizePath(input.path);
-		const auth = c.get("auth") as Record<string, unknown> | undefined;
-		const user = auth ? { id: 0, permission: 3 } : null;
-		const meta = await getNearestMeta(c.env.EDGE_CONFIG, targetPath);
-		if (!canWrite(user, meta, targetPath)) {
-			return failure("Access denied", 403);
-		}
-		const maskError = await checkWriteMask(c, targetPath, ObjMask.NoWrite, "Cannot write to this item", true);
-		if (maskError) return maskError;
-		const resolved = await resolveStorage(c.env, targetPath);
-		if (resolved.config.driver !== "object") {
-			return failure("Multipart upload is only supported for S3 storage", 400);
-		}
-		const uploadId = crypto.randomUUID();
-		multipartSessions.set(uploadId, { uploadId, path: targetPath, parts: [], createdAt: Date.now() });
-		return respond(c, { upload_id: uploadId });
-	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to init multipart upload", 400); }
+export async function fsMultipartChunk(_c: FsContext) {
+	return failure("Multipart upload is not yet implemented", 501);
 }
 
-export async function fsMultipartChunk(c: FsContext) {
-	try {
-		const input = await body<{ upload_id: string; part_number: number }>(c);
-		const session = multipartSessions.get(input.upload_id);
-		if (!session) return failure("Upload session not found", 404);
-		const resolved = await resolveStorage(c.env, session.path);
-		if (resolved.config.driver !== "object") {
-			return failure("Multipart upload is only supported for S3 storage", 400);
-		}
-		session.parts.push({ partNumber: input.part_number, etag: "" });
-		return respond(c, null);
-	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to upload chunk", 400); }
+export async function fsMultipartComplete(_c: FsContext) {
+	return failure("Multipart upload is not yet implemented", 501);
 }
 
-export async function fsMultipartComplete(c: FsContext) {
-	try {
-		const input = await body<{ upload_id: string }>(c);
-		const session = multipartSessions.get(input.upload_id);
-		if (!session) return failure("Upload session not found", 404);
-		multipartSessions.delete(input.upload_id);
-		return respond(c, null);
-	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to complete multipart upload", 400); }
+export async function fsMultipartStatus(_c: FsContext) {
+	return failure("Multipart upload is not yet implemented", 501);
 }
 
-export async function fsMultipartStatus(c: FsContext) {
-	try {
-		const input = await body<{ upload_id: string }>(c);
-		const session = multipartSessions.get(input.upload_id);
-		if (!session) return failure("Upload session not found", 404);
-		return respond(c, { upload_id: session.uploadId, path: session.path, parts: session.parts });
-	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to get multipart upload status", 400); }
-}
-
-export async function fsMultipartAbort(c: FsContext) {
-	try {
-		const input = await body<{ upload_id: string }>(c);
-		multipartSessions.delete(input.upload_id);
-		return respond(c, null);
-	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to abort multipart upload", 400); }
+export async function fsMultipartAbort(_c: FsContext) {
+	return failure("Multipart upload is not yet implemented", 501);
 }
