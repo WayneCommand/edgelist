@@ -10,11 +10,16 @@ import { failure, respond } from "./response";
 
 type FsContext = Context<{ Bindings: Env & EdgeListBindings; Variables: { auth: Record<string, unknown> } }>;
 
-async function checkWriteMask(c: FsContext, path: string, maskBit: number, errorMessage: string): Promise<Response | null> {
-	const resolved = await resolveStorage(c.env, path);
-	const file = await resolved.adapter.get(resolved.path);
-	if (file.mask && (file.mask & maskBit)) {
-		return failure(errorMessage, 403);
+async function checkWriteMask(c: FsContext, path: string, maskBit: number, errorMessage: string, checkParent = false): Promise<Response | null> {
+	const targetPath = checkParent ? normalizePath(path.split("/").slice(0, -1).join("/") || "/") : path;
+	const resolved = await resolveStorage(c.env, targetPath);
+	try {
+		const file = await resolved.adapter.get(resolved.path);
+		if (file.mask && (file.mask & maskBit)) {
+			return failure(errorMessage, 403);
+		}
+	} catch {
+		if (!checkParent) return failure(errorMessage, 403);
 	}
 	return null;
 }
@@ -209,7 +214,7 @@ export async function fsPut(c: FsContext) {
 		if (!canWrite(user, meta, targetPath)) {
 			return failure("Access denied", 403);
 		}
-		const maskError = await checkWriteMask(c, targetPath, ObjMask.NoWrite, "Cannot write to this item");
+		const maskError = await checkWriteMask(c, targetPath, ObjMask.NoWrite, "Cannot write to this item", true);
 		if (maskError) return maskError;
 		const resolved = await resolveStorage(c.env, targetPath);
 		await resolved.adapter.write(resolved.path, c.req.raw);
@@ -231,7 +236,7 @@ export async function fsFormUpload(c: FsContext) {
 		if (!canWrite(user, meta, targetPath)) {
 			return failure("Access denied", 403);
 		}
-		const maskError = await checkWriteMask(c, targetPath, ObjMask.NoWrite, "Cannot write to this item");
+		const maskError = await checkWriteMask(c, targetPath, ObjMask.NoWrite, "Cannot write to this item", true);
 		if (maskError) return maskError;
 		const resolved = await resolveStorage(c.env, targetPath);
 		const headers = new Headers();
@@ -245,6 +250,13 @@ export async function fsFormUpload(c: FsContext) {
 export async function fileDownload(c: FsContext) {
 	try {
 		const path = `/${c.req.param("*") ?? ""}`;
+		const normalizedPath = normalizePath(path);
+		const auth = c.get("auth") as Record<string, unknown> | undefined;
+		const user = auth ? { id: 0, permission: 3 } : null;
+		const meta = await getNearestMeta(c.env.EDGE_CONFIG, normalizedPath);
+		if (!canAccess(user, meta, normalizedPath)) {
+			return failure("Access denied", 403);
+		}
 		const resolved = await resolveStorage(c.env, path);
 		const response = await resolved.adapter.read(resolved.path, c.req.header("Range"));
 		const fileName = path.split("/").pop() ?? "file";
@@ -258,11 +270,13 @@ export async function fileDownload(c: FsContext) {
 export async function fsSearch(c: FsContext) {
 	try {
 		const input = await body<{ parent?: string; keywords?: string; scope?: number; page?: number; per_page?: number; max_depth?: number; max_dirs?: number }>(c);
-		const parent = input.parent ?? "/";
+		const parent = normalizePath(input.parent ?? "/");
 		const keywords = (input.keywords ?? "").toLocaleLowerCase();
 		const scope = input.scope ?? 0;
 		const maxDepth = Math.min(Math.max(input.max_depth ?? 5), 20);
 		const maxDirs = Math.min(Math.max(input.max_dirs ?? 100), 1000);
+		const auth = c.get("auth") as Record<string, unknown> | undefined;
+		const user = auth ? { id: 0, permission: 3 } : null;
 		const found: Array<{ parent: string; name: string; is_dir: boolean; size: number; path: string }> = [];
 		const pending: Array<{ path: string; depth: number }> = [{ path: parent, depth: 0 }];
 		const visited = new Set<string>();
@@ -273,6 +287,8 @@ export async function fsSearch(c: FsContext) {
 			if (visited.has(current)) continue;
 			visited.add(current);
 			if (depth > maxDepth) { truncated = true; continue; }
+			const currentMeta = await getNearestMeta(c.env.EDGE_CONFIG, current);
+			if (!canAccess(user, currentMeta, current)) continue;
 			if (!(await getStorageConfig(c.env.EDGE_CONFIG, current))) {
 				const virtual = await listVirtualMounts(c.env.EDGE_CONFIG, current);
 				for (const item of virtual) {
@@ -307,6 +323,10 @@ interface DirTreeNode {
 
 async function buildDirTree(c: FsContext, parentPath: string, depth: number, maxDepth: number): Promise<DirTreeNode[]> {
 	if (depth >= maxDepth) return [];
+	const auth = c.get("auth") as Record<string, unknown> | undefined;
+	const user = auth ? { id: 0, permission: 3 } : null;
+	const parentMeta = await getNearestMeta(c.env.EDGE_CONFIG, parentPath);
+	if (!canAccess(user, parentMeta, parentPath)) return [];
 	const virtualMounts = await listVirtualMounts(c.env.EDGE_CONFIG, parentPath);
 	const nodes: DirTreeNode[] = [];
 	for (const mount of virtualMounts) {
@@ -395,6 +415,14 @@ export async function fsMultipartInit(c: FsContext) {
 	try {
 		const input = await body<{ path: string }>(c);
 		const targetPath = normalizePath(input.path);
+		const auth = c.get("auth") as Record<string, unknown> | undefined;
+		const user = auth ? { id: 0, permission: 3 } : null;
+		const meta = await getNearestMeta(c.env.EDGE_CONFIG, targetPath);
+		if (!canWrite(user, meta, targetPath)) {
+			return failure("Access denied", 403);
+		}
+		const maskError = await checkWriteMask(c, targetPath, ObjMask.NoWrite, "Cannot write to this item", true);
+		if (maskError) return maskError;
 		const resolved = await resolveStorage(c.env, targetPath);
 		if (resolved.config.driver !== "object") {
 			return failure("Multipart upload is only supported for S3 storage", 400);

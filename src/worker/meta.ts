@@ -54,8 +54,11 @@ export function canRead(user: { id?: number } | null, meta: MetaConfig | null, p
 	return true;
 }
 
-export function canWrite(user: { id?: number } | null, meta: MetaConfig | null, path: string): boolean {
+export function canWrite(user: { id?: number; permission?: number } | null, meta: MetaConfig | null, path: string): boolean {
 	if (!user || !meta) return true;
+	if (meta.write === false && metaCoversPath(meta.path, path, meta.w_sub ?? false)) {
+		return false;
+	}
 	if (meta.write_users && meta.write_users.length > 0 && user.id !== undefined && !meta.write_users.includes(user.id) && metaCoversPath(meta.path, path, meta.write_users_sub ?? false)) {
 		return false;
 	}

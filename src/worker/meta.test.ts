@@ -116,22 +116,29 @@ describe("canWrite", () => {
 		expect(canWrite({ id: 1, permission: 3 }, meta, "/test/file.txt")).toBe(true);
 	});
 
-	it("should deny write when user is not in write_users list and sub applies", () => {
+	it("should deny write when write=false and w_sub covers path", () => {
+		const meta = createMeta({ write: false, w_sub: true });
+		expect(canWrite({ id: 1, permission: 3 }, meta, "/test/file.txt")).toBe(false);
+	});
+
+	it("should allow write when write=false but w_sub does not cover path", () => {
+		const meta = createMeta({ write: false, w_sub: true });
+		expect(canWrite({ id: 1, permission: 3 }, meta, "/other/file.txt")).toBe(true);
+	});
+
+	it("should allow write when write=true and w_sub covers path", () => {
+		const meta = createMeta({ write: true, w_sub: true });
+		expect(canWrite({ id: 1, permission: 3 }, meta, "/test/file.txt")).toBe(true);
+	});
+
+	it("should deny write when write_users excludes user", () => {
 		const meta = createMeta({ write_users: [1, 2], write_users_sub: true });
-		// metaCoversPath("/test", "/test/file.txt", true) = true => covered => deny
 		expect(canWrite({ id: 3, permission: 3 }, meta, "/test/file.txt")).toBe(false);
 	});
 
-	it("should allow write when user not in write_users but sub is false (different path)", () => {
-		const meta = createMeta({ write_users: [1, 2], write_users_sub: false });
-		// metaCoversPath("/test", "/other/file.txt", false) = false => not covered => allow
-		expect(canWrite({ id: 3, permission: 3 }, meta, "/other/file.txt")).toBe(true);
-	});
-
-	it("should deny write when user not in write_users, sub is false, exact meta path match", () => {
-		const meta = createMeta({ write_users: [1, 2], write_users_sub: false });
-		// metaCoversPath("/test", "/test", false) = true (exact match) => covered => deny
-		expect(canWrite({ id: 3, permission: 3 }, meta, "/test")).toBe(false);
+	it("should deny write when write=false AND write_users excludes user", () => {
+		const meta = createMeta({ write: false, w_sub: true, write_users: [1, 2], write_users_sub: true });
+		expect(canWrite({ id: 3, permission: 3 }, meta, "/test/file.txt")).toBe(false);
 	});
 });
 
