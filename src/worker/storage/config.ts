@@ -1,6 +1,5 @@
 import { CONFIG_KEYS, readConfig, type EdgeListBindings } from "../env";
-import type { FileObject, StorageConfig, StorageDriver } from "./types";
-import { normalizePath } from "./types";
+import { normalizePath, ObjMask, OBJ_LOCKED, OBJ_READ_ONLY, type FileObject, type StorageConfig, type StorageDriver } from "./types";
 
 export async function listStorageConfigs(kv: KVNamespace): Promise<StorageConfig[]> {
 	const value = await readConfig(kv, CONFIG_KEYS.storages);
@@ -24,8 +23,19 @@ export async function listVirtualMounts(kv: KVNamespace, parentPath: string): Pr
 		const mount = normalizePath(storage.mount_path);
 		if (mount === parent || !mount.startsWith(prefix)) continue;
 		const relative = mount.slice(prefix.length);
-		const name = relative.split("/")[0];
-		if (!name || children.has(name)) continue;
+		const [name, ...rest] = relative.split("/");
+		if (!name) continue;
+		// A mount sitting directly under the parent is a real mount point: it can
+		// be written through but not renamed, moved or removed. A directory that
+		// only exists to reach a deeper mount is read-only as well.
+		const mask = rest.length ? OBJ_READ_ONLY | ObjMask.Virtual : OBJ_LOCKED | ObjMask.Virtual;
+		const existing = children.get(name);
+		if (existing) {
+			// Several nested mounts can share one intermediate name; as soon as
+			// one lands directly on it, it becomes a real mount point.
+			if (!rest.length) existing.mask = mask;
+			continue;
+		}
 		children.set(name, {
 			name,
 			size: 0,
@@ -33,7 +43,7 @@ export async function listVirtualMounts(kv: KVNamespace, parentPath: string): Pr
 			modified: new Date(0).toISOString(),
 			created: new Date(0).toISOString(),
 			path: normalizePath(`${parent}/${name}`),
-			mask: 0,
+			mask,
 		});
 	}
 	return [...children.values()];
