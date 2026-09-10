@@ -52,6 +52,8 @@ export interface FileObject {
 	path: string;
 	/** OpenList `ObjMask` bits; 0 means every action is allowed. */
 	mask?: number;
+	/** Driver key that serves this entry: `object`, `webdav` or `openlist`. */
+	provider?: string;
 	hashinfo?: Record<string, unknown>;
 	[key: string]: unknown;
 }

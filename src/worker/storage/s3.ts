@@ -51,10 +51,18 @@ function xmlItems(xml: string, tag: string): string[] {
 	return [...xml.matchAll(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, "gi"))].map((match) => match[1]);
 }
 
+// Only a plain 32-hex ETag is the MD5 of the object. Multipart uploads report
+// `<md5>-<parts>` and encrypted objects report something else entirely, so
+// neither may be advertised as an MD5. S3 sends the quotes XML-escaped.
+function etagHash(etag?: string): Record<string, unknown> | undefined {
+	const value = etag?.replaceAll("&quot;", "").replaceAll('"', "");
+	return value && /^[0-9a-f]{32}$/i.test(value) ? { etag: value } : undefined;
+}
+
 function fileObject(key: string, size: string, modified: string, etag?: string, isDir = false): FileObject {
 	const name = key.split("/").filter(Boolean).pop() ?? key;
 	const date = modified ? new Date(modified).toISOString() : new Date(0).toISOString();
-	return { name, size: isDir ? 0 : Number(size) || 0, is_dir: isDir, modified: date, created: date, path: `/${key}`, mask: 0, hashinfo: etag ? { etag: etag.replaceAll('"', "") } : undefined };
+	return { name, size: isDir ? 0 : Number(size) || 0, is_dir: isDir, modified: date, created: date, path: `/${key}`, mask: 0, provider: "object", hashinfo: etagHash(etag) };
 }
 
 export class S3Adapter implements StorageAdapter {

@@ -13,10 +13,11 @@ interface OpenListEnvelope<T> {
 	data: T;
 }
 
-// An upstream OpenList already returns `mask`, but older builds do not, so the
-// field is filled in here to keep every adapter's output shaped the same.
-function withMask(item: FileObject): FileObject {
-	return { ...item, mask: item.mask ?? 0 };
+// An upstream OpenList already returns `mask` and `provider`, but older builds
+// do not, so both are filled in here to keep every adapter's output shaped the
+// same. A provider reported upstream is kept: it says where the file really lives.
+function normalizeObject(item: FileObject): FileObject {
+	return { ...item, mask: item.mask ?? 0, provider: item.provider ?? "openlist" };
 }
 
 export class OpenListAdapter implements StorageAdapter {
@@ -70,11 +71,11 @@ export class OpenListAdapter implements StorageAdapter {
 		return this.json<{ content: FileObject[]; total: number }>("/fs/list", {
 			method: "POST",
 			body: JSON.stringify({ path, page: options.page, per_page: options.per_page, refresh: options.refresh }),
-		}).then((result) => ({ ...result, content: result.content.map(withMask) }));
+		}).then((result) => ({ ...result, content: result.content.map(normalizeObject) }));
 	}
 
 	get(path: string) {
-		return this.json<FileObject>("/fs/get", { method: "POST", body: JSON.stringify({ path }) }).then(withMask);
+		return this.json<FileObject>("/fs/get", { method: "POST", body: JSON.stringify({ path }) }).then(normalizeObject);
 	}
 
 	async read(path: string, range?: string) {
