@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { StorageConfig } from "./types";
+import { ObjMask, OBJ_LOCKED, OBJ_READ_ONLY, type StorageConfig } from "./types";
 import { hasValidStorageAddition, listVirtualMounts, mergeFileObjects, mountDepth, normalizeStorageConfig, paginateFileObjects, selectStorage } from "./config";
 
 function storage(mountPath: string, order = 0, disabled = false): StorageConfig {
@@ -106,6 +106,49 @@ describe("storage normalization", () => {
 
 	it("leaves a missing webdav_policy untouched", () => {
 		expect(normalizeStorageConfig(storage("/a")).webdav_policy).toBeUndefined();
+	});
+});
+
+describe("virtual mount masks", () => {
+	it("locks a mount that sits directly under the parent", async () => {
+		const kv = kvWithStorages([storage("/mounts/first", 1)]);
+		const [mount] = await listVirtualMounts(kv, "/mounts");
+		expect(mount.name).toBe("first");
+		expect(mount.mask).toBe(OBJ_LOCKED | ObjMask.Virtual);
+	});
+
+	it("makes a directory that only leads to a deeper mount read-only", async () => {
+		const kv = kvWithStorages([storage("/mounts/deep/nested", 1)]);
+		const [mount] = await listVirtualMounts(kv, "/mounts");
+		expect(mount.name).toBe("deep");
+		expect(mount.mask).toBe(OBJ_READ_ONLY | ObjMask.Virtual);
+	});
+
+	it("upgrades an intermediate name once a mount lands directly on it", async () => {
+		const kv = kvWithStorages([storage("/mounts/deep/one", 1), storage("/mounts/deep", 2)]);
+		const [mount] = await listVirtualMounts(kv, "/mounts");
+		expect(mount.mask).toBe(OBJ_LOCKED | ObjMask.Virtual);
+	});
+
+	it("keeps one entry per name and keeps the first mount's order", async () => {
+		const kv = kvWithStorages([storage("/mounts/deep/b", 2), storage("/mounts/deep/a", 1)]);
+		const mounts = await listVirtualMounts(kv, "/mounts");
+		expect(mounts).toHaveLength(1);
+		expect(mounts[0]).toMatchObject({ name: "deep", mask: OBJ_READ_ONLY | ObjMask.Virtual });
+	});
+
+	it("excludes the parent itself and mounts outside it", async () => {
+		const kv = kvWithStorages([storage("/mounts", 1), storage("/other", 2), storage("/mounts/inner", 3)]);
+		const mounts = await listVirtualMounts(kv, "/mounts");
+		expect(mounts.map((mount) => mount.name)).toEqual(["inner"]);
+	});
+
+	it("marks virtual entries so clients can tell them apart", async () => {
+		const kv = kvWithStorages([storage("/mounts/first", 1)]);
+		const [mount] = await listVirtualMounts(kv, "/mounts");
+		expect(mount.mask! & ObjMask.Virtual).toBeTruthy();
+		expect(mount.mask! & ObjMask.NoRemove).toBeTruthy();
+		expect(mount.mask! & ObjMask.NoWrite).toBeFalsy();
 	});
 });
 

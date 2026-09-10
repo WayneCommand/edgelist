@@ -84,7 +84,7 @@
 - [x] 1.4 抽出纯函数 `selectStorage(configs, path)`：按挂载**层级深度**降序做最长前缀匹配，跳过 `disabled` 挂载；替换 `factory.ts` 的字符串长度排序。
 - [x] 1.5 `selectStorage` 补单测：root 挂载、一级挂载、嵌套 `/a` + `/a/b`、前缀误匹配 `/ab` vs `/a`、disabled 回退到外层挂载。
 - [x] 1.6 `listVirtualMounts` 区分"真实挂载点"（`Locked | Virtual`）与"中间层"（`ReadOnly | Virtual`），参考 `internal/op/storage.go:378-443`。
-- [ ] 1.7 虚拟目录生成补单测：单层、多层嵌套、同名去重、被真实目录占用时的优先级。
+- [x] 1.7 虚拟目录生成补单测：单层、多层嵌套、同名去重、被真实目录占用时的优先级。
 - [ ] 1.8 新增 `src/worker/sort.ts`：`compareNatural`（数字分段自然序）、`sortObjects(items, orderBy, orderDirection)`、`extractFolder(items, position)`。
 - [ ] 1.9 `sort.ts` 补单测：自然序（`file-2` < `file-10`）、size/modified、asc/desc、目录前置/后置稳定性。
 - [ ] 1.10 `fsList` 在合并虚拟目录后、分页前应用排序（先 `sortObjects` 再 `extractFolder`）；优先级：请求参数 > 命中 storage 的 `extract_folder`（0.4 已就绪）> 全局默认。
