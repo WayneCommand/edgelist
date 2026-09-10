@@ -79,7 +79,7 @@
 ## 阶段一：文件对象模型与挂载解析
 
 - [x] 1.1 新增 `ObjMask` 位定义与常量（`Virtual / NoRename / NoRemove / NoMove / NoCopy / NoWrite / Locked / ReadOnly`），对齐 `internal/model/obj.go:239-257`。
-- [ ] 1.2 `FileObject` 增加 `mask` 字段，三个适配器与虚拟目录生成处填默认值 `0`。
+- [x] 1.2 `FileObject` 增加 `mask` 字段，三个适配器与虚拟目录生成处填默认值 `0`。
 - [ ] 1.3 `FileObject` 增加 `provider`（驱动名）与 `hashinfo`；S3 填充时排除形如 `"etag-N"` 的分片 ETag（非 MD5）。
 - [ ] 1.4 抽出纯函数 `selectStorage(configs, path)`：按挂载**层级深度**降序做最长前缀匹配，跳过 `disabled` 挂载；替换 `factory.ts` 的字符串长度排序。
 - [ ] 1.5 `selectStorage` 补单测：root 挂载、一级挂载、嵌套 `/a` + `/a/b`、前缀误匹配 `/ab` vs `/a`、disabled 回退到外层挂载。

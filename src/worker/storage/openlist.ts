@@ -13,6 +13,12 @@ interface OpenListEnvelope<T> {
 	data: T;
 }
 
+// An upstream OpenList already returns `mask`, but older builds do not, so the
+// field is filled in here to keep every adapter's output shaped the same.
+function withMask(item: FileObject): FileObject {
+	return { ...item, mask: item.mask ?? 0 };
+}
+
 export class OpenListAdapter implements StorageAdapter {
 	readonly driver = "openlist" as const;
 	readonly capabilities = new Set(["read", "write", "mkdir", "remove", "rename", "copy", "move", "merge"] as const);
@@ -64,11 +70,11 @@ export class OpenListAdapter implements StorageAdapter {
 		return this.json<{ content: FileObject[]; total: number }>("/fs/list", {
 			method: "POST",
 			body: JSON.stringify({ path, page: options.page, per_page: options.per_page, refresh: options.refresh }),
-		});
+		}).then((result) => ({ ...result, content: result.content.map(withMask) }));
 	}
 
 	get(path: string) {
-		return this.json<FileObject>("/fs/get", { method: "POST", body: JSON.stringify({ path }) });
+		return this.json<FileObject>("/fs/get", { method: "POST", body: JSON.stringify({ path }) }).then(withMask);
 	}
 
 	async read(path: string, range?: string) {

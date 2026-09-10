@@ -50,6 +50,8 @@ export interface FileObject {
 	modified: string;
 	created: string;
 	path: string;
+	/** OpenList `ObjMask` bits; 0 means every action is allowed. */
+	mask?: number;
 	hashinfo?: Record<string, unknown>;
 	[key: string]: unknown;
 }

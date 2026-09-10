@@ -68,7 +68,7 @@ export async function fsGet(c: FsContext) {
 		const requestedPath = normalizePath(input.path ?? "/");
 		if (await isVirtualMount(c.env.EDGE_CONFIG, requestedPath)) {
 			const name = requestedPath.split("/").filter(Boolean).pop() ?? "/";
-			const virtual: FileObject = { name, size: 0, is_dir: true, modified: new Date(0).toISOString(), created: new Date(0).toISOString(), path: requestedPath };
+			const virtual: FileObject = { name, size: 0, is_dir: true, modified: new Date(0).toISOString(), created: new Date(0).toISOString(), path: requestedPath, mask: 0 };
 			return respond(c, virtual);
 		}
 		const resolved = await resolveStorage(c.env, input.path ?? "/");

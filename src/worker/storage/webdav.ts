@@ -8,7 +8,7 @@ function xmlValue(xml: string, tag: string): string { return xml.match(new RegEx
 function toObject(path: string, size: string, modified: string, isDir: boolean): FileObject {
 	const clean = normalizePath(path);
 	const date = modified ? new Date(modified).toISOString() : new Date(0).toISOString();
-	return { name: clean.split("/").filter(Boolean).pop() ?? "/", size: Number(size) || 0, is_dir: isDir, modified: date, created: date, path: clean };
+	return { name: clean.split("/").filter(Boolean).pop() ?? "/", size: Number(size) || 0, is_dir: isDir, modified: date, created: date, path: clean, mask: 0 };
 }
 
 export class WebdavAdapter implements StorageAdapter {

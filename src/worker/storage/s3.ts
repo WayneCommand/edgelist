@@ -54,7 +54,7 @@ function xmlItems(xml: string, tag: string): string[] {
 function fileObject(key: string, size: string, modified: string, etag?: string, isDir = false): FileObject {
 	const name = key.split("/").filter(Boolean).pop() ?? key;
 	const date = modified ? new Date(modified).toISOString() : new Date(0).toISOString();
-	return { name, size: isDir ? 0 : Number(size) || 0, is_dir: isDir, modified: date, created: date, path: `/${key}`, hashinfo: etag ? { etag: etag.replaceAll('"', "") } : undefined };
+	return { name, size: isDir ? 0 : Number(size) || 0, is_dir: isDir, modified: date, created: date, path: `/${key}`, mask: 0, hashinfo: etag ? { etag: etag.replaceAll('"', "") } : undefined };
 }
 
 export class S3Adapter implements StorageAdapter {

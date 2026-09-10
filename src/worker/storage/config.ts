@@ -33,6 +33,7 @@ export async function listVirtualMounts(kv: KVNamespace, parentPath: string): Pr
 			modified: new Date(0).toISOString(),
 			created: new Date(0).toISOString(),
 			path: normalizePath(`${parent}/${name}`),
+			mask: 0,
 		});
 	}
 	return [...children.values()];
