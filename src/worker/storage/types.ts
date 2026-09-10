@@ -19,8 +19,6 @@ export interface StorageConfig {
 	addition: string;
 	remark: string;
 	disabled: boolean;
-	disable_index: boolean;
-	enable_sign: boolean;
 	[key: string]: unknown;
 }
 

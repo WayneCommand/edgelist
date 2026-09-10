@@ -3,7 +3,7 @@ import type { StorageConfig } from "./types";
 import { S3Adapter } from "./s3";
 
 function config(addition: Record<string, unknown>): StorageConfig {
-	return { id: 1, mount_path: "/", order: 0, driver: "object", status: "work", addition: JSON.stringify(addition), remark: "", disabled: false, disable_index: false, enable_sign: false };
+	return { id: 1, mount_path: "/", order: 0, driver: "object", status: "work", addition: JSON.stringify(addition), remark: "", disabled: false };
 }
 
 	describe("S3 adapter compatibility", () => {

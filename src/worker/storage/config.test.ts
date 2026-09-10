@@ -12,8 +12,6 @@ function storage(mountPath: string, order = 0, disabled = false): StorageConfig 
 		addition: "{}",
 		remark: "",
 		disabled,
-		disable_index: false,
-		enable_sign: false,
 	};
 }
 

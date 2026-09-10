@@ -68,7 +68,7 @@
 > **关键**："从 UI 移除" ≠ "从数据删除"。`normalizeStorageConfig` 是 spread 保留未知字段，
 > 所以备份导入时这些字段仍留在 KV、导出时原样带出，双向迁移无损。
 
-- [ ] 0.1 移除 `disable_index` 与 `enable_sign`：从 `StorageConfig` 类型与前端表单移除（无索引/签名实现，属假功能）。
+- [x] 0.1 移除 `disable_index` 与 `enable_sign`：从 `StorageConfig` 类型与前端表单移除（无索引/签名实现，属假功能）。
 - [ ] 0.2 移除 `cache_expiration` 与 `custom_cache_policies`（决策 1）：从类型与表单移除，备份层透传保留。
 - [ ] 0.3 代理字段 `web_proxy` / `down_proxy_url` / `disable_proxy_sign` / `webdav_policy` **当前均未实现**：`/d/*` 恒为代理流式转发（S3 `read` 直接返回上游响应），从不 302。从表单移除；后续要支持 302 直链需配合 3.5 的 `/api/fs/link`。
 - [ ] 0.4 `folder_order` → `extract_folder` 改名（决策 2）：值 `before/after` → `front/back`，`normalizeStorageConfig` 双向迁移。

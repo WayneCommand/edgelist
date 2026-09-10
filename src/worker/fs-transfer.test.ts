@@ -4,7 +4,7 @@ import { joinPath, normalizePath } from "./storage/types";
 import { planTransfers, type TransferPlannerDependencies } from "./fs-transfer";
 
 function config(mountPath: string): StorageConfig {
-	return { id: mountPath.length, mount_path: mountPath, order: 0, driver: "object", status: "work", addition: "{}", remark: "", disabled: false, disable_index: false, enable_sign: false };
+	return { id: mountPath.length, mount_path: mountPath, order: 0, driver: "object", status: "work", addition: "{}", remark: "", disabled: false };
 }
 
 function object(path: string, isDir = false): FileObject {
