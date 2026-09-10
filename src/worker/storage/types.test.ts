@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isStorageConfig, normalizeStorageConfig } from "./config";
 import { relativeStoragePath } from "./factory";
-import { normalizePath } from "./types";
+import { ObjMask, OBJ_LOCKED, OBJ_READ_ONLY, normalizePath } from "./types";
 
 describe("storage paths", () => {
 	it("normalizes traversal and duplicate separators", () => {
@@ -12,6 +12,19 @@ describe("storage paths", () => {
 	it("keeps paths relative to a mount", () => {
 		expect(relativeStoragePath("/photos", "/photos/a.jpg")).toBe("/a.jpg");
 		expect(() => relativeStoragePath("/photos", "/other/a.jpg")).toThrow("outside storage mount");
+	});
+});
+
+describe("object mask", () => {
+	it("matches the OpenList bit positions", () => {
+		expect([ObjMask.Virtual, ObjMask.NoRename, ObjMask.NoRemove, ObjMask.NoMove, ObjMask.NoCopy, ObjMask.NoWrite, ObjMask.Temp]).toEqual([1, 2, 4, 8, 16, 32, 64]);
+	});
+
+	it("composes Locked and ReadOnly the way OpenList does", () => {
+		expect(OBJ_LOCKED).toBe(ObjMask.NoRename | ObjMask.NoRemove | ObjMask.NoMove);
+		expect(OBJ_LOCKED).toBe(14);
+		expect(OBJ_READ_ONLY).toBe(OBJ_LOCKED | ObjMask.NoWrite);
+		expect(OBJ_READ_ONLY).toBe(46);
 	});
 });
 

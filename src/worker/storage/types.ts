@@ -23,6 +23,26 @@ export interface StorageConfig {
 	[key: string]: unknown;
 }
 
+// Mirrors OpenList's `ObjMask` (`internal/model/obj.go:239-257`). The file list
+// ships these bits so a client can grey out the actions an entry cannot do.
+export const ObjMask = {
+	Virtual: 1 << 0,
+	NoRename: 1 << 1,
+	NoRemove: 1 << 2,
+	NoMove: 1 << 3,
+	NoCopy: 1 << 4,
+	NoWrite: 1 << 5,
+	Temp: 1 << 6,
+} as const;
+
+// A mount point exists because a storage is mounted there: you cannot rename,
+// remove or move it, only write through it.
+export const OBJ_LOCKED = ObjMask.NoRename | ObjMask.NoRemove | ObjMask.NoMove;
+
+// Intermediate directories only exist to reach a nested mount, so they are
+// locked as well and cannot be written into.
+export const OBJ_READ_ONLY = OBJ_LOCKED | ObjMask.NoWrite;
+
 export interface FileObject {
 	name: string;
 	size: number;
