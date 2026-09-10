@@ -1,5 +1,5 @@
 import type { FileObject, StorageAdapter, StorageConfig, TransferOptions } from "./storage/types";
-import { joinPath, normalizePath } from "./storage/types";
+import { joinPath, normalizePath, ObjMask } from "./storage/types";
 
 export type TransferKind = "copy" | "move";
 
@@ -116,6 +116,15 @@ export async function planTransfers(kind: TransferKind, input: TransferInput, de
 			if (source.path === "/") throw new TransferValidationError("ROOT_TRANSFER", "A storage root cannot be transferred");
 
 			const sourceObject = await source.adapter.get(source.path);
+			if (sourceObject.mask) {
+				const maskBit = kind === "copy" ? ObjMask.NoCopy : ObjMask.NoMove;
+				if (sourceObject.mask & maskBit) {
+					throw new TransferValidationError("MASK_RESTRICTED", `Cannot ${kind} this item`);
+				}
+				if (kind === "move" && (sourceObject.mask & ObjMask.NoRemove)) {
+					throw new TransferValidationError("MASK_RESTRICTED", "Cannot remove this item");
+				}
+			}
 			if (sourcePath === targetPath) throw new TransferValidationError("SAME_PATH", "Source and destination are the same");
 			if (sourceObject.is_dir && targetPath.startsWith(`${sourcePath}/`)) throw new TransferValidationError("NESTED_TRANSFER", "A directory cannot be transferred into itself");
 			if (sourceObject.is_dir && (await dependencies.listVirtualMounts(sourcePath)).length) {
@@ -126,6 +135,9 @@ export async function planTransfers(kind: TransferKind, input: TransferInput, de
 			if (targetResolution.config.mount_path !== source.config.mount_path) throw new TransferValidationError("CROSS_STORAGE_TRANSFER", "跨存储复制/移动不支持");
 			if (targetResolution.path === "/") throw new TransferValidationError("OVERWRITE_MOUNT", "A storage mount cannot be overwritten");
 			const target = await findObject(targetResolution.adapter, targetPath);
+			if (target?.mask && (target.mask & ObjMask.NoWrite)) {
+				throw new TransferValidationError("MASK_RESTRICTED", "Cannot write to target");
+			}
 			const options = transferOptions(kind, sourceObject, target, input, source.adapter);
 			if (options === "skip") {
 				results.push({ name, source: sourcePath, destination: targetPath, status: "skipped" });

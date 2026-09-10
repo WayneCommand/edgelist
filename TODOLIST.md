@@ -123,13 +123,13 @@
 
 ## 阶段四：Meta ACL 与权限
 
-- [ ] 4.0 补全 `src/worker/meta.ts` 的 `MetaConfig` 字段（`hide` / `h_sub` / `readme` / `r_sub` / `header` / `header_sub` / `p_sub` / `w_sub`），对齐 `internal/model/meta.go:3-20`。
-- [ ] 4.1 实现 `getNearestMeta(path)`：沿父目录向上找最近规则，支持 `*_sub` 子目录开关。
-- [ ] 4.2 实现 `canRead / canWrite / canAccess`（含 `hide` 正则、密码校验）。
-- [ ] 4.3 `fs/list`、`fs/get` 接入 `canAccess` 与隐藏过滤。
-- [ ] 4.4 `fs/mkdir`、`fs/rename`、`fs/remove`、`fs/move`、`fs/copy`、`fs/put` 接入 `canWrite`。
-- [ ] 4.5 写操作接入 `ObjMask` 校验（`NoRename / NoRemove / NoMove / NoCopy / NoWrite`）。
-- [ ] 4.6 Meta ACL 与掩码校验补单测。
+- [x] 4.0 补全 `src/worker/meta.ts` 的 `MetaConfig` 字段（`hide` / `h_sub` / `readme` / `r_sub` / `header` / `header_sub` / `p_sub` / `w_sub`），对齐 `internal/model/meta.go:3-20`。
+- [x] 4.1 实现 `getNearestMeta(path)`：沿父目录向上找最近规则，支持 `*_sub` 子目录开关。
+- [x] 4.2 实现 `canRead / canWrite / canAccess`（含 `hide` 正则、密码校验）。
+- [x] 4.3 `fs/list`、`fs/get` 接入 `canAccess` 与隐藏过滤。
+- [x] 4.4 `fs/mkdir`、`fs/rename`、`fs/remove`、`fs/move`、`fs/copy`、`fs/put` 接入 `canWrite`。
+- [x] 4.5 写操作接入 `ObjMask` 校验（`NoRename / NoRemove / NoMove / NoCopy / NoWrite`）。
+- [x] 4.6 Meta ACL 与掩码校验补单测。
 
 ## 阶段五：前端工程结构与可读性
 
