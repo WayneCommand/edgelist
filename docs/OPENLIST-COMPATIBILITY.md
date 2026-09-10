@@ -54,6 +54,20 @@
 
 文件对象至少包含 OpenList 前端依赖的 `name`、`size`、`is_dir`、`modified`、`created`、`path`、`hashinfo` 等元信息字段；具体驱动差异通过适配器隐藏。
 
+## 排序与缓存
+
+- `fs/list` 的 `refresh` 字段保留以兼容 OpenList 客户端，但目前没有目录缓存实现，因此它是 no-op：请求总是直接打到上游存储。
+- 排序配置使用 OpenList 命名：`order_by` 取值为 `name`、`size`、`modified`；`extract_folder` 取值为 `front`、`back`。
+  早期版本使用的 `folder_order`（`before`、`after`）在读取时自动迁移为 `extract_folder`。
+
+## 已移除的管理界面字段
+
+以下字段后端从未读取，已从存储表单移除，避免"能改但不生效"：
+
+`cache_expiration`、`custom_cache_policies`、`web_proxy`、`webdav_policy`、`down_proxy_url`、`disable_proxy_sign`、`disable_index`、`enable_sign`。
+
+备份导入导出仍然原样透传这些字段（存储配置保留未知键），因此从 OpenList 导入的配置不会丢数据，导出后也能被 OpenList 还原。
+
 ## 存储适配器
 
 Worker 内部统一抽象为 list、stat、read、write、mkdir、remove、rename；路由挂载路径后将逻辑路径转换为驱动路径。

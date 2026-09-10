@@ -79,6 +79,20 @@ describe("storage normalization", () => {
 	it("falls back to front for values it does not recognise", () => {
 		expect(normalizeStorageConfig({ ...storage("/a"), folder_order: "sideways" }).extract_folder).toBe("front");
 	});
+
+	it("keeps the OpenList order_by values", () => {
+		expect(normalizeStorageConfig({ ...storage("/a"), order_by: "size" }).order_by).toBe("size");
+		expect(normalizeStorageConfig({ ...storage("/a"), order_by: "modified" }).order_by).toBe("modified");
+		expect(normalizeStorageConfig({ ...storage("/a"), order_by: "" }).order_by).toBe("");
+	});
+
+	it("folds the removed created sort field back into the default", () => {
+		expect(normalizeStorageConfig({ ...storage("/a"), order_by: "created" }).order_by).toBe("name");
+	});
+
+	it("leaves a missing order_by untouched", () => {
+		expect(normalizeStorageConfig(storage("/a")).order_by).toBeUndefined();
+	});
 });
 
 describe("storage addition validation", () => {

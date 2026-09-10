@@ -75,6 +75,15 @@ function extractFolderValue(candidate: unknown): string | undefined {
 	return EXTRACT_FOLDER_ALIASES[candidate] ?? (candidate === "front" || candidate === "back" ? candidate : "front");
 }
 
+// OpenList's storage-level sort field only accepts `name`, `size`, `modified`,
+// or `""` (leave the upstream order untouched). Early EdgeList builds also
+// offered `created`, which OpenList cannot express, so it folds back to the
+// default instead of being carried around as a value nobody understands.
+function orderByValue(candidate: unknown): string | undefined {
+	if (typeof candidate !== "string") return undefined;
+	return candidate === "" || candidate === "name" || candidate === "size" || candidate === "modified" ? candidate : "name";
+}
+
 export function normalizeStorageConfig(value: StorageConfig): StorageConfig {
 	const rawDriver = String(value.driver);
 	const normalizedDriver = rawDriver.toLowerCase();
@@ -96,6 +105,8 @@ export function normalizeStorageConfig(value: StorageConfig): StorageConfig {
 	delete result.folder_order;
 	const extractFolder = extractFolderValue(result.extract_folder ?? value.folder_order);
 	if (extractFolder) result.extract_folder = extractFolder;
+	const orderBy = orderByValue(result.order_by);
+	if (orderBy !== undefined) result.order_by = orderBy;
 	return result;
 }
 
