@@ -93,6 +93,20 @@ describe("storage normalization", () => {
 	it("leaves a missing order_by untouched", () => {
 		expect(normalizeStorageConfig(storage("/a")).order_by).toBeUndefined();
 	});
+
+	it("migrates the legacy webdav_policy spellings", () => {
+		expect(normalizeStorageConfig({ ...storage("/a"), webdav_policy: "302" }).webdav_policy).toBe("302_redirect");
+		expect(normalizeStorageConfig({ ...storage("/a"), webdav_policy: "proxy" }).webdav_policy).toBe("native_proxy");
+	});
+
+	it("keeps the OpenList webdav_policy values", () => {
+		expect(normalizeStorageConfig({ ...storage("/a"), webdav_policy: "use_proxy_url" }).webdav_policy).toBe("use_proxy_url");
+		expect(normalizeStorageConfig({ ...storage("/a"), webdav_policy: "" }).webdav_policy).toBe("");
+	});
+
+	it("leaves a missing webdav_policy untouched", () => {
+		expect(normalizeStorageConfig(storage("/a")).webdav_policy).toBeUndefined();
+	});
 });
 
 describe("storage addition validation", () => {

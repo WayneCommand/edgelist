@@ -57,8 +57,9 @@
 ## 排序与缓存
 
 - `fs/list` 的 `refresh` 字段保留以兼容 OpenList 客户端，但目前没有目录缓存实现，因此它是 no-op：请求总是直接打到上游存储。
-- 排序配置使用 OpenList 命名：`order_by` 取值为 `name`、`size`、`modified`；`extract_folder` 取值为 `front`、`back`。
-  早期版本使用的 `folder_order`（`before`、`after`）在读取时自动迁移为 `extract_folder`。
+- 排序配置使用 OpenList 命名：`order_by` 取值为 `name`、`size`、`modified`（空串表示"不排序"）；`extract_folder` 取值为 `front`、`back`。
+  早期版本使用的 `folder_order`（`before`、`after`）在读取时自动迁移为 `extract_folder`；`order_by` 的 `created` 会回落到 `name`。
+- `webdav_policy` 若存在，取值统一为 `302_redirect`、`use_proxy_url`、`native_proxy`，旧写法 `302`、`proxy` 在读取时自动迁移。
 
 ## 已移除的管理界面字段
 

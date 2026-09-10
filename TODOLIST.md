@@ -73,7 +73,7 @@
 - [x] 0.3 代理字段 `web_proxy` / `down_proxy_url` / `disable_proxy_sign` / `webdav_policy` **当前均未实现**：`/d/*` 恒为代理流式转发（S3 `read` 直接返回上游响应），从不 302。从表单移除；后续要支持 302 直链需配合 3.5 的 `/api/fs/link`。
 - [x] 0.4 `folder_order` → `extract_folder` 改名（决策 2）：值 `before/after` → `front/back`，`normalizeStorageConfig` 双向迁移。
 - [x] 0.5 `order_by` 合法值统一为 `name / size / modified`，移除 `created`；`refresh` 参数保留（客户端兼容）并在文档标注为 no-op。
-- [ ] 0.6 `webdav_policy` 取值统一为 `302_redirect / use_proxy_url / native_proxy`，旧值（`302` / `proxy`）在 `normalizeStorageConfig` 迁移（配合 0.3：当前字段不生效，备份仍透传）。
+- [x] 0.6 `webdav_policy` 取值统一为 `302_redirect / use_proxy_url / native_proxy`，旧值（`302` / `proxy`）在 `normalizeStorageConfig` 迁移（配合 0.3：当前字段不生效，备份仍透传）。
 - [ ] 0.7 补单测：备份导入含旧字段名/旧值时迁移正确，导出后能被 OpenList 识别。
 
 ## 阶段一：文件对象模型与挂载解析

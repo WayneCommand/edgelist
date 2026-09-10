@@ -65,23 +65,31 @@ export function isStorageDriver(value: unknown): value is StorageDriver {
 	return value === "openlist" || value === "OpenList" || value === "object" || value === "s3" || value === "S3" || value === "Doge" || value === "webdav" || value === "WebDav" || value === "WebDAV";
 }
 
-// OpenList spells the "where do folders go" setting `extract_folder` with
-// `front`/`back`. Early EdgeList builds used `folder_order` with
-// `before`/`after`, so both spellings are accepted and folded into one field.
-const EXTRACT_FOLDER_ALIASES: Record<string, string> = { before: "front", after: "back" };
+// Storage fields that OpenList spells differently from early EdgeList builds.
+// Each rule first rewrites legacy spellings, then clamps the outcome to the
+// values OpenList actually understands, so downstream code can trust what it
+// reads and a backup round trip never carries a value nobody can interpret.
+// An absent field stays absent; only values that are present get normalised.
+type SelectRule = { aliases?: Record<string, string>; allowed: readonly string[]; fallback: string };
 
-function extractFolderValue(candidate: unknown): string | undefined {
-	if (typeof candidate !== "string" || !candidate) return undefined;
-	return EXTRACT_FOLDER_ALIASES[candidate] ?? (candidate === "front" || candidate === "back" ? candidate : "front");
-}
+// Early EdgeList builds used `folder_order` with `before`/`after`.
+const EXTRACT_FOLDER: SelectRule = { aliases: { before: "front", after: "back" }, allowed: ["", "front", "back"], fallback: "front" };
 
-// OpenList's storage-level sort field only accepts `name`, `size`, `modified`,
-// or `""` (leave the upstream order untouched). Early EdgeList builds also
-// offered `created`, which OpenList cannot express, so it folds back to the
-// default instead of being carried around as a value nobody understands.
-function orderByValue(candidate: unknown): string | undefined {
+// `""` is OpenList's "leave the upstream order alone". `created` was an
+// EdgeList-only option that OpenList cannot express, so it folds to the default.
+const ORDER_BY: SelectRule = { allowed: ["", "name", "size", "modified"], fallback: "name" };
+
+// Early EdgeList builds stored the shorter `302` / `proxy` spellings.
+const WEBDAV_POLICY: SelectRule = {
+	aliases: { "302": "302_redirect", proxy: "native_proxy" },
+	allowed: ["", "302_redirect", "use_proxy_url", "native_proxy"],
+	fallback: "native_proxy",
+};
+
+function selectValue(candidate: unknown, rule: SelectRule): string | undefined {
 	if (typeof candidate !== "string") return undefined;
-	return candidate === "" || candidate === "name" || candidate === "size" || candidate === "modified" ? candidate : "name";
+	const mapped = rule.aliases?.[candidate] ?? candidate;
+	return rule.allowed.includes(mapped) ? mapped : rule.fallback;
 }
 
 export function normalizeStorageConfig(value: StorageConfig): StorageConfig {
@@ -103,10 +111,12 @@ export function normalizeStorageConfig(value: StorageConfig): StorageConfig {
 	}
 	const result: StorageConfig = { ...value, driver, addition };
 	delete result.folder_order;
-	const extractFolder = extractFolderValue(result.extract_folder ?? value.folder_order);
-	if (extractFolder) result.extract_folder = extractFolder;
-	const orderBy = orderByValue(result.order_by);
+	const extractFolder = selectValue(result.extract_folder ?? value.folder_order, EXTRACT_FOLDER);
+	if (extractFolder !== undefined) result.extract_folder = extractFolder;
+	const orderBy = selectValue(result.order_by, ORDER_BY);
 	if (orderBy !== undefined) result.order_by = orderBy;
+	const webdavPolicy = selectValue(result.webdav_policy, WEBDAV_POLICY);
+	if (webdavPolicy !== undefined) result.webdav_policy = webdavPolicy;
 	return result;
 }
 
