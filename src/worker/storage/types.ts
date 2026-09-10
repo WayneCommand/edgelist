@@ -19,6 +19,8 @@ export interface StorageConfig {
 	addition: string;
 	remark: string;
 	disabled: boolean;
+	/** Set on every save; virtual directories report it as their modified time. */
+	modified?: string;
 	extract_folder?: string;
 	[key: string]: unknown;
 }

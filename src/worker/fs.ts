@@ -69,9 +69,13 @@ export async function fsGet(c: FsContext) {
 		const input = await body<{ path?: string }>(c);
 		const requestedPath = normalizePath(input.path ?? "/");
 		if (await isVirtualMount(c.env.EDGE_CONFIG, requestedPath)) {
-			const name = requestedPath.split("/").filter(Boolean).pop() ?? "/";
-			const virtual: FileObject = { name, size: 0, is_dir: true, modified: new Date(0).toISOString(), created: new Date(0).toISOString(), path: requestedPath, mask: 0 };
-			return respond(c, virtual);
+			// Reuse the entry the listing builds, so `fs/get` reports the same
+			// mask and modified time the same directory shows in `fs/list`.
+			const segments = requestedPath.split("/").filter(Boolean);
+			const name = segments.pop() ?? "/";
+			const virtual = (await listVirtualMounts(c.env.EDGE_CONFIG, normalizePath(`/${segments.join("/")}`))).find((item) => item.name === name);
+			const fallback: FileObject = { name, size: 0, is_dir: true, modified: new Date(0).toISOString(), created: new Date(0).toISOString(), path: requestedPath, mask: 0 };
+			return respond(c, virtual ?? fallback);
 		}
 		const resolved = await resolveStorage(c.env, input.path ?? "/");
 		return respond(c, await resolved.adapter.get(resolved.path));

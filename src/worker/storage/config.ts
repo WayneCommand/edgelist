@@ -12,6 +12,12 @@ export async function getStorageConfig(kv: KVNamespace, mountPath: string): Prom
 	return storages.find((storage) => normalizePath(storage.mount_path) === normalized) ?? null;
 }
 
+// A virtual directory has no upstream metadata of its own, so it borrows the
+// time the storage it leads to was last saved, the way OpenList does.
+function storageModified(storage: StorageConfig): string {
+	return typeof storage.modified === "string" && storage.modified ? storage.modified : new Date(0).toISOString();
+}
+
 export async function listVirtualMounts(kv: KVNamespace, parentPath: string): Promise<FileObject[]> {
 	const parent = normalizePath(parentPath);
 	const prefix = parent === "/" ? "/" : `${parent}/`;
@@ -40,7 +46,7 @@ export async function listVirtualMounts(kv: KVNamespace, parentPath: string): Pr
 			name,
 			size: 0,
 			is_dir: true,
-			modified: new Date(0).toISOString(),
+			modified: storageModified(storage),
 			created: new Date(0).toISOString(),
 			path: normalizePath(`${parent}/${name}`),
 			mask,

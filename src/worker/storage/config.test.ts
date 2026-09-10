@@ -143,6 +143,18 @@ describe("virtual mount masks", () => {
 		expect(mounts.map((mount) => mount.name)).toEqual(["inner"]);
 	});
 
+	it("reports the modified time of the storage it leads to", async () => {
+		const kv = kvWithStorages([{ ...storage("/mounts/first", 1), modified: "2024-05-05T00:00:00.000Z" }]);
+		const [mount] = await listVirtualMounts(kv, "/mounts");
+		expect(mount.modified).toBe("2024-05-05T00:00:00.000Z");
+	});
+
+	it("falls back to the epoch when the storage has no modified time", async () => {
+		const kv = kvWithStorages([storage("/mounts/first", 1)]);
+		const [mount] = await listVirtualMounts(kv, "/mounts");
+		expect(mount.modified).toBe(new Date(0).toISOString());
+	});
+
 	it("marks virtual entries so clients can tell them apart", async () => {
 		const kv = kvWithStorages([storage("/mounts/first", 1)]);
 		const [mount] = await listVirtualMounts(kv, "/mounts");

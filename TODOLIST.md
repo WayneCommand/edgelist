@@ -88,7 +88,7 @@
 - [x] 1.8 新增 `src/worker/sort.ts`：`compareNatural`（数字分段自然序）、`sortObjects(items, orderBy, orderDirection)`、`extractFolder(items, position)`。
 - [x] 1.9 `sort.ts` 补单测：自然序（`file-2` < `file-10`）、size/modified、asc/desc、目录前置/后置稳定性。
 - [x] 1.10 `fsList` 在合并虚拟目录后、分页前应用排序（先 `sortObjects` 再 `extractFolder`）；优先级：请求参数 > 命中 storage 的 `extract_folder`（0.4 已就绪）> 全局默认。
-- [ ] 1.11 `fsGet` 虚拟目录返回 storage 的 `modified` 与 `mask`，不再固定返回 epoch 时间。
+- [x] 1.11 `fsGet` 虚拟目录返回 storage 的 `modified` 与 `mask`，不再固定返回 epoch 时间。
 
 ## 阶段二：驱动注册表与配置项
 
