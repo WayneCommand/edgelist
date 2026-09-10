@@ -1,17 +1,34 @@
 export type Route =
 	| { kind: "files"; path: string }
+	| { kind: "login" }
 	| { kind: "storages" }
 	| { kind: "metadata" }
 	| { kind: "backup" };
+
+/** Canonical paths, aligned with OpenList: files live at `/`, management under `/@manage/*`. */
+export const ROUTES = {
+	files: (path: string = "/") => normalizeRoutePath(path),
+	login: "/@login",
+	storages: "/@manage/storages",
+	metadata: "/@manage/metadata",
+	backup: "/@manage/backup-restore",
+} as const;
 
 export function normalizeRoutePath(pathname: string) {
 	return pathname.replace(/\/+$/, "") || "/";
 }
 
+/** The virtual file path for a location; management routes fall back to the root. */
+export function filesPathFor(pathname: string): string {
+	const route = routeFor(pathname);
+	return route.kind === "files" ? route.path : "/";
+}
+
 export function routeFor(pathname: string): Route {
 	const path = normalizeRoutePath(pathname);
-	if (path === "/@manage/storages") return { kind: "storages" };
-	if (path === "/@manage/metadata") return { kind: "metadata" };
-	if (path === "/@manage/backup-restore") return { kind: "backup" };
+	if (path === ROUTES.login) return { kind: "login" };
+	if (path === ROUTES.storages) return { kind: "storages" };
+	if (path === ROUTES.metadata) return { kind: "metadata" };
+	if (path === ROUTES.backup) return { kind: "backup" };
 	return { kind: "files", path };
 }

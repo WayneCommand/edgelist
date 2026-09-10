@@ -1,6 +1,7 @@
-import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Button as HeroButton, Card as HeroCard, Modal as HeroModal, Skeleton, Switch as HeroSwitch, Toast, toast } from "@heroui/react";
-import { normalizeRoutePath, routeFor } from "./routes";
+import { ROUTES, filesPathFor, routeFor } from "./routes";
+import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from "react-router";
 import { MonacoTextEditor } from "./MonacoTextEditor";
 
 type LoginResponse = { code: number; message: string; data?: { token: string } };
@@ -37,7 +38,12 @@ function Modal({ title, children, onClose, wide = false }: { title: string; chil
 	return <HeroModal><HeroModal.Backdrop isOpen onOpenChange={(open) => { if (!open) onClose(); }}><HeroModal.Container size={wide ? "lg" : "sm"}><HeroModal.Dialog><HeroModal.CloseTrigger /><HeroModal.Header><HeroModal.Heading>{title}</HeroModal.Heading></HeroModal.Header><HeroModal.Body>{children}</HeroModal.Body></HeroModal.Dialog></HeroModal.Container></HeroModal.Backdrop></HeroModal>;
 }
 
-function FilesView({ notify, initialPath, navigate }: { notify: (message: string, error?: boolean) => void; initialPath: string; navigate: (path: string) => void }) {
+function FilesView({ notify }: { notify: (message: string, error?: boolean) => void }) {
+	const navigate = useNavigate();
+	const initialPath = filesPathFor(useLocation().pathname);
+	function openDirectory(next: string) {
+		navigate({ pathname: ROUTES.files(next) });
+	}
 	const [path, setPath] = useState(initialPath);
 	const [items, setItems] = useState<FileItem[]>([]);
 	const [selected, setSelected] = useState<FileItem | null>(null);
@@ -79,7 +85,7 @@ function FilesView({ notify, initialPath, navigate }: { notify: (message: string
 	function closePreview() { if (previewDirty && !confirm("Discard unsaved changes?")) return; setPreview(null); setPreviewContent(""); setPreviewDirty(false); }
 	async function openFile(item: FileItem) { if (item.is_dir) { navigate(item.path); return; } if (isPreviewable(item.name)) { await previewFile(item); return; } await download(item); }
 	const crumbs = path.split("/").filter(Boolean);
-	return <section><div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm text-slate-400">Files</p><h1 className="mt-1 text-2xl font-semibold">{searching ? `Search: ${query}` : path === "/" ? "All files" : crumbs[crumbs.length - 1]}</h1></div><div className="flex gap-2"><HeroButton size="sm" variant="secondary" onPress={() => void load()}>Refresh</HeroButton><HeroButton size="sm" onPress={() => inputRef.current?.click()}>Upload</HeroButton><input ref={inputRef} hidden type="file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} /></div></div><form className="mb-4 flex gap-2" onSubmit={search}><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search files…" className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500" /><HeroButton type="submit" size="sm" variant="secondary">Search</HeroButton>{searching && <HeroButton type="button" size="sm" variant="ghost" onPress={() => { setQuery(""); setSearching(false); void load(path); }}>Clear</HeroButton>}</form><div className="mb-4 flex items-center gap-2 text-sm text-slate-500"><button onClick={() => { setSearching(false); navigate("/"); }} className="hover:text-blue-600">Root</button>{!searching && crumbs.map((part, index) => { const crumb = `/${crumbs.slice(0, index + 1).join("/")}`; return <span key={crumb}>/ <button onClick={() => navigate(crumb)} className="hover:text-blue-600">{part}</button></span>; })}</div><div className="mb-3 flex min-h-9 items-center gap-2">{selected && <><span className="text-sm text-slate-500">Selected: {selected.name}</span>{!selected.is_dir && (isPreviewable(selected.name) ? <HeroButton size="sm" variant="outline" onPress={() => void previewFile(selected)}>Preview/Edit</HeroButton> : <HeroButton size="sm" variant="outline" onPress={() => void download(selected)}>Download</HeroButton>)}<HeroButton size="sm" variant="outline" onPress={() => { setValue(selected.name); setModal("rename"); }}>Rename</HeroButton><HeroButton size="sm" variant="danger" onPress={() => void remove()}>Delete</HeroButton></>}<HeroButton className="ml-auto" size="sm" variant="outline" onPress={() => { setValue(""); setModal("mkdir"); }}>New folder</HeroButton></div><section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">{error && <p className="border-b border-red-100 bg-red-50 px-5 py-3 text-sm text-red-600">{error}</p>}{loading ? <FileListSkeleton /> : !items.length ? <div className="p-16 text-center text-sm text-slate-400">No files found</div> : <div>{items.map((item) => <button key={item.path} className={`flex w-full items-center gap-4 border-b border-slate-100 px-5 py-4 text-left last:border-0 hover:bg-slate-50 ${selected?.path === item.path ? "bg-blue-50" : ""}`} onClick={() => setSelected(item)} onDoubleClick={() => !searching && void openFile(item)}><span className="text-2xl">{item.is_dir ? "📁" : "📄"}</span><span className="min-w-0 flex-1 truncate text-sm font-medium">{item.name}</span><span className="hidden w-32 text-right text-xs text-slate-400 sm:block">{item.is_dir ? "Folder" : formatSize(item.size)}</span><span className="hidden w-36 text-right text-xs text-slate-400 md:block">{item.modified ? new Date(item.modified).toLocaleDateString() : "—"}</span></button>)}</div>}</section>{modal === "mkdir" && <Modal title="New folder" onClose={() => setModal(null)}><form className="space-y-4" onSubmit={createFolder}><input autoFocus required value={value} onChange={(event) => setValue(event.target.value)} placeholder="Folder name" className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-blue-500" /><HeroButton type="submit" fullWidth>Create</HeroButton></form></Modal>}{modal === "rename" && <Modal title="Rename" onClose={() => setModal(null)}><form className="space-y-4" onSubmit={rename}><input autoFocus required value={value} onChange={(event) => setValue(event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-blue-500" /><HeroButton type="submit" fullWidth>Save</HeroButton></form></Modal>}{previewLoading && <Modal title="Preview" onClose={() => setPreviewLoading(false)}><Skeleton className="h-48 w-full rounded-lg" /></Modal>}{preview && <Modal wide title={`${preview.item.name}${previewDirty ? " *" : ""}`} onClose={closePreview}><div className="space-y-3"><div className="flex items-center justify-between gap-3"><p className="text-xs text-muted">{languageForFile(preview.item.name)?.toUpperCase()} · 在线编辑</p><HeroButton size="sm" isDisabled={!previewDirty || previewSaving} onPress={() => void savePreview()}>{previewSaving ? "Saving…" : "Save"}</HeroButton></div><MonacoTextEditor key={preview.item.path} value={previewContent} language={languageForFile(preview.item.name) ?? "plaintext"} path={preview.item.path} onChange={(content) => { setPreviewContent(content); setPreviewDirty(content !== preview.content); }} /></div></Modal>}</section>;
+	return <section><div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm text-slate-400">Files</p><h1 className="mt-1 text-2xl font-semibold">{searching ? `Search: ${query}` : path === "/" ? "All files" : crumbs[crumbs.length - 1]}</h1></div><div className="flex gap-2"><HeroButton size="sm" variant="secondary" onPress={() => void load()}>Refresh</HeroButton><HeroButton size="sm" onPress={() => inputRef.current?.click()}>Upload</HeroButton><input ref={inputRef} hidden type="file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} /></div></div><form className="mb-4 flex gap-2" onSubmit={search}><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search files…" className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500" /><HeroButton type="submit" size="sm" variant="secondary">Search</HeroButton>{searching && <HeroButton type="button" size="sm" variant="ghost" onPress={() => { setQuery(""); setSearching(false); void load(path); }}>Clear</HeroButton>}</form><div className="mb-4 flex items-center gap-2 text-sm text-slate-500"><button onClick={() => { setSearching(false); openDirectory("/"); }} className="hover:text-blue-600">Root</button>{!searching && crumbs.map((part, index) => { const crumb = `/${crumbs.slice(0, index + 1).join("/")}`; return <span key={crumb}>/ <button onClick={() => openDirectory(crumb)} className="hover:text-blue-600">{part}</button></span>; })}</div><div className="mb-3 flex min-h-9 items-center gap-2">{selected && <><span className="text-sm text-slate-500">Selected: {selected.name}</span>{!selected.is_dir && (isPreviewable(selected.name) ? <HeroButton size="sm" variant="outline" onPress={() => void previewFile(selected)}>Preview/Edit</HeroButton> : <HeroButton size="sm" variant="outline" onPress={() => void download(selected)}>Download</HeroButton>)}<HeroButton size="sm" variant="outline" onPress={() => { setValue(selected.name); setModal("rename"); }}>Rename</HeroButton><HeroButton size="sm" variant="danger" onPress={() => void remove()}>Delete</HeroButton></>}<HeroButton className="ml-auto" size="sm" variant="outline" onPress={() => { setValue(""); setModal("mkdir"); }}>New folder</HeroButton></div><section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">{error && <p className="border-b border-red-100 bg-red-50 px-5 py-3 text-sm text-red-600">{error}</p>}{loading ? <FileListSkeleton /> : !items.length ? <div className="p-16 text-center text-sm text-slate-400">No files found</div> : <div>{items.map((item) => <button key={item.path} className={`flex w-full items-center gap-4 border-b border-slate-100 px-5 py-4 text-left last:border-0 hover:bg-slate-50 ${selected?.path === item.path ? "bg-blue-50" : ""}`} onClick={() => setSelected(item)} onDoubleClick={() => !searching && void openFile(item)}><span className="text-2xl">{item.is_dir ? "📁" : "📄"}</span><span className="min-w-0 flex-1 truncate text-sm font-medium">{item.name}</span><span className="hidden w-32 text-right text-xs text-slate-400 sm:block">{item.is_dir ? "Folder" : formatSize(item.size)}</span><span className="hidden w-36 text-right text-xs text-slate-400 md:block">{item.modified ? new Date(item.modified).toLocaleDateString() : "—"}</span></button>)}</div>}</section>{modal === "mkdir" && <Modal title="New folder" onClose={() => setModal(null)}><form className="space-y-4" onSubmit={createFolder}><input autoFocus required value={value} onChange={(event) => setValue(event.target.value)} placeholder="Folder name" className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-blue-500" /><HeroButton type="submit" fullWidth>Create</HeroButton></form></Modal>}{modal === "rename" && <Modal title="Rename" onClose={() => setModal(null)}><form className="space-y-4" onSubmit={rename}><input autoFocus required value={value} onChange={(event) => setValue(event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-blue-500" /><HeroButton type="submit" fullWidth>Save</HeroButton></form></Modal>}{previewLoading && <Modal title="Preview" onClose={() => setPreviewLoading(false)}><Skeleton className="h-48 w-full rounded-lg" /></Modal>}{preview && <Modal wide title={`${preview.item.name}${previewDirty ? " *" : ""}`} onClose={closePreview}><div className="space-y-3"><div className="flex items-center justify-between gap-3"><p className="text-xs text-muted">{languageForFile(preview.item.name)?.toUpperCase()} · 在线编辑</p><HeroButton size="sm" isDisabled={!previewDirty || previewSaving} onPress={() => void savePreview()}>{previewSaving ? "Saving…" : "Save"}</HeroButton></div><MonacoTextEditor key={preview.item.path} value={previewContent} language={languageForFile(preview.item.name) ?? "plaintext"} path={preview.item.path} onChange={(content) => { setPreviewContent(content); setPreviewDirty(content !== preview.content); }} /></div></Modal>}</section>;
 }
 
 type S3Form = Record<string, string | number | boolean>;
@@ -123,7 +129,8 @@ function StorageEditor({ editing, setEditing, onSave, onClose, error }: { editin
 	</form></Modal>;
 }
 
-function StoragesView({ notify, navigate }: { notify: (message: string, error?: boolean) => void; navigate: (path: string) => void }) {
+function StoragesView({ notify }: { notify: (message: string, error?: boolean) => void }) {
+	const navigate = useNavigate();
 	const [items, setItems] = useState<Storage[]>([]); const [editing, setEditing] = useState<Storage | null>(null); const [loading, setLoading] = useState(true); const [formError, setFormError] = useState("");
 	async function load() { try { const data = await api<{ content: Storage[] }>("/api/admin/storage/list"); setItems((data.content ?? []).map(storageForEditor)); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to load storages", true); } finally { setLoading(false); } }
 	// The storage list is loaded once when the management view opens.
@@ -151,17 +158,94 @@ function BackupView({ notify }: { notify: (message: string, error?: boolean) => 
 	return <section><div className="mb-5"><p className="text-sm text-muted">Manage</p><h1 className="mt-1 text-2xl font-semibold">Backup & restore</h1></div><HeroCard className="max-w-xl" variant="default"><p className="text-sm text-muted">Export an OpenList-compatible JSON backup or restore one previously created by OpenList/EdgeList.</p><label className="mt-5 block text-sm font-medium">Encryption password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Optional" className="mt-2 w-full rounded-lg border border-border bg-field-background px-3 py-2 font-normal" /></label><HeroSwitch className="mt-4" isSelected={override} onChange={setOverride}>Override matching storages and metadata</HeroSwitch><div className="mt-6 flex flex-wrap gap-3"><HeroButton isDisabled={loading} onPress={() => void backup()}>Download backup</HeroButton><label className="inline-flex cursor-pointer items-center rounded-lg border border-border px-4 py-2.5 text-sm font-medium hover:bg-surface-secondary">Choose backup<input hidden type="file" accept="application/json" onChange={(event) => { const file = event.target.files?.[0]; if (file) void restore(file); event.target.value = ""; }} /></label></div></HeroCard></section>;
 }
 
-function App() {
-	const [accessKey, setAccessKey] = useState(""); const [secretKey, setSecretKey] = useState(""); const [error, setError] = useState(""); const [loading, setLoading] = useState(false); const [signedIn, setSignedIn] = useState(Boolean(sessionStorage.getItem("edgelist-token"))); const [location, setLocation] = useState(() => window.location.pathname); const [notice, setNotice] = useState<{ message: string; error?: boolean } | null>(null);
-	useEffect(() => { const expire = () => setSignedIn(false); window.addEventListener("edgelist-auth-expired", expire); return () => window.removeEventListener("edgelist-auth-expired", expire); }, []);
-	useEffect(() => { const onPopState = () => setLocation(window.location.pathname); window.addEventListener("popstate", onPopState); return () => window.removeEventListener("popstate", onPopState); }, []);
-	useEffect(() => { if (!notice) return; const show = notice.error ? toast.danger : toast.success; show(notice.message); setNotice(null); }, [notice]);
-	const route = routeFor(location);
-	function navigate(path: string) { const next = normalizeRoutePath(path); if (next === window.location.pathname) return; window.history.pushState({}, "", next); setLocation(next); }
-	async function submit(event: FormEvent) { event.preventDefault(); setLoading(true); setError(""); try { const response = await fetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ access_key: accessKey, secret_key: secretKey }) }); const result = await response.json() as LoginResponse; if (!response.ok || result.code !== 200 || !result.data?.token) throw new Error(result.message || "Login failed"); sessionStorage.setItem("edgelist-token", result.data.token); setSignedIn(true); } catch (reason) { setError(reason instanceof Error ? reason.message : "Login failed"); } finally { setLoading(false); } }
-	function signOut() { sessionStorage.removeItem("edgelist-token"); setSignedIn(false); navigate("/"); }
-	if (signedIn) return <main className="min-h-screen bg-background text-foreground"><Toast.Provider placement="bottom end" /><header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-separator/80 bg-surface/95 px-6 backdrop-blur"><div className="flex items-center gap-3"><button className="flex items-center gap-3" onClick={() => navigate("/")}><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent font-bold text-accent-foreground">E</div><span className="font-semibold">EdgeList</span></button></div><nav className="hidden gap-1 sm:flex">{([["files", "Files", "/"], ["storages", "Storages", "/@manage/storages"], ["metadata", "Metadata", "/@manage/metadata"], ["backup", "Backup & restore", "/@manage/backup-restore"]] as const).map(([key, label, path]) => <button key={key} className={`rounded-lg px-3 py-2 text-sm ${route.kind === key || (key === "files" && route.kind === "files") ? "bg-accent-soft font-medium text-accent-soft-foreground" : "text-muted hover:bg-surface-secondary"}`} onClick={() => navigate(path)}>{label}</button>)}</nav><HeroButton size="sm" variant="ghost" onPress={signOut}>Sign out</HeroButton></header><div className="mx-auto max-w-6xl p-6">{route.kind === "files" && <FilesView initialPath={route.path} navigate={navigate} notify={(message, error) => setNotice({ message, error })} />}{route.kind === "storages" && <StoragesView navigate={navigate} notify={(message, error) => setNotice({ message, error })} />}{route.kind === "metadata" && <MetadataView notify={(message, error) => setNotice({ message, error })} />}{route.kind === "backup" && <BackupView notify={(message, error) => setNotice({ message, error })} />}</div></main>;
+function RequireAuth({ signedIn }: { signedIn: boolean }) {
+	const location = useLocation();
+	if (signedIn) return <Outlet />;
+	return <Navigate to={ROUTES.login} replace state={{ from: location.pathname }} />;
+}
+
+function Shell({ onSignOut }: { onSignOut: () => void }) {
+	const route = routeFor(useLocation().pathname);
+	const navigate = useNavigate();
+	return <main className="min-h-screen bg-background text-foreground"><Toast.Provider placement="bottom end" /><header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-separator/80 bg-surface/95 px-6 backdrop-blur"><div className="flex items-center gap-3"><button className="flex items-center gap-3" onClick={() => navigate("/")}><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent font-bold text-accent-foreground">E</div><span className="font-semibold">EdgeList</span></button></div><nav className="hidden gap-1 sm:flex">{([["files", "Files", "/"], ["storages", "Storages", "/@manage/storages"], ["metadata", "Metadata", "/@manage/metadata"], ["backup", "Backup & restore", "/@manage/backup-restore"]] as const).map(([key, label, path]) => <button key={key} className={`rounded-lg px-3 py-2 text-sm ${route.kind === key ? "bg-accent-soft font-medium text-accent-soft-foreground" : "text-muted hover:bg-surface-secondary"}`} onClick={() => navigate(path)}>{label}</button>)}</nav><HeroButton size="sm" variant="ghost" onPress={onSignOut}>Sign out</HeroButton></header><div className="mx-auto max-w-6xl p-6"><Outlet /></div></main>;
+}
+
+function LoginView({ onSignedIn }: { onSignedIn: (token: string) => void }) {
+	const navigate = useNavigate();
+	const from = (useLocation().state as { from?: string } | null)?.from ?? ROUTES.files();
+	const [accessKey, setAccessKey] = useState("");
+	const [secretKey, setSecretKey] = useState("");
+	const [error, setError] = useState("");
+	const [loading, setLoading] = useState(false);
+	async function submit(event: FormEvent) {
+		event.preventDefault();
+		setLoading(true);
+		setError("");
+		try {
+			const response = await fetch("/api/auth/login", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ access_key: accessKey, secret_key: secretKey }),
+			});
+			const result = (await response.json()) as LoginResponse;
+			if (!response.ok || result.code !== 200 || !result.data?.token) throw new Error(result.message || "Login failed");
+			onSignedIn(result.data.token);
+			navigate(from, { replace: true });
+		} catch (reason) {
+			setError(reason instanceof Error ? reason.message : "Login failed");
+		} finally {
+			setLoading(false);
+		}
+	}
 	return <main className="flex min-h-screen items-center justify-center bg-background p-6 text-foreground"><HeroCard className="w-full max-w-md" variant="default"><div className="mb-8 text-center"><div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-2xl font-bold text-accent-foreground">E</div><h1 className="text-2xl font-semibold tracking-tight">Sign in to EdgeList</h1><p className="mt-2 text-sm text-muted">OpenList-compatible file management</p></div><form className="space-y-5" onSubmit={submit}><label className="block"><span className="mb-2 block text-sm font-medium text-foreground">Access Key</span><input required value={accessKey} onChange={(event) => setAccessKey(event.target.value)} className="w-full rounded-lg border border-border bg-field-background px-3.5 py-3 outline-none transition focus:border-focus focus:ring-4 focus:ring-accent/15" autoComplete="username" /></label><label className="block"><span className="mb-2 block text-sm font-medium text-foreground">Secret Key</span><input required type="password" value={secretKey} onChange={(event) => setSecretKey(event.target.value)} className="w-full rounded-lg border border-border bg-field-background px-3.5 py-3 outline-none transition focus:border-focus focus:ring-4 focus:ring-accent/15" autoComplete="current-password" /></label>{error && <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger-soft-foreground">{error}</p>}<HeroButton type="submit" fullWidth isPending={loading}>{loading ? "Signing in…" : "Sign in"}</HeroButton></form><p className="mt-8 text-center text-xs text-muted">Credentials are verified securely by the Worker.</p></HeroCard></main>;
 }
 
-export default App;
+export default function App() {
+	const [signedIn, setSignedIn] = useState(() => Boolean(sessionStorage.getItem("edgelist-token")));
+	const [notice, setNotice] = useState<{ message: string; error?: boolean } | null>(null);
+	const navigate = useNavigate();
+	useEffect(() => {
+		const expire = () => setSignedIn(false);
+		window.addEventListener("edgelist-auth-expired", expire);
+		return () => window.removeEventListener("edgelist-auth-expired", expire);
+	}, []);
+	useEffect(() => {
+		if (!notice) return;
+		const show = notice.error ? toast.danger : toast.success;
+		show(notice.message);
+		setNotice(null);
+	}, [notice]);
+	const notify = useCallback((message: string, error?: boolean) => setNotice({ message, error }), []);
+	function signOut() {
+		sessionStorage.removeItem("edgelist-token");
+		setSignedIn(false);
+		void navigate(ROUTES.login, { replace: true });
+	}
+	return (
+		<Routes>
+			<Route element={<RequireAuth signedIn={signedIn} />}>
+				<Route element={<Shell onSignOut={signOut} />}>
+					<Route path={ROUTES.storages} element={<StoragesView notify={notify} />} />
+					<Route path={ROUTES.metadata} element={<MetadataView notify={notify} />} />
+					<Route path={ROUTES.backup} element={<BackupView notify={notify} />} />
+					<Route path="*" element={<FilesView notify={notify} />} />
+				</Route>
+			</Route>
+			<Route
+				path={ROUTES.login}
+				element={
+					signedIn ? (
+						<Navigate to={ROUTES.files()} replace />
+					) : (
+						<LoginView
+							onSignedIn={(token) => {
+								sessionStorage.setItem("edgelist-token", token);
+								setSignedIn(true);
+							}}
+						/>
+					)
+				}
+			/>
+		</Routes>
+	);
+}
