@@ -207,7 +207,22 @@
   - 新增 `lib/mask.test.ts`（17 例，含挂载点/中间层/`NoCopy` 与 `NoMove` 相互独立/`NoRemove` 单独拦 move/跨目录选区/`isMountLayer`）与 `ContextMenu.test.tsx`（8 例，含 `menuPosition` 夹取与 disabled+title 落到 DOM）。
   - **端到端验收**：根目录三个挂载点 `mask=15`（`Virtual|NoRename|NoRemove|NoMove`），真浏览器 24 项检查全绿——右键弹出菜单、七项齐全、挂载点上只有 Open 可用且每一项都带正确的 `title`、操作条与菜单结论一致、`Escape` 与点击外部都能关闭、普通目录的重命名/复制/删除仍可用、从菜单点 Copy 能打开传输对话框。截图 `/tmp/edgelist-menu-mount.png`。
   - 注意一个 **`Move` 的提示语**：挂载点上显示的是 `Mounted storages cannot be transferred` 而不是 `This item cannot be moved`，因为 `Virtual` 检查排在 `NoMove` 之前。两条都成立，前者对挂载点更准确，是有意如此。
-- [ ] 6.8 拖放上传（含目录递归），替换单文件 `<input type="file">`。
+- [x] 6.8 拖放上传（含目录递归），替换单文件 `<input type="file">`。
+  - 新增 `lib/dropUpload.ts`：`droppedTree(dataTransfer)` 走拖放（`items[].webkitGetAsEntry()` → 递归 `FileSystemEntry`），`pickedTree(fileList)` 走 `<input>`（`webkitRelativePath`），两者都产出同一个 `DroppedTree { files, directories }`，所以上传路径只有一条。
+  - **`readEntries` 必须循环到空数组**：Chrome 单次最多返回 100 项，只读一次会静默丢掉目录里其余的条目。`readAllEntries` 在回调里再次发起读取（`readEntries` 不允许并发调用），并配了「5 个子项、每次只回 2 个」的单测把这个循环钉死。
+  - 文件保留 **相对路径**（`{ file, path }`）而不是把路径拼进 `file.name`（OpenList 的做法）。名字仍是真的名字，报错信息引用的才是用户认识的那个文件名。
+  - `traverseEntry` 连**空目录**一起记录，所以拖进来的目录树形状能保住；`directoriesOf` 则从文件路径反推目录，供目录选择器使用（选择器只给文件，看不到空目录——这是浏览器 API 的限制）。
+  - `directoriesToCreate` 按深度排序、去重。**不用 `create_parent`**：那个标志是向上递归，而 S3 的 `mkdir` 会写一个 0 字节的目录标记对象，`create_parent` 会从挂载根一路写上去，在用户桶里留下垃圾对象。改成「父目录先于子目录」逐个创建，就只碰上传目录以下。
+  - **为什么要 mkdir**：`fsPut` 直接透传到适配器，S3 的 key 天然扁平所以不需要目录，但 **WebDAV 的 `write` 是裸 PUT**，父集合不存在会失败。本机三个挂载点里 `/jianguoyun`、`/jianguoyun-backup` 正是 webdav，所以这一步是必需的，不是保险。
+  - mkdir 的失败 **有意吞掉**：重复拖同一个目录时「已存在」是常态，而紧随其后的 PUT 才是权威判据——目录真建不出来时，上传会逐文件报错。这样既不用在客户端字符串匹配各家驱动的错误文案，也不会把「已存在」当成错误弹给用户。
+  - `components/files/DropZone.tsx`：`dragenter`/`dragleave` 会随指针经过每个子元素反复触发，所以用 **计数器** 而不是布尔值驱动浮层（布尔值一进子行就闪掉）。浮层加 `pointer-events-none`，否则它自己会制造 `dragleave` 把自己关掉。另挂一对 **window 级** `dragover`/`drop` 拦截：落在区域外的投放本来会让浏览器直接导航到那个文件，把用户正在做的页面丢掉。
+  - `FileToolbar` 拆成两个隐藏输入（普通多选 + `webkitdirectory` 目录选择），并把上传进度 `Uploading n/m` 用 `role="status"` 报出来，批次进行中锁住按钮——顺序上传几十个文件时页面不能看起来像卡死。`webkitdirectory` 不在 React 的 JSX 类型里，用 `Record<string, string>` 展开传入。
+  - `FilesPage.upload` 改收 `DroppedTree`，成功后顺手清掉搜索态：上传会让当前搜索结果过期，继续显示「Search: xxx」但列出目录内容是自相矛盾的。
+  - 新增 `lib/dropUpload.test.ts`（18 例）与 `file-views.test.tsx` 的 2 例（两个选择器并存、进度与 `role="status"`）。合计 **212 例 / 18 文件**。
+  - **端到端验收（真浏览器 + 真数据）25 项全绿**：登录 → 进 `/waynecos` → 工具栏两个上传入口与两个隐藏输入（目录选择器带 `webkitdirectory` 且不可见）→ 合成 `DataTransfer` 拖入时浮层出现、**一次 `dragleave` 不会提前关闭**（验证计数器）、离开后消失 → 区域外投放被 `preventDefault`（`defaultPrevented === true`）→ **目录选择器** 用 `setInputFiles('/tmp/edgelist-pick')` 真实走通：3 个 mkdir 按 `edgelist-pick > docs > docs/sub` 父先子后、3 个 PUT 分别落在 `edgelist-pick/notes.txt`、`.../docs/a.md`、`.../docs/sub/b.md`、`File-Path` 与 `Content-Type` 都正确、所有 mkdir 都在 PUT 之前 → 平铺拖放 1 个文件落在当前目录且不建目录。截图 `/tmp/edgelist-drop.png`。
+  - **没往云端写任何东西**：验收在浏览器侧拦截了 `/api/fs/mkdir`、`/api/fs/put`、`/api/fs/form`，请求根本不出进程；跑完再用真实接口列一次 `/waynecos`，13 个条目与验收前一致、没有 `edgelist-pick` / `dropped.txt` 残留。
+  - **顺带确认一个浏览器语义**：目录选择器给的 `webkitRelativePath` **包含被选中目录自身的名字**（选 `edgelist-pick` 得到 `edgelist-pick/docs/a.md`）。第一版断言写成了不含这一层，是断言错了不是代码错了——这也说明拖放/选择目录会真的建出那一层目录，符合文件管理器惯例。
+  - **踩到一个并行编辑的坑**：同一文件的两处 `Edit` 放在同一条消息里并发执行，只有一处落地（`FilesPage.tsx` 的 `dropUpload` 导入丢失，报 `TS2304`）。之后改为串行逐处编辑。
 - [ ] 6.9 分页/加载更多 `components/files/Pager.tsx`（替换硬编码 `per_page: 200`）。
 - [ ] 6.10 面包屑支持路径直接编辑跳转。
 - [ ] 6.11 按 `mask` 隐藏挂载点/只读项的重命名、移动、删除入口（与 6.7 共用掩码常量）。
