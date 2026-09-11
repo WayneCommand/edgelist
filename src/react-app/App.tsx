@@ -1,8 +1,12 @@
-import { type FormEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { Button as HeroButton, Card as HeroCard, Modal as HeroModal, Skeleton, Switch as HeroSwitch, Toast, toast } from "@heroui/react";
+import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { Button as HeroButton, Card as HeroCard, Skeleton, Switch as HeroSwitch, Toast } from "@heroui/react";
 import { ROUTES, filesPathFor, routeFor } from "./routes";
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from "react-router";
 import { api } from "./api";
+import { Modal } from "./components/common/Modal";
+import { ConfirmProvider } from "./components/common/ConfirmDialog";
+import { useConfirm } from "./hooks/useConfirm";
+import { useNotify } from "./hooks/useNotify";
 import { useAuth } from "./hooks/useAuth";
 import { MonacoTextEditor } from "./MonacoTextEditor";
 
@@ -23,11 +27,9 @@ function FileListSkeleton() {
 	return <div className="divide-y divide-separator">{Array.from({ length: 7 }, (_, index) => <div key={index} className="flex items-center gap-4 px-5 py-4"><Skeleton className="h-8 w-8 rounded-lg" /><div className="flex min-w-0 flex-1 flex-col gap-2"><Skeleton className="h-4 w-2/5 rounded-md" /><Skeleton className="h-3 w-1/4 rounded-md" /></div><Skeleton className="hidden h-3 w-24 rounded-md sm:block" /><Skeleton className="hidden h-3 w-28 rounded-md md:block" /></div>)}</div>;
 }
 
-function Modal({ title, children, onClose, wide = false }: { title: string; children: ReactNode; onClose: () => void; wide?: boolean }) {
-	return <HeroModal><HeroModal.Backdrop isOpen onOpenChange={(open) => { if (!open) onClose(); }}><HeroModal.Container size={wide ? "lg" : "sm"}><HeroModal.Dialog><HeroModal.CloseTrigger /><HeroModal.Header><HeroModal.Heading>{title}</HeroModal.Heading></HeroModal.Header><HeroModal.Body>{children}</HeroModal.Body></HeroModal.Dialog></HeroModal.Container></HeroModal.Backdrop></HeroModal>;
-}
-
-function FilesView({ notify }: { notify: (message: string, error?: boolean) => void }) {
+function FilesView() {
+	const notify = useNotify();
+	const confirm = useConfirm();
 	const { token } = useAuth();
 	const navigate = useNavigate();
 	const initialPath = filesPathFor(useLocation().pathname);
@@ -66,13 +68,18 @@ function FilesView({ notify }: { notify: (message: string, error?: boolean) => v
 	}
 	async function createFolder(event: FormEvent) { event.preventDefault(); try { await api("/api/fs/mkdir", { method: "POST", body: JSON.stringify({ path: `${path.replace(/\/$/, "")}/${value}` }) }); notify("Folder created"); setModal(null); setValue(""); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to create folder", true); } }
 	async function rename(event: FormEvent) { event.preventDefault(); if (!selected) return; try { await api("/api/fs/rename", { method: "POST", body: JSON.stringify({ path: selected.path, name: value, overwrite: false }) }); notify("Renamed"); setModal(null); setSelected(null); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to rename", true); } }
-	async function remove() { if (!selected || !confirm(`Delete ${selected.name}?`)) return; try { await api("/api/fs/remove", { method: "POST", body: JSON.stringify({ dir: path, names: [selected.name] }) }); notify("Deleted"); setSelected(null); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to delete", true); } }
+	async function remove() {
+		if (!selected) return;
+		if (!(await confirm({ title: "Delete", message: `Delete ${selected.name}?` }))) return;
+		try { await api("/api/fs/remove", { method: "POST", body: JSON.stringify({ dir: path, names: [selected.name] }) }); notify("Deleted"); setSelected(null); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to delete", true); } }
 	async function upload(file: File) { try { await api("/api/fs/put", { method: "PUT", headers: { "File-Path": encodeURIComponent(`${path.replace(/\/$/, "")}/${file.name}`), "Content-Type": file.type || "application/octet-stream" }, body: file }); notify("Uploaded"); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to upload", true); } }
 	async function download(item: FileItem) { try { const response = await fetch(`/d${item.path}`, { headers: { Authorization: token } }); if (!response.ok) throw new Error("Download failed"); const blob = await response.blob(); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = item.name; link.click(); URL.revokeObjectURL(link.href); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to download", true); } }
 	function isPreviewable(name: string) { return languageForFile(name) !== null; }
 	async function previewFile(item: FileItem) { setPreviewLoading(true); try { const response = await fetch(`/d${item.path}`, { headers: { Authorization: token } }); if (!response.ok) throw new Error("Unable to preview file"); const content = await response.text(); setPreview({ item, content }); setPreviewContent(content); setPreviewDirty(false); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to preview file", true); } finally { setPreviewLoading(false); } }
 	async function savePreview() { if (!preview) return; setPreviewSaving(true); try { await api("/api/fs/put", { method: "PUT", headers: { "File-Path": encodeURIComponent(preview.item.path), "Content-Type": "text/plain; charset=utf-8" }, body: new Blob([previewContent], { type: "text/plain; charset=utf-8" }) }); setPreview({ ...preview, content: previewContent }); setPreviewDirty(false); notify("Saved"); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to save file", true); } finally { setPreviewSaving(false); } }
-	function closePreview() { if (previewDirty && !confirm("Discard unsaved changes?")) return; setPreview(null); setPreviewContent(""); setPreviewDirty(false); }
+	async function closePreview() {
+		if (previewDirty && !(await confirm({ title: "Discard changes", message: "Discard unsaved changes?", confirmLabel: "Discard" }))) return;
+		setPreview(null); setPreviewContent(""); setPreviewDirty(false); }
 	async function openFile(item: FileItem) { if (item.is_dir) { navigate(item.path); return; } if (isPreviewable(item.name)) { await previewFile(item); return; } await download(item); }
 	const crumbs = path.split("/").filter(Boolean);
 	return <section><div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm text-slate-400">Files</p><h1 className="mt-1 text-2xl font-semibold">{searching ? `Search: ${query}` : path === "/" ? "All files" : crumbs[crumbs.length - 1]}</h1></div><div className="flex gap-2"><HeroButton size="sm" variant="secondary" onPress={() => void load()}>Refresh</HeroButton><HeroButton size="sm" onPress={() => inputRef.current?.click()}>Upload</HeroButton><input ref={inputRef} hidden type="file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} /></div></div><form className="mb-4 flex gap-2" onSubmit={search}><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search files…" className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500" /><HeroButton type="submit" size="sm" variant="secondary">Search</HeroButton>{searching && <HeroButton type="button" size="sm" variant="ghost" onPress={() => { setQuery(""); setSearching(false); void load(path); }}>Clear</HeroButton>}</form><div className="mb-4 flex items-center gap-2 text-sm text-slate-500"><button onClick={() => { setSearching(false); openDirectory("/"); }} className="hover:text-blue-600">Root</button>{!searching && crumbs.map((part, index) => { const crumb = `/${crumbs.slice(0, index + 1).join("/")}`; return <span key={crumb}>/ <button onClick={() => openDirectory(crumb)} className="hover:text-blue-600">{part}</button></span>; })}</div><div className="mb-3 flex min-h-9 items-center gap-2">{selected && <><span className="text-sm text-slate-500">Selected: {selected.name}</span>{!selected.is_dir && (isPreviewable(selected.name) ? <HeroButton size="sm" variant="outline" onPress={() => void previewFile(selected)}>Preview/Edit</HeroButton> : <HeroButton size="sm" variant="outline" onPress={() => void download(selected)}>Download</HeroButton>)}<HeroButton size="sm" variant="outline" onPress={() => { setValue(selected.name); setModal("rename"); }}>Rename</HeroButton><HeroButton size="sm" variant="danger" onPress={() => void remove()}>Delete</HeroButton></>}<HeroButton className="ml-auto" size="sm" variant="outline" onPress={() => { setValue(""); setModal("mkdir"); }}>New folder</HeroButton></div><section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">{error && <p className="border-b border-red-100 bg-red-50 px-5 py-3 text-sm text-red-600">{error}</p>}{loading ? <FileListSkeleton /> : !items.length ? <div className="p-16 text-center text-sm text-slate-400">No files found</div> : <div>{items.map((item) => <button key={item.path} className={`flex w-full items-center gap-4 border-b border-slate-100 px-5 py-4 text-left last:border-0 hover:bg-slate-50 ${selected?.path === item.path ? "bg-blue-50" : ""}`} onClick={() => setSelected(item)} onDoubleClick={() => !searching && void openFile(item)}><span className="text-2xl">{item.is_dir ? "📁" : "📄"}</span><span className="min-w-0 flex-1 truncate text-sm font-medium">{item.name}</span><span className="hidden w-32 text-right text-xs text-slate-400 sm:block">{item.is_dir ? "Folder" : formatSize(item.size)}</span><span className="hidden w-36 text-right text-xs text-slate-400 md:block">{item.modified ? new Date(item.modified).toLocaleDateString() : "—"}</span></button>)}</div>}</section>{modal === "mkdir" && <Modal title="New folder" onClose={() => setModal(null)}><form className="space-y-4" onSubmit={createFolder}><input autoFocus required value={value} onChange={(event) => setValue(event.target.value)} placeholder="Folder name" className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-blue-500" /><HeroButton type="submit" fullWidth>Create</HeroButton></form></Modal>}{modal === "rename" && <Modal title="Rename" onClose={() => setModal(null)}><form className="space-y-4" onSubmit={rename}><input autoFocus required value={value} onChange={(event) => setValue(event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-blue-500" /><HeroButton type="submit" fullWidth>Save</HeroButton></form></Modal>}{previewLoading && <Modal title="Preview" onClose={() => setPreviewLoading(false)}><Skeleton className="h-48 w-full rounded-lg" /></Modal>}{preview && <Modal wide title={`${preview.item.name}${previewDirty ? " *" : ""}`} onClose={closePreview}><div className="space-y-3"><div className="flex items-center justify-between gap-3"><p className="text-xs text-muted">{languageForFile(preview.item.name)?.toUpperCase()} · 在线编辑</p><HeroButton size="sm" isDisabled={!previewDirty || previewSaving} onPress={() => void savePreview()}>{previewSaving ? "Saving…" : "Save"}</HeroButton></div><MonacoTextEditor key={preview.item.path} value={previewContent} language={languageForFile(preview.item.name) ?? "plaintext"} path={preview.item.path} onChange={(content) => { setPreviewContent(content); setPreviewDirty(content !== preview.content); }} /></div></Modal>}</section>;
@@ -119,7 +126,9 @@ function StorageEditor({ editing, setEditing, onSave, onClose, error }: { editin
 	</form></Modal>;
 }
 
-function StoragesView({ notify }: { notify: (message: string, error?: boolean) => void }) {
+function StoragesView() {
+	const notify = useNotify();
+	const confirm = useConfirm();
 	const navigate = useNavigate();
 	const [items, setItems] = useState<Storage[]>([]); const [editing, setEditing] = useState<Storage | null>(null); const [loading, setLoading] = useState(true); const [formError, setFormError] = useState("");
 	async function load() { try { const data = await api<{ content: Storage[] }>("/api/admin/storage/list"); setItems((data.content ?? []).map(storageForEditor)); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to load storages", true); } finally { setLoading(false); } }
@@ -127,21 +136,29 @@ function StoragesView({ notify }: { notify: (message: string, error?: boolean) =
 	// eslint-disable-next-line react-hooks/exhaustive-deps
 	useEffect(() => { void load(); }, []);
 	function edit(item: Storage) { setFormError(""); setEditing(item); }
-	async function save(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!editing) return; const mountPath = `/${editing.mount_path.replace(/^\/+/, "").replace(/\/+$/, "")}` || "/"; if (items.some((item) => item.id !== editing.id && item.mount_path.replace(/\/+$/, "") === mountPath.replace(/\/+$/, ""))) { setFormError("挂载路径必须唯一"); return; } const payload = { ...editing, mount_path: mountPath, order_by: editing.order_by ?? "name", order_direction: editing.order_direction ?? "asc", extract_folder: editing.extract_folder ?? "front" }; try { await api("/api/admin/storage/create", { method: "POST", body: JSON.stringify(payload) }); notify("Storage saved"); setEditing(null); await load(); } catch (reason) { setFormError(reason instanceof Error ? reason.message : "Unable to save storage"); } }
-	async function remove(item: Storage) { if (!confirm(`Delete ${item.mount_path}?`)) return; try { await api("/api/admin/storage/delete", { method: "POST", body: JSON.stringify({ id: item.id, mount_path: item.mount_path }) }); notify("Storage deleted"); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to delete storage", true); } }
+	async function save(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!editing) return; const trimmed = editing.mount_path.replace(/^\/+/, "").replace(/\/+$/, "");
+		const mountPath = trimmed ? `/${trimmed}` : "/"; if (items.some((item) => item.id !== editing.id && item.mount_path.replace(/\/+$/, "") === mountPath.replace(/\/+$/, ""))) { setFormError("挂载路径必须唯一"); return; } const payload = { ...editing, mount_path: mountPath, order_by: editing.order_by ?? "name", order_direction: editing.order_direction ?? "asc", extract_folder: editing.extract_folder ?? "front" }; try { await api("/api/admin/storage/create", { method: "POST", body: JSON.stringify(payload) }); notify("Storage saved"); setEditing(null); await load(); } catch (reason) { setFormError(reason instanceof Error ? reason.message : "Unable to save storage"); } }
+	async function remove(item: Storage) {
+		if (!(await confirm({ title: "Delete storage", message: `Delete ${item.mount_path}?` }))) return;
+		try { await api("/api/admin/storage/delete", { method: "POST", body: JSON.stringify({ id: item.id, mount_path: item.mount_path }) }); notify("Storage deleted"); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to delete storage", true); } }
 	return <section><div className="mb-5 flex items-center justify-between"><div><p className="text-sm text-slate-400">Manage</p><h1 className="mt-1 text-2xl font-semibold">Storages</h1></div><HeroButton onPress={() => edit(newStorage())}>Add storage</HeroButton></div><HeroCard className="overflow-hidden p-0" variant="default"><div>{loading ? <p className="p-8 text-sm text-slate-400">Loading…</p> : !items.length ? <p className="p-8 text-sm text-slate-400">No storage configured.</p> : items.map((item) => <div key={item.id} className="flex items-center gap-4 border-b border-slate-100 px-5 py-4 last:border-0"><span className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold uppercase text-blue-700">{String(item.driver).toLowerCase() === "object" || String(item.driver).toLowerCase() === "s3" ? "S3" : item.driver}</span><div className="min-w-0 flex-1"><button className="font-medium hover:text-blue-600" onClick={() => navigate(item.mount_path)}>{item.mount_path}</button><p className="truncate text-xs text-slate-400">{item.remark || "No description"}</p></div><HeroButton size="sm" variant="ghost" onPress={() => edit(item)}>Edit</HeroButton><HeroButton size="sm" variant="danger-soft" onPress={() => void remove(item)}>Delete</HeroButton></div>)}</div></HeroCard>{editing && <StorageEditor editing={editing} setEditing={setEditing} onSave={save} onClose={() => setEditing(null)} error={formError} />}</section>;
 }
 
-function MetadataView({ notify }: { notify: (message: string, error?: boolean) => void }) {
+function MetadataView() {
+	const notify = useNotify();
+	const confirm = useConfirm();
 	const [items, setItems] = useState<Meta[]>([]); const [editing, setEditing] = useState<Meta | null>(null); const [loading, setLoading] = useState(true);
 	async function load() { try { const data = await api<{ content: Meta[] }>("/api/admin/meta/list"); setItems(data.content ?? []); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to load metadata", true); } finally { setLoading(false); } }
 	useEffect(() => { void load(); }, []);
 	async function save(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!editing) return; try { await api("/api/admin/meta/create", { method: "POST", body: JSON.stringify(editing) }); notify("Metadata saved"); setEditing(null); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to save metadata", true); } }
-	async function remove(item: Meta) { if (!confirm(`Delete rule ${item.path}?`)) return; try { await api("/api/admin/meta/delete", { method: "POST", body: JSON.stringify({ id: item.id, path: item.path }) }); notify("Metadata deleted"); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to delete metadata", true); } }
+	async function remove(item: Meta) {
+		if (!(await confirm({ title: "Delete rule", message: `Delete rule ${item.path}?` }))) return;
+		try { await api("/api/admin/meta/delete", { method: "POST", body: JSON.stringify({ id: item.id, path: item.path }) }); notify("Metadata deleted"); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to delete metadata", true); } }
 	return <section><div className="mb-5 flex items-center justify-between"><div><p className="text-sm text-muted">Manage</p><h1 className="mt-1 text-2xl font-semibold">Metadata rules</h1></div><HeroButton onPress={() => setEditing({ id: 0, path: "/", write: false, hide: "", readme: "" })}>Add rule</HeroButton></div><HeroCard className="overflow-hidden p-0" variant="default"><div>{loading ? <p className="p-8 text-sm text-muted">Loading…</p> : !items.length ? <p className="p-8 text-sm text-muted">No metadata rules configured.</p> : items.map((item) => <div key={item.id} className="flex items-center gap-4 border-b border-separator px-5 py-4 last:border-0"><div className="min-w-0 flex-1"><p className="font-medium">{item.path}</p><p className="truncate text-xs text-muted">{item.write ? "Writable" : "Read only"}{item.hide ? ` · Hidden: ${item.hide}` : ""}</p></div><HeroButton size="sm" variant="ghost" onPress={() => setEditing(item)}>Edit</HeroButton><HeroButton size="sm" variant="danger-soft" onPress={() => void remove(item)}>Delete</HeroButton></div>)}</div></HeroCard>{editing && <Modal title={editing.id ? "Edit metadata rule" : "Add metadata rule"} onClose={() => setEditing(null)}><form className="space-y-3" onSubmit={save}><input required value={editing.path} onChange={(event) => setEditing({ ...editing, path: event.target.value })} placeholder="Path, e.g. /private" className="w-full rounded-lg border border-border bg-field-background px-3 py-2" /><HeroSwitch isSelected={Boolean(editing.write)} onChange={(value) => setEditing({ ...editing, write: value })}>Allow writes</HeroSwitch><input value={editing.password ?? ""} onChange={(event) => setEditing({ ...editing, password: event.target.value })} type="password" placeholder="Folder password" className="w-full rounded-lg border border-border bg-field-background px-3 py-2" /><input value={editing.hide ?? ""} onChange={(event) => setEditing({ ...editing, hide: event.target.value })} placeholder="Hidden names, comma separated" className="w-full rounded-lg border border-border bg-field-background px-3 py-2" /><textarea value={editing.readme ?? ""} onChange={(event) => setEditing({ ...editing, readme: event.target.value })} rows={4} placeholder="Readme / description" className="w-full rounded-lg border border-border bg-field-background px-3 py-2" /><HeroButton type="submit" fullWidth>Save metadata</HeroButton></form></Modal>}</section>;
 }
 
-function BackupView({ notify }: { notify: (message: string, error?: boolean) => void }) {
+function BackupView() {
+	const notify = useNotify();
 	const { token } = useAuth();
 	const [password, setPassword] = useState(""); const [override, setOverride] = useState(false); const [loading, setLoading] = useState(false);
 	async function backup() { setLoading(true); try { const response = await fetch("/api/admin/backup/export", { method: "POST", headers: { Authorization: token, "content-type": "application/json" }, body: JSON.stringify({ password }) }); if (!response.ok) throw new Error("Backup failed"); const blob = await response.blob(); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = "openlist_backup.json"; link.click(); URL.revokeObjectURL(link.href); notify("Backup downloaded"); } catch (reason) { notify(reason instanceof Error ? reason.message : "Backup failed", true); } finally { setLoading(false); } }
@@ -155,10 +172,11 @@ function RequireAuth({ signedIn }: { signedIn: boolean }) {
 	return <Navigate to={ROUTES.login} replace state={{ from: location.pathname }} />;
 }
 
-function Shell({ onSignOut }: { onSignOut: () => void }) {
+function Shell() {
+	const { signOut } = useAuth();
 	const route = routeFor(useLocation().pathname);
 	const navigate = useNavigate();
-	return <main className="min-h-screen bg-background text-foreground"><Toast.Provider placement="bottom end" /><header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-separator/80 bg-surface/95 px-6 backdrop-blur"><div className="flex items-center gap-3"><button className="flex items-center gap-3" onClick={() => navigate("/")}><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent font-bold text-accent-foreground">E</div><span className="font-semibold">EdgeList</span></button></div><nav className="hidden gap-1 sm:flex">{([["files", "Files", "/"], ["storages", "Storages", "/@manage/storages"], ["metadata", "Metadata", "/@manage/metadata"], ["backup", "Backup & restore", "/@manage/backup-restore"]] as const).map(([key, label, path]) => <button key={key} className={`rounded-lg px-3 py-2 text-sm ${route.kind === key ? "bg-accent-soft font-medium text-accent-soft-foreground" : "text-muted hover:bg-surface-secondary"}`} onClick={() => navigate(path)}>{label}</button>)}</nav><HeroButton size="sm" variant="ghost" onPress={onSignOut}>Sign out</HeroButton></header><div className="mx-auto max-w-6xl p-6"><Outlet /></div></main>;
+	return <main className="min-h-screen bg-background text-foreground"><Toast.Provider placement="bottom end" /><header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-separator/80 bg-surface/95 px-6 backdrop-blur"><div className="flex items-center gap-3"><button className="flex items-center gap-3" onClick={() => navigate("/")}><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent font-bold text-accent-foreground">E</div><span className="font-semibold">EdgeList</span></button></div><nav className="hidden gap-1 sm:flex">{([["files", "Files", "/"], ["storages", "Storages", "/@manage/storages"], ["metadata", "Metadata", "/@manage/metadata"], ["backup", "Backup & restore", "/@manage/backup-restore"]] as const).map(([key, label, path]) => <button key={key} className={`rounded-lg px-3 py-2 text-sm ${route.kind === key ? "bg-accent-soft font-medium text-accent-soft-foreground" : "text-muted hover:bg-surface-secondary"}`} onClick={() => navigate(path)}>{label}</button>)}</nav><HeroButton size="sm" variant="ghost" onPress={signOut}>Sign out</HeroButton></header><div className="mx-auto max-w-6xl p-6"><Outlet /></div></main>;
 }
 
 function LoginView({ onSignedIn }: { onSignedIn: (token: string) => void }) {
@@ -192,29 +210,23 @@ function LoginView({ onSignedIn }: { onSignedIn: (token: string) => void }) {
 }
 
 export default function App() {
-	const { signedIn, signIn, signOut } = useAuth();
-	const [notice, setNotice] = useState<{ message: string; error?: boolean } | null>(null);
-	useEffect(() => {
-		if (!notice) return;
-		const show = notice.error ? toast.danger : toast.success;
-		show(notice.message);
-		setNotice(null);
-	}, [notice]);
-	const notify = useCallback((message: string, error?: boolean) => setNotice({ message, error }), []);
+	const { signedIn, signIn } = useAuth();
 	return (
-		<Routes>
-			<Route element={<RequireAuth signedIn={signedIn} />}>
-				<Route element={<Shell onSignOut={signOut} />}>
-					<Route path={ROUTES.storages} element={<StoragesView notify={notify} />} />
-					<Route path={ROUTES.metadata} element={<MetadataView notify={notify} />} />
-					<Route path={ROUTES.backup} element={<BackupView notify={notify} />} />
-					<Route path="*" element={<FilesView notify={notify} />} />
+		<ConfirmProvider>
+			<Routes>
+				<Route element={<RequireAuth signedIn={signedIn} />}>
+					<Route element={<Shell />}>
+						<Route path={ROUTES.storages} element={<StoragesView />} />
+						<Route path={ROUTES.metadata} element={<MetadataView />} />
+						<Route path={ROUTES.backup} element={<BackupView />} />
+						<Route path="*" element={<FilesView />} />
+					</Route>
 				</Route>
-			</Route>
-			<Route
-				path={ROUTES.login}
-				element={signedIn ? <Navigate to={ROUTES.files()} replace /> : <LoginView onSignedIn={signIn} />}
-			/>
-		</Routes>
+				<Route
+					path={ROUTES.login}
+					element={signedIn ? <Navigate to={ROUTES.files()} replace /> : <LoginView onSignedIn={signIn} />}
+				/>
+			</Routes>
+		</ConfirmProvider>
 	);
 }
