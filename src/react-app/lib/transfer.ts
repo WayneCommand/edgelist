@@ -1,3 +1,4 @@
+import { isMountLayer } from "./mask";
 import type { TransferResult } from "./types";
 
 /**
@@ -30,6 +31,58 @@ export function mountPathFor(path: string, mounts: readonly string[]): string | 
 export function crossStorageHint(sourceMount: string | null, destinationMount: string | null): string | null {
 	if (!sourceMount || !destinationMount || sourceMount === destinationMount) return null;
 	return `跨存储复制/移动不支持：${sourceMount} → ${destinationMount}`;
+}
+
+/**
+ * Why a directory cannot receive new entries, or `null` when it can.
+ *
+ * `mounts` is `null` while the list is unknown — a failed read is not the same
+ * answer as "nothing is mounted", and treating it as the latter would lock every
+ * write button in the app on a transient error, so unknown stays permissive and
+ * the server has the final say.
+ *
+ * When the list is known the test mirrors the worker's `resolveStorage`: it
+ * matches the path or one of its ancestors, and no match means the worker would
+ * answer "Storage not found". That is exactly the root case — the root is an
+ * aggregate over the mounts beneath it rather than a storage itself, so creating
+ * or uploading there always fails.
+ *
+ * The remaining way a write fails, a `NoWrite` mask or a Meta rule on a real
+ * storage, is only knowable server-side, which answers 403.
+ *
+ * Note what this deliberately does *not* do: it never blocks a path the worker
+ * would accept. An intermediate mount level that a parent storage still serves
+ * stays writable here, because `fsMkdir` resolves it to that parent and would
+ * succeed — only the message changes, since "no storage is mounted here" reads
+ * as a contradiction when the folder is sitting in the listing.
+ */
+export function unwritableHint(path: string, mounts: readonly string[] | null): string | null {
+	if (!mounts) return null;
+	if (mountPathFor(path, mounts)) return null;
+	// A level that only exists to reach a nested mount is the usual reason a
+	// listing shows a folder with nowhere to put a file. The root is the same
+	// idea — it prefixes every mount — but it reads better named as itself.
+	if (path !== "/" && isMountLayer(path, mounts)) return `${path} only exists to reach a nested mount`;
+	return `No storage is mounted at ${path}`;
+}
+
+/**
+ * Why a transfer into `destination` is refused, or `null` when it is allowed.
+ *
+ * Every case here is one the worker would also refuse, but a dialog that opens
+ * with an impossible destination and only explains itself after the request is
+ * worse than one that says so while the choice is still being made.
+ */
+export function destinationHint(srcDir: string, destination: string, mounts: readonly string[] | null): string | null {
+	if (destination === srcDir) return "Pick a folder other than the one being transferred from";
+	// From the root every path is "inside" it, so the nesting check only carries
+	// meaning below a real directory.
+	if (srcDir !== "/" && destination.startsWith(`${srcDir.replace(/\/+$/, "")}/`)) {
+		return "A folder cannot be transferred inside itself";
+	}
+	const sourceMount = mounts ? mountPathFor(srcDir, mounts) : null;
+	const destinationMount = mounts ? mountPathFor(destination, mounts) : null;
+	return crossStorageHint(sourceMount, destinationMount) ?? unwritableHint(destination, mounts);
 }
 
 /** One line for the toast, plus whether it should be reported as a failure. */

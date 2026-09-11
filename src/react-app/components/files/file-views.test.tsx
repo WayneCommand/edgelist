@@ -83,6 +83,7 @@ describe("file views", () => {
 				selection={fakeSelection()}
 				view="grid"
 				uploading={null}
+				writeHint={null}
 				onViewChange={noop}
 				onRefresh={noop}
 				onNewFolder={noop}
@@ -100,6 +101,7 @@ describe("file views", () => {
 				selection={fakeSelection()}
 				view="list"
 				uploading={null}
+				writeHint={null}
 				onViewChange={noop}
 				onRefresh={noop}
 				onNewFolder={noop}
@@ -116,6 +118,7 @@ describe("file views", () => {
 				selection={fakeSelection()}
 				view="list"
 				uploading={{ done: 3, total: 8 }}
+				writeHint={null}
 				onViewChange={noop}
 				onRefresh={noop}
 				onNewFolder={noop}
@@ -132,6 +135,7 @@ describe("file views", () => {
 				selection={fakeSelection({ count: 2, someSelected: true })}
 				view="list"
 				uploading={null}
+				writeHint={null}
 				onViewChange={noop}
 				onRefresh={noop}
 				onNewFolder={noop}
@@ -139,6 +143,47 @@ describe("file views", () => {
 			/>,
 		);
 		expect(html).toContain("2 selected");
+	});
+
+	it("locks the three create actions when the directory cannot take a write", () => {
+		const hint = "No storage is mounted at /";
+		const html = renderToStaticMarkup(
+			<FileToolbar
+				selection={fakeSelection()}
+				view="list"
+				uploading={null}
+				writeHint={hint}
+				onViewChange={noop}
+				onRefresh={noop}
+				onNewFolder={noop}
+				onUpload={noop}
+			/>,
+		);
+		// A disabled button cannot show a tooltip, so the reason is plain text.
+		expect(html).toContain('data-testid="write-hint"');
+		expect(html).toContain(hint);
+		// New folder, Upload folder and Upload are the three that create entries.
+		expect(html.match(/disabled=""/g)).toHaveLength(3);
+		// Refresh stays available: reading a directory that cannot be written to
+		// is still perfectly reasonable.
+		expect(html).toContain("Refresh");
+	});
+
+	it("offers no write hint when a storage serves the directory", () => {
+		const html = renderToStaticMarkup(
+			<FileToolbar
+				selection={fakeSelection()}
+				view="list"
+				uploading={null}
+				writeHint={null}
+				onViewChange={noop}
+				onRefresh={noop}
+				onNewFolder={noop}
+				onUpload={noop}
+			/>,
+		);
+		expect(html).not.toContain('data-testid="write-hint"');
+		expect(html).not.toContain('disabled=""');
 	});
 });
 

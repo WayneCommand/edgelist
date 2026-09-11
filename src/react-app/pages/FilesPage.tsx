@@ -10,6 +10,7 @@ import { permissionsFor } from "../lib/mask";
 import type { MenuPosition } from "../lib/menu";
 import { clampPage, perPageFor } from "../lib/pagination";
 import { crumbsOf } from "../lib/paths";
+import { unwritableHint } from "../lib/transfer";
 import {
 	DEFAULT_PAGE_MODE,
 	DEFAULT_PAGE_SIZE,
@@ -28,7 +29,7 @@ import {
 	sortKeyFor,
 	type PageMode,
 } from "../lib/preferences";
-import type { FileItem, FileListResponse, SortField, TransferMode } from "../lib/types";
+import type { FileItem, FileListResponse, SortField, Storage, TransferMode } from "../lib/types";
 import { ROUTES, filesPathFor } from "../routes";
 import { useAuth } from "../hooks/useAuth";
 import { useConfirm } from "../hooks/useConfirm";
@@ -75,6 +76,10 @@ export function FilesPage() {
 	const [previewLoading, setPreviewLoading] = useState(false);
 	const [transfer, setTransfer] = useState<{ mode: TransferMode; dir: string; names: string[] } | null>(null);
 	const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
+	// Which paths a storage is mounted at. `null` means "not known yet" — a failed
+	// read is not the same answer as "nothing is mounted", and gating on the
+	// latter would lock every button in the app on a transient error.
+	const [mounts, setMounts] = useState<string[] | null>(null);
 	const [menu, setMenu] = useState<MenuPosition | null>(null);
 	const [storedView, setStoredView] = useStoredState(VIEW_MODE_KEY, DEFAULT_VIEW_MODE);
 	const view = parseViewMode(storedView);
@@ -94,6 +99,10 @@ export function FilesPage() {
 	const single = selection.count === 1 ? selection.items[0] : null;
 	// One source of truth for what is possible, shared by the bar and the menu.
 	const permissions = permissionsFor(selection.items);
+	// The same idea for the directory itself: three actions here create entries —
+	// New folder and the two uploads — and all three fail identically when no
+	// storage serves this path, so they share one reason.
+	const writeHint = unwritableHint(path, mounts);
 
 	function openDirectory(next: string) {
 		navigate({ pathname: ROUTES.files(next) });
@@ -150,6 +159,33 @@ export function FilesPage() {
 		setSearching(false);
 		setQuery("");
 	}, [initialPath]);
+
+	// The mount list is what tells the client whether a directory can be written
+	// to at all: the worker resolves a path by longest prefix over the mounts, so
+	// a path under none of them has nowhere to put a file. It is fetched once —
+	// storages are edited on their own page, and a stale answer only ever costs a
+	// button that the server would refuse anyway.
+	useEffect(() => {
+		let cancelled = false;
+		void (async () => {
+			try {
+				const data = await api<{ content: Storage[] }>("/api/admin/storage/list");
+				if (cancelled) return;
+				setMounts(
+					(data.content ?? [])
+						.map((item) => item?.mount_path)
+						.filter((mount): mount is string => typeof mount === "string"),
+				);
+			} catch {
+				// Unknown, not empty: gating on a failed read would grey out every
+				// write button on what is very likely a blip.
+				if (!cancelled) setMounts(null);
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 
 	// The sort order is part of the request, so a new order re-fetches the listing.
 	useEffect(() => {
@@ -452,9 +488,11 @@ export function FilesPage() {
 	// real directory listing.
 	const sortable = searching ? undefined : { state: sort, change: changeSort };
 	// The floating selection bar sits over the end of the list; the padding keeps
-	// the last row reachable instead of permanently covered.
+	// the last row reachable instead of permanently covered. The drop zone goes
+	// quiet when the directory cannot take a file, so a drag does not raise an
+	// overlay promising an upload that would be refused.
 	return (
-		<DropZone onDrop={(tree) => void upload(tree)} disabled={uploading !== null}>
+		<DropZone onDrop={(tree) => void upload(tree)} disabled={uploading !== null || writeHint !== null}>
 			<section className={selection.count > 0 ? "pb-24" : undefined}>
 				<div className="mb-5 flex flex-wrap items-center justify-between gap-3">
 					<div>
@@ -502,6 +540,7 @@ export function FilesPage() {
 					selection={selection}
 					view={view}
 					uploading={uploading}
+					writeHint={writeHint}
 					onViewChange={setStoredView}
 					onRefresh={() => void load(path, page)}
 					onNewFolder={() => setFolderName("")}
@@ -613,6 +652,7 @@ export function FilesPage() {
 						mode={transfer.mode}
 						srcDir={transfer.dir}
 						names={transfer.names}
+						mounts={mounts}
 						onClose={() => setTransfer(null)}
 						// A transfer changes the listing and may move the selection out of
 						// it, so reload rather than patching state in place.

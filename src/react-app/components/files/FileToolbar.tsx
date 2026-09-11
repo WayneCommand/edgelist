@@ -9,6 +9,12 @@ type FileToolbarProps = {
 	view: ViewMode;
 	/** Set while a batch is in flight, so the buttons can lock and show progress. */
 	uploading: { done: number; total: number } | null;
+	/**
+	 * Why nothing can be written to the current directory, or `null` when it can.
+	 * Three actions here create entries — the two pickers and New folder — and all
+	 * three would fail identically, so they are locked together with one reason.
+	 */
+	writeHint: string | null;
 	onViewChange: (view: ViewMode) => void;
 	onRefresh: () => void;
 	onNewFolder: () => void;
@@ -23,6 +29,7 @@ export function FileToolbar({
 	selection,
 	view,
 	uploading,
+	writeHint,
 	onViewChange,
 	onRefresh,
 	onNewFolder,
@@ -31,13 +38,17 @@ export function FileToolbar({
 	const fileRef = useRef<HTMLInputElement>(null);
 	const folderRef = useRef<HTMLInputElement>(null);
 	const busy = uploading !== null;
+	// A locked toolbar hides the pickers' triggers but not the inputs themselves,
+	// so `pick` guards as well — a stray click through a hidden label would
+	// otherwise still open a picker for a directory that cannot take a file.
+	const locked = busy || writeHint !== null;
 
 	// Both pickers differ only in what the browser lets the user choose, so the
 	// change handling is shared. Clearing `value` is what lets the same file be
 	// picked twice in a row — otherwise `change` never fires again.
 	function pick(event: ChangeEvent<HTMLInputElement>) {
 		const files = event.target.files;
-		if (files?.length) onUpload(pickedTree(files));
+		if (files?.length && !locked) onUpload(pickedTree(files));
 		event.target.value = "";
 	}
 
@@ -63,14 +74,21 @@ export function FileToolbar({
 						Uploading {uploading.done}/{uploading.total}…
 					</span>
 				)}
+				{writeHint && (
+					// A disabled button swallows the hover that would show its `title`,
+					// so the reason is written out where it can actually be read.
+					<span className="text-xs text-muted" data-testid="write-hint">
+						{writeHint}
+					</span>
+				)}
 				<ViewSwitch view={view} onChange={onViewChange} />
-				<HeroButton size="sm" variant="outline" isDisabled={busy} onPress={onNewFolder}>
+				<HeroButton size="sm" variant="outline" isDisabled={locked} onPress={onNewFolder}>
 					New folder
 				</HeroButton>
-				<HeroButton size="sm" variant="outline" isDisabled={busy} onPress={() => folderRef.current?.click()}>
+				<HeroButton size="sm" variant="outline" isDisabled={locked} onPress={() => folderRef.current?.click()}>
 					Upload folder
 				</HeroButton>
-				<HeroButton size="sm" variant="secondary" isDisabled={busy} onPress={() => fileRef.current?.click()}>
+				<HeroButton size="sm" variant="secondary" isDisabled={locked} onPress={() => fileRef.current?.click()}>
 					Upload
 				</HeroButton>
 				<HeroButton size="sm" variant="ghost" onPress={onRefresh}>

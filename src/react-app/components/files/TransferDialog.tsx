@@ -1,8 +1,8 @@
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { Button as HeroButton } from "@heroui/react";
 import { api } from "../../lib/api";
-import { crossStorageHint, mountPathFor, summarizeTransfer } from "../../lib/transfer";
-import type { StorageListResponse, TransferItemResult, TransferMode, TransferResult } from "../../lib/types";
+import { destinationHint, summarizeTransfer } from "../../lib/transfer";
+import type { TransferItemResult, TransferMode, TransferResult } from "../../lib/types";
 import { useNotify } from "../../hooks/useNotify";
 import { Modal } from "../common/Modal";
 import { DirectoryTree } from "./DirectoryTree";
@@ -13,6 +13,8 @@ type TransferDialogProps = {
 	srcDir: string;
 	/** Entry names to transfer, relative to `srcDir`. */
 	names: string[];
+	/** Mount paths, or `null` while they are still being fetched. */
+	mounts: string[] | null;
 	onClose: () => void;
 	/** Called after at least one entry moved, so the listing can refresh. */
 	onTransferred: () => void;
@@ -24,7 +26,7 @@ type TransferDialogProps = {
  * kept on screen when something fails, because a batch can partly succeed and
  * the reason (a read-only mount, a cross-storage target) matters.
  */
-export function TransferDialog({ mode, srcDir, names, onClose, onTransferred }: TransferDialogProps) {
+export function TransferDialog({ mode, srcDir, names, mounts, onClose, onTransferred }: TransferDialogProps) {
 	const notify = useNotify();
 	const [destination, setDestination] = useState(srcDir);
 	const [overwrite, setOverwrite] = useState(false);
@@ -32,26 +34,10 @@ export function TransferDialog({ mode, srcDir, names, onClose, onTransferred }: 
 	const [merge, setMerge] = useState(false);
 	const [busy, setBusy] = useState(false);
 	const [failures, setFailures] = useState<TransferItemResult[]>([]);
-	const [mounts, setMounts] = useState<string[] | null>(null);
 
-	const loadMounts = useCallback(async () => {
-		try {
-			const data = await api<StorageListResponse>("/api/admin/storage/list");
-			setMounts((data.content ?? []).map((storage) => storage.mount_path));
-		} catch {
-			// The mount list only powers an early hint; the worker still enforces
-			// the rule, so a failure here is not worth interrupting the dialog for.
-			setMounts([]);
-		}
-	}, []);
-
-	useEffect(() => {
-		void loadMounts();
-	}, [loadMounts]);
-
-	const sourceMount = mounts ? mountPathFor(srcDir, mounts) : null;
-	const destinationMount = mounts ? mountPathFor(destination, mounts) : null;
-	const blocked = crossStorageHint(sourceMount, destinationMount);
+	// Every refusal is computed from the mount list alone, so the dialog stays
+	// dumb: it asks why this destination is impossible and renders the answer.
+	const blocked = destinationHint(srcDir, destination, mounts);
 
 	function chooseOverwrite(next: boolean) {
 		setOverwrite(next);

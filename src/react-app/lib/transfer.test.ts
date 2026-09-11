@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { crossStorageHint, mountPathFor, summarizeTransfer } from "./transfer";
+import { crossStorageHint, destinationHint, mountPathFor, summarizeTransfer, unwritableHint } from "./transfer";
 import type { TransferResult } from "./types";
 
 describe("mountPathFor", () => {
@@ -43,6 +43,74 @@ describe("crossStorageHint", () => {
 		// An unknown path is left to the server to judge.
 		expect(crossStorageHint(null, "/a")).toBeNull();
 		expect(crossStorageHint("/a", null)).toBeNull();
+	});
+});
+
+describe("unwritableHint", () => {
+	it("stays quiet while the mount list is unknown", () => {
+		// A failed read must not lock every write button in the app.
+		expect(unwritableHint("/", null)).toBeNull();
+		expect(unwritableHint("/waynecos/docs", null)).toBeNull();
+	});
+
+	it("stays quiet when a storage serves the path", () => {
+		expect(unwritableHint("/waynecos", ["/waynecos"])).toBeNull();
+		expect(unwritableHint("/waynecos/docs", ["/waynecos"])).toBeNull();
+		expect(unwritableHint("/anything", ["/"])).toBeNull();
+	});
+
+	it("reports the root when no storage is mounted there", () => {
+		// The root aggregates the mounts beneath it; it is not a storage itself,
+		// so `fs/mkdir` at "/" answers "Storage not found".
+		expect(unwritableHint("/", ["/waynecos", "/jianguoyun"])).toContain("No storage is mounted at /");
+	});
+
+	it("names a level that only exists to reach a nested mount", () => {
+		// `/a` is not mounted, so the write fails either way, but "no storage is
+		// mounted at /a" contradicts the folder sitting in the listing.
+		expect(unwritableHint("/a", ["/a/b"])).toContain("nested mount");
+	});
+
+	it("keeps a path writable when a parent storage still serves it", () => {
+		// `fsMkdir` resolves `/a` to the root storage and would succeed, so the
+		// guard must not refuse what the worker would accept.
+		expect(unwritableHint("/a", ["/", "/a/b"])).toBeNull();
+	});
+});
+
+describe("destinationHint", () => {
+	const mounts = ["/waynecos", "/jianguoyun"];
+
+	it("allows a transfer into a sibling folder of the same storage", () => {
+		expect(destinationHint("/waynecos/docs", "/waynecos/media", mounts)).toBeNull();
+	});
+
+	it("refuses the source folder itself", () => {
+		expect(destinationHint("/waynecos", "/waynecos", mounts)).toContain("other than the one");
+	});
+
+	it("refuses a folder nested inside the source", () => {
+		expect(destinationHint("/waynecos/docs", "/waynecos/docs/sub", mounts)).toContain("inside itself");
+		// A trailing slash on the source must not defeat the check.
+		expect(destinationHint("/waynecos/docs/", "/waynecos/docs/sub", mounts)).toContain("inside itself");
+	});
+
+	it("still allows a sibling whose name starts like the source", () => {
+		expect(destinationHint("/a/docs", "/a/docs2", ["/a"])).toBeNull();
+	});
+
+	it("refuses a destination in another storage", () => {
+		expect(destinationHint("/waynecos", "/jianguoyun", mounts)).toContain("跨存储");
+	});
+
+	it("refuses a destination no storage serves", () => {
+		expect(destinationHint("/waynecos", "/nowhere", mounts)).toContain("No storage is mounted");
+	});
+
+	it("leaves the choice to the server while the mount list is unknown", () => {
+		// Only the rules that need no mount list survive: same folder and nesting.
+		expect(destinationHint("/waynecos", "/jianguoyun", null)).toBeNull();
+		expect(destinationHint("/waynecos", "/waynecos", null)).toContain("other than the one");
 	});
 });
 

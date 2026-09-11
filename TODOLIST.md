@@ -223,9 +223,42 @@
   - **没往云端写任何东西**：验收在浏览器侧拦截了 `/api/fs/mkdir`、`/api/fs/put`、`/api/fs/form`，请求根本不出进程；跑完再用真实接口列一次 `/waynecos`，13 个条目与验收前一致、没有 `edgelist-pick` / `dropped.txt` 残留。
   - **顺带确认一个浏览器语义**：目录选择器给的 `webkitRelativePath` **包含被选中目录自身的名字**（选 `edgelist-pick` 得到 `edgelist-pick/docs/a.md`）。第一版断言写成了不含这一层，是断言错了不是代码错了——这也说明拖放/选择目录会真的建出那一层目录，符合文件管理器惯例。
   - **踩到一个并行编辑的坑**：同一文件的两处 `Edit` 放在同一条消息里并发执行，只有一处落地（`FilesPage.tsx` 的 `dropUpload` 导入丢失，报 `TS2304`）。之后改为串行逐处编辑。
-- [ ] 6.9 分页/加载更多 `components/files/Pager.tsx`（替换硬编码 `per_page: 200`）。
-- [ ] 6.10 面包屑支持路径直接编辑跳转。
-- [ ] 6.11 按 `mask` 隐藏挂载点/只读项的重命名、移动、删除入口（与 6.7 共用掩码常量）。
+- [x] 6.9 分页/加载更多 `components/files/Pager.tsx`（替换硬编码 `per_page: 200`）。
+  - **决策 a（本地偏好，暂不接服务端设置）**：KV 里的 `pagination_type` / `default_page_size` 目前**没有任何公开 API 可读**（设置只被备份/恢复用到），所以这一步把页大小与翻页模式做成前端偏好：`edgelist:page-size`（`50/100/200/500/all`）与 `edgelist:page-mode`（`pagination` / `load_more`）。默认 `200` 就是原先硬编码的值，没碰过这个控件的人行为完全不变。等阶段八做站点设置时再把 `pagination_type` 接上。
+  - `lib/pagination.ts` 只放纯算术（`pageCount` / `pageRange` / `pageNumbers` / `clampPage` / `perPageFor`），组件只负责画，所以窗口化页码、边界夹取这些最容易写错的地方都能脱离 DOM 单测。`lib/preferences.ts` 按既有约定继续收口持久化（key + parse/serialize）。
+  - **`per_page: 0` 在两个端点含义不同**：`fsList` 走 `paginateFileObjects`，`<= 0` 就是「全都要」；而 `fsSearch` 是 `Math.max(1, input.per_page ?? 100)`，**`0` 会被夹成 1**。所以「全部」在列表里发 `0`，在搜索里必须发一个大数（`SEARCH_ALL = 10000`）。这是服务端的既有不一致，前端用 `perPageFor(size, endpoint)` 收口并写明原因；没去改 worker 是因为 `fsSearch` 没有单测（需要 KV 绑定），改一处没有测试覆盖的分支不划算——留作后端一致性清理的候选。
+  - 翻页模式：`pagination` 换页（`aria-current="page"` 标记当前页，首/末页常驻、中间折叠成 `…`），`load_more` 追加（`Showing 200 of 342` + `Show more` 按钮，加载中禁用）。**模式开关与动作按钮不能同名**：一开始两者都叫 `Load more`，同一行出现两个同名按钮，视觉和断言都分不清，动作按钮改成 `Show more`。
+  - 分页对**目录列表和搜索结果同样生效**（`fs/search` 本来就收 `page`/`per_page` 并返回 `total`），两个入口收在 `goToPage` / `loadMore` 两个小函数后面。
+  - 删掉最后一页的最后一条会把人留在一个空页上，所以 `removeSelected` 用 `clampPage(page, total - targets.length, pageSize)` 回退一页；没有把「回退」写进 `load` 自己（`useCallback` 里自引用会让 `load` 依赖自己 → 每次 render 换身份 → effect 死循环）。
+  - 顺手修一个真 bug：`parsePageSize` 原先接受任意正数，而选择器只提供 5 个档位——存了 `"5"` 就会出现「下拉显示 50、实际按 5 请求」的错位。现在只接受选择器里有的档位，其余一律回落默认值，**显示与请求永远一致**。
+  - 增删文件后 `load(path, page)` 保留当前页（建目录/重命名/删除/上传/传输/刷新都如此），只有换目录、换排序、换页大小、换模式才回到第 1 页。
+  - 新增 `lib/pagination.test.ts`（22 例）、`preferences.test.ts` 补 6 例、`file-views.test.tsx` 补 9 例。合计 **247 例 / 19 文件**；`tsc -b` / `eslint .` / `prettier --check` / `vite build` 全绿。
+  - **端到端验收 32 项全绿**（真浏览器）：真数据下确认默认发 `per_page=200`、切 50 发 `per_page=50` 并回到第 1 页、切 `All` 发 `per_page=0`、偏好写进 `localStorage`（`"all"` 存成词而不是 0）、刷新后仍生效且下拉显示一致、13 条时只有「13 items」不出现页码；再用**拦截 `/api/fs/list` 返回 342 条的合成响应**把翻页走穿——`1–100 of 342`、首屏 100 行、点页码发 `page=2` 且 `per_page=100` 不变、第二页替换第一页、`aria-current` 跟随、返回第 1 页后 `Previous` 禁用、切到 `load_more` 回到第 1 页、`Show more` 发 `page=2` 且行数 100 → 200（真追加）、模式写进 `localStorage`；搜索同样带上 `per_page`/`page`。截图 `/tmp/edgelist-pager.png`。
+  - **没有写任何云端数据**：全程只读（列表、搜索），写端点未触碰。
+- [x] 6.10 面包屑支持路径直接编辑跳转。
+  - 新增 `components/files/PathBar.tsx`：平时是面包屑（`Root` + 各级 crumb），点右侧 ✎（或 `aria-label="Edit path"`）整条变成文本框，预填当前完整路径。Enter 跳转、Escape 取消、**点击别处也取消**——取消是安全的默认，误触不会把人带到别的地方。
+  - 文本框是**非受控**的（`defaultValue` 只给初值，之后归用户）：受控的话每次按键都要 re-render，还会和光标位置打架。`draft` 一个 state 同时当「编辑器开没开」和「正在输入什么」，没有草稿就没有编辑器。
+  - 新增 `lib/paths.ts` 的 `normalizeInputPath`：补前导斜杠、去尾斜杠、折叠重复斜杠、去空白，并**在客户端解析 `.` 与 `..`**。之所以在这里解析而不是透传给后端：`fs/list` 没有理由理解 `..`，一个真叫 `..` 的目录名会被当成目录名去查。只做词法解析——文本框无从知道存储里到底有什么。`/../..` 不会越出根。
+  - 顺手修一个被 6.10 放大的老问题：`load` 原先把 `setPath` 放在请求成功之后，所以**请求失败时面包屑会停留在上一个目录**，和地址栏互相矛盾。现在 `setPath` / `setPage` 无论成败都跟着请求走，并且失败时清空 `items` / `total`——否则「新的面包屑 + 旧目录的条目」会被读成「这个目录里有这些文件」。
+  - **验收发现一个真实行为差异（值得记住）**：在 **对象存储**（`/waynecos`，S3）上，一个不存在的路径**不是错误**，而是一个空列表——对象存储没有目录的概念，前缀下没有 key 就是没有。所以输入 `/waynecos/definitely-not-here` 得到的是「No files found」而不是报错。真正会报错的是**不在任何挂载点下**的路径（`/not-a-mount` → `Storage not found`，HTTP 400）。第一版断言把前者当成了错误路径，是断言错了。
+  - 新增 `lib/paths.test.ts`（14 例，含 `parentOf` / `crumbsOf` / `normalizeInputPath` 的中文目录名、`..` 越界、只含点的目录名 `..b`），`file-views.test.tsx` 补 3 例。合计 **263 例 / 20 文件**；`tsc -b` / `eslint .` / `prettier --check` / `vite build` 全绿。
+  - **端到端验收 25 项全绿**（真浏览器）：面包屑可编辑、预填当前路径、Escape 取消且不跳转、点别处取消且不跳转、`waynecos/media`（无前导斜杠）→ 请求体 `/waynecos/media`、`/waynecos/nas/../sql/` → 请求体 `/waynecos/sql`、`/` 可达且面包屑折叠、不存在的前缀显示「No files found」且面包屑与地址栏一致、`/not-a-mount` 显示 `Storage not found`、失败后仍可继续编辑并能恢复。截图 `/tmp/edgelist-path-edit.png`。
+  - **没有写任何云端数据**：全程只读。
+- [x] 6.11 按 `mask` 隐藏挂载点/只读项的重命名、移动、删除入口（与 6.7 共用掩码常量）。
+  - **范围修正**：清单原文说的"挂载点/只读项的入口"在 6.7 就已交付——`permissionsFor` 是唯一判据，操作条、右键菜单、表格共用它，挂载点（`mask=15`）只剩 Open 可用。本步做的是它**漏掉的那一半**：选区级别的入口挡住了，但**当前目录本身**能不能写从来没判过。在根目录 `/` 点 New folder / Upload 必然失败（`selectStorage` 只匹配祖先挂载，根不是存储），却一路发出请求拿回英文 `Storage not found`。
+  - 新增 `lib/transfer.ts` 的 `unwritableHint(path, mounts)`：挂载列表为 `null`（还没拿到 / 读失败）时**一律放行**——"读失败"和"什么都没挂载"是两个答案，按后者处理会在一次网络抖动后把所有写按钮灰掉。拿到列表后用 `mountPathFor` 判断该路径有没有存储服务。
+  - **`isMountLayer` 终于被用上**（6.7 加了却一直没人调用）。但它**只改文案、不改判定**：中间层（只为到达嵌套挂载而存在的目录）如果还被父存储服务着，`fsMkdir` 会解析到父存储并成功，所以不能禁——禁了就是客户端拒绝一个服务端会接受的操作。文案从"No storage is mounted at /a"改成"only exists to reach a nested mount"，因为列表里明明能看到这个目录，说"没有挂载存储"是自相矛盾的。根目录单独排除：它是所有挂载的前缀，`isMountLayer("/")` 恒为真。
+  - `FileToolbar` 收一个 `writeHint`，New folder / Upload folder / Upload 三个一起锁（它们失败的原因完全相同），**Refresh 不锁**——读一个不能写的目录完全合理。上传浮层（`DropZone`）同时禁用，否则拖拽会弹出一个承诺了却会被拒的提示。
+  - **不给 HeroUI `Button` 传 `title`**：它的 props 类型不接受，而且禁用元素在浏览器里根本不触发 hover，tooltip 永远看不到。所以理由以 `data-testid="write-hint"` 的可见文本呈现——禁掉却不解释等于死路。
+  - `TransferDialog` 收一个 `mounts` prop，把三条例外收进 `destinationHint(srcDir, destination, mounts)`：目标是源目录本身、目标是源目录的子目录（按 `/` 边界判，`/a/docs2` 不会误判为 `/a/docs` 的子目录）、跨存储、目标没有存储服务。全部在**发请求之前**给出理由并禁用提交，而不是让用户选完再失败。
+  - 补 `transfer.test.ts` 12 例（`unwritableHint` 5 / `destinationHint` 7）、`file-views.test.tsx` 2 例（锁定态显示理由且恰好 3 个按钮禁用、可写时不显示）。合计 **277 例 / 20 文件**；`tsc -b` / `eslint .` / `prettier --check` / `vite build` 全绿。
+  - **端到端验收 19 项全绿**（真浏览器 + 真数据）：登录后落在 `/` → 出现理由文本且文案为 `No storage is mounted at /` → 三个写入按钮全部禁用、Refresh 仍可用 → 进 `/waynecos` 后理由消失、按钮恢复 → 勾选两个目录打开复制对话框 → 默认目标＝源目录且提交禁用、理由为 `Pick a folder other than the one being transferred from` → 树展开 Root 拿到三个挂载点 → 切到 `/jianguoyun` 出现 `跨存储复制/移动不支持` 且提交禁用。截图 `/tmp/edgelist-write-guard-root.png`、`/tmp/edgelist-write-guard-transfer.png`。
+  - **没有写任何云端数据**：全程只读，脚本另挂 request 监听证明 `/api/fs/{mkdir,put,form,copy,move,remove,rename,multipart}` 一次都没发出。
+  - **仍未做**：Meta 规则或 `NoWrite` 掩码导致的不可写只有服务端知道（返回 403），前端拿不到，所以这两条不在提示范围内。
+
+> ✅ **阶段六已完成**（11/11）。文件列表从"能用"做到"好用"：多选 / 网格 / 列头排序 / 悬浮操作条 /
+> 复制移动对话框 / 右键菜单 / 拖放上传 / 分页 / 面包屑编辑 / 写入口守卫。全部逻辑收在
+> `lib/{mask,transfer,paths,preferences,pagination,dropUpload}.ts` 这些纯函数里，组件只负责画。
 
 ## 阶段七：存储管理（磁盘管理器）
 
