@@ -2,25 +2,14 @@ import { type FormEvent, type ReactNode, useCallback, useEffect, useRef, useStat
 import { Button as HeroButton, Card as HeroCard, Modal as HeroModal, Skeleton, Switch as HeroSwitch, Toast, toast } from "@heroui/react";
 import { ROUTES, filesPathFor, routeFor } from "./routes";
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from "react-router";
+import { api } from "./api";
+import { useAuth } from "./hooks/useAuth";
 import { MonacoTextEditor } from "./MonacoTextEditor";
 
 type LoginResponse = { code: number; message: string; data?: { token: string } };
 type FileItem = { name: string; size: number; is_dir: boolean; modified: string; path: string };
 type Storage = { id: number; mount_path: string; driver: "openlist" | "object" | "webdav"; addition: string; remark: string; disabled?: boolean; order?: number; status?: string; order_by?: string; order_direction?: string; extract_folder?: string; [key: string]: unknown };
 type Meta = { id: number; path: string; password?: string; write?: boolean; hide?: string; readme?: string };
-
-const authToken = () => sessionStorage.getItem("edgelist-token") ?? "";
-
-async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
-	const headers = new Headers(init.headers);
-	if (!headers.has("content-type") && init.body && !(init.body instanceof FormData)) headers.set("content-type", "application/json");
-	headers.set("Authorization", authToken());
-	const response = await fetch(path, { ...init, headers });
-	if (response.status === 401) { sessionStorage.removeItem("edgelist-token"); window.dispatchEvent(new Event("edgelist-auth-expired")); }
-	const result = await response.json().catch(() => ({})) as { code?: number; message?: string; data?: T };
-	if (!response.ok || result.code !== 200) throw new Error(result.message || `Request failed (${response.status})`);
-	return result.data as T;
-}
 
 function formatSize(size: number) { if (size < 1024) return `${size} B`; if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`; return `${(size / 1024 / 1024).toFixed(1)} MB`; }
 
@@ -39,6 +28,7 @@ function Modal({ title, children, onClose, wide = false }: { title: string; chil
 }
 
 function FilesView({ notify }: { notify: (message: string, error?: boolean) => void }) {
+	const { token } = useAuth();
 	const navigate = useNavigate();
 	const initialPath = filesPathFor(useLocation().pathname);
 	function openDirectory(next: string) {
@@ -78,9 +68,9 @@ function FilesView({ notify }: { notify: (message: string, error?: boolean) => v
 	async function rename(event: FormEvent) { event.preventDefault(); if (!selected) return; try { await api("/api/fs/rename", { method: "POST", body: JSON.stringify({ path: selected.path, name: value, overwrite: false }) }); notify("Renamed"); setModal(null); setSelected(null); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to rename", true); } }
 	async function remove() { if (!selected || !confirm(`Delete ${selected.name}?`)) return; try { await api("/api/fs/remove", { method: "POST", body: JSON.stringify({ dir: path, names: [selected.name] }) }); notify("Deleted"); setSelected(null); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to delete", true); } }
 	async function upload(file: File) { try { await api("/api/fs/put", { method: "PUT", headers: { "File-Path": encodeURIComponent(`${path.replace(/\/$/, "")}/${file.name}`), "Content-Type": file.type || "application/octet-stream" }, body: file }); notify("Uploaded"); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to upload", true); } }
-	async function download(item: FileItem) { try { const response = await fetch(`/d${item.path}`, { headers: { Authorization: authToken() } }); if (!response.ok) throw new Error("Download failed"); const blob = await response.blob(); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = item.name; link.click(); URL.revokeObjectURL(link.href); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to download", true); } }
+	async function download(item: FileItem) { try { const response = await fetch(`/d${item.path}`, { headers: { Authorization: token } }); if (!response.ok) throw new Error("Download failed"); const blob = await response.blob(); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = item.name; link.click(); URL.revokeObjectURL(link.href); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to download", true); } }
 	function isPreviewable(name: string) { return languageForFile(name) !== null; }
-	async function previewFile(item: FileItem) { setPreviewLoading(true); try { const response = await fetch(`/d${item.path}`, { headers: { Authorization: authToken() } }); if (!response.ok) throw new Error("Unable to preview file"); const content = await response.text(); setPreview({ item, content }); setPreviewContent(content); setPreviewDirty(false); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to preview file", true); } finally { setPreviewLoading(false); } }
+	async function previewFile(item: FileItem) { setPreviewLoading(true); try { const response = await fetch(`/d${item.path}`, { headers: { Authorization: token } }); if (!response.ok) throw new Error("Unable to preview file"); const content = await response.text(); setPreview({ item, content }); setPreviewContent(content); setPreviewDirty(false); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to preview file", true); } finally { setPreviewLoading(false); } }
 	async function savePreview() { if (!preview) return; setPreviewSaving(true); try { await api("/api/fs/put", { method: "PUT", headers: { "File-Path": encodeURIComponent(preview.item.path), "Content-Type": "text/plain; charset=utf-8" }, body: new Blob([previewContent], { type: "text/plain; charset=utf-8" }) }); setPreview({ ...preview, content: previewContent }); setPreviewDirty(false); notify("Saved"); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to save file", true); } finally { setPreviewSaving(false); } }
 	function closePreview() { if (previewDirty && !confirm("Discard unsaved changes?")) return; setPreview(null); setPreviewContent(""); setPreviewDirty(false); }
 	async function openFile(item: FileItem) { if (item.is_dir) { navigate(item.path); return; } if (isPreviewable(item.name)) { await previewFile(item); return; } await download(item); }
@@ -152,8 +142,9 @@ function MetadataView({ notify }: { notify: (message: string, error?: boolean) =
 }
 
 function BackupView({ notify }: { notify: (message: string, error?: boolean) => void }) {
+	const { token } = useAuth();
 	const [password, setPassword] = useState(""); const [override, setOverride] = useState(false); const [loading, setLoading] = useState(false);
-	async function backup() { setLoading(true); try { const response = await fetch("/api/admin/backup/export", { method: "POST", headers: { Authorization: authToken(), "content-type": "application/json" }, body: JSON.stringify({ password }) }); if (!response.ok) throw new Error("Backup failed"); const blob = await response.blob(); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = "openlist_backup.json"; link.click(); URL.revokeObjectURL(link.href); notify("Backup downloaded"); } catch (reason) { notify(reason instanceof Error ? reason.message : "Backup failed", true); } finally { setLoading(false); } }
+	async function backup() { setLoading(true); try { const response = await fetch("/api/admin/backup/export", { method: "POST", headers: { Authorization: token, "content-type": "application/json" }, body: JSON.stringify({ password }) }); if (!response.ok) throw new Error("Backup failed"); const blob = await response.blob(); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = "openlist_backup.json"; link.click(); URL.revokeObjectURL(link.href); notify("Backup downloaded"); } catch (reason) { notify(reason instanceof Error ? reason.message : "Backup failed", true); } finally { setLoading(false); } }
 	async function restore(file: File) { setLoading(true); try { const data = JSON.parse(await file.text()); await api("/api/admin/backup/restore", { method: "POST", body: JSON.stringify({ data, password, override }) }); notify("Backup restored"); } catch (reason) { notify(reason instanceof Error ? reason.message : "Restore failed", true); } finally { setLoading(false); } }
 	return <section><div className="mb-5"><p className="text-sm text-muted">Manage</p><h1 className="mt-1 text-2xl font-semibold">Backup & restore</h1></div><HeroCard className="max-w-xl" variant="default"><p className="text-sm text-muted">Export an OpenList-compatible JSON backup or restore one previously created by OpenList/EdgeList.</p><label className="mt-5 block text-sm font-medium">Encryption password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Optional" className="mt-2 w-full rounded-lg border border-border bg-field-background px-3 py-2 font-normal" /></label><HeroSwitch className="mt-4" isSelected={override} onChange={setOverride}>Override matching storages and metadata</HeroSwitch><div className="mt-6 flex flex-wrap gap-3"><HeroButton isDisabled={loading} onPress={() => void backup()}>Download backup</HeroButton><label className="inline-flex cursor-pointer items-center rounded-lg border border-border px-4 py-2.5 text-sm font-medium hover:bg-surface-secondary">Choose backup<input hidden type="file" accept="application/json" onChange={(event) => { const file = event.target.files?.[0]; if (file) void restore(file); event.target.value = ""; }} /></label></div></HeroCard></section>;
 }
@@ -201,14 +192,8 @@ function LoginView({ onSignedIn }: { onSignedIn: (token: string) => void }) {
 }
 
 export default function App() {
-	const [signedIn, setSignedIn] = useState(() => Boolean(sessionStorage.getItem("edgelist-token")));
+	const { signedIn, signIn, signOut } = useAuth();
 	const [notice, setNotice] = useState<{ message: string; error?: boolean } | null>(null);
-	const navigate = useNavigate();
-	useEffect(() => {
-		const expire = () => setSignedIn(false);
-		window.addEventListener("edgelist-auth-expired", expire);
-		return () => window.removeEventListener("edgelist-auth-expired", expire);
-	}, []);
 	useEffect(() => {
 		if (!notice) return;
 		const show = notice.error ? toast.danger : toast.success;
@@ -216,11 +201,6 @@ export default function App() {
 		setNotice(null);
 	}, [notice]);
 	const notify = useCallback((message: string, error?: boolean) => setNotice({ message, error }), []);
-	function signOut() {
-		sessionStorage.removeItem("edgelist-token");
-		setSignedIn(false);
-		void navigate(ROUTES.login, { replace: true });
-	}
 	return (
 		<Routes>
 			<Route element={<RequireAuth signedIn={signedIn} />}>
@@ -233,18 +213,7 @@ export default function App() {
 			</Route>
 			<Route
 				path={ROUTES.login}
-				element={
-					signedIn ? (
-						<Navigate to={ROUTES.files()} replace />
-					) : (
-						<LoginView
-							onSignedIn={(token) => {
-								sessionStorage.setItem("edgelist-token", token);
-								setSignedIn(true);
-							}}
-						/>
-					)
-				}
+				element={signedIn ? <Navigate to={ROUTES.files()} replace /> : <LoginView onSignedIn={signIn} />}
 			/>
 		</Routes>
 	);
