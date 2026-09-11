@@ -7,6 +7,7 @@ import { FileGrid } from "./FileGrid";
 import { FileTable } from "./FileTable";
 import { FileToolbar } from "./FileToolbar";
 import { Pager } from "./Pager";
+import { PathBar } from "./PathBar";
 import { SelectionBar } from "./SelectionBar";
 
 /**
@@ -253,5 +254,30 @@ describe("pager", () => {
 
 	it("shows the chosen page size in the selector", () => {
 		expect(renderToStaticMarkup(<Pager {...pagerProps({ pageSize: 50 })} />)).toContain('<option value="50" selected');
+	});
+});
+
+describe("path bar", () => {
+	const crumbs = [
+		{ name: "waynecos", path: "/waynecos" },
+		{ name: "docs", path: "/waynecos/docs" },
+	];
+
+	it("lists the crumbs and a way back to the root", () => {
+		const html = renderToStaticMarkup(<PathBar path="/waynecos/docs" crumbs={crumbs} onNavigate={noop} />);
+		expect(html).toContain("Root");
+		expect(html).toContain("waynecos");
+		expect(html).toContain("docs");
+	});
+
+	it("starts as a breadcrumb, not an editor", () => {
+		const html = renderToStaticMarkup(<PathBar path="/waynecos/docs" crumbs={crumbs} onNavigate={noop} />);
+		expect(html).not.toContain('aria-label="Path"');
+		expect(html).toContain('aria-label="Edit path"');
+	});
+
+	it("says where a search ran", () => {
+		const html = renderToStaticMarkup(<PathBar path="/waynecos" crumbs={[crumbs[0]]} searching onNavigate={noop} />);
+		expect(html).toContain("Search results in");
 	});
 });

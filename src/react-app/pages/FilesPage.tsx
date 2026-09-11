@@ -44,6 +44,7 @@ import { FilePreviewModal } from "../components/files/FilePreviewModal";
 import { FileTable } from "../components/files/FileTable";
 import { FileToolbar } from "../components/files/FileToolbar";
 import { Pager } from "../components/files/Pager";
+import { PathBar } from "../components/files/PathBar";
 import { SelectionBar } from "../components/files/SelectionBar";
 import { TransferDialog } from "../components/files/TransferDialog";
 
@@ -118,16 +119,26 @@ export function FilesPage() {
 						order_direction: sort.direction,
 					}),
 				});
-				setPath(nextPath);
-				setPage(nextPage);
 				setTotal(data.total ?? 0);
 				setItems((previous) => (append ? [...previous, ...(data.content ?? [])] : (data.content ?? [])));
 			} catch (reason) {
 				setError(reason instanceof Error ? reason.message : "Unable to load files");
+				// A typed path can point somewhere that does not exist. Leaving the
+				// previous directory's entries on screen under the new breadcrumb would
+				// read as "this directory holds those files", so clear them and let the
+				// error be the only thing shown.
+				if (!append) {
+					setItems([]);
+					setTotal(0);
+				}
 			} finally {
 				if (append) setLoadingMore(false);
 				else setLoading(false);
 			}
+			// The address is where the user actually is, even when the listing failed;
+			// the crumbs follow it rather than the last directory that worked.
+			setPath(nextPath);
+			setPage(nextPage);
 		},
 		[clearSelection, pageSize, sort],
 	);
@@ -478,26 +489,15 @@ export function FilesPage() {
 						</HeroButton>
 					)}
 				</form>
-				<div className="mb-4 flex items-center gap-2 text-sm text-muted">
-					<button
-						onClick={() => {
-							setSearching(false);
-							openDirectory("/");
-						}}
-						className="hover:text-accent"
-					>
-						Root
-					</button>
-					{!searching &&
-						crumbs.map((crumb) => (
-							<span key={crumb.path}>
-								/{" "}
-								<button onClick={() => openDirectory(crumb.path)} className="hover:text-accent">
-									{crumb.name}
-								</button>
-							</span>
-						))}
-				</div>
+				<PathBar
+					path={path}
+					crumbs={crumbs}
+					searching={searching}
+					onNavigate={(next) => {
+						setSearching(false);
+						openDirectory(next);
+					}}
+				/>
 				<FileToolbar
 					selection={selection}
 					view={view}
