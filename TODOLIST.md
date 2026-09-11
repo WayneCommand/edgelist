@@ -168,6 +168,8 @@
   - 视图切换按清单要求做成 **全局** 偏好（`edgelist:view-mode`），对齐 OpenList 的 `global_default_layout`。OpenList 还有第三个 `image` 布局，本版只做 `list`/`grid`，`parseViewMode` 把不认识的值（含 `image`）一律退回 `list`，避免读到旧值白屏。
   - 顺手删掉 3 处 `accent-[var(--accent)]`：`index.css` 已有 `input[type="checkbox"] { accent-color: var(--accent) }`，而元素选择器特异性高于工具类，这个类从来没生效过。
   - 网格瓦片复用了 `FileTable` 的交互契约（单击 `selectOnly`、双击打开、Space 切换、Enter 打开、Shift 连选），复选框在未选中时靠 hover / focus 才显形，避免瓦片被一排方框糊住。
+  - 补 `components/files/file-views.test.tsx`：用 `react-dom/server` 的 `renderToStaticMarkup` 做渲染冒烟（列表行数、网格瓦片、选中态 `aria-selected`、工具栏 `aria-pressed` 与计数）。**不引入 jsdom / Testing Library** —— 零新依赖就能挡住「渲染直接崩」和「props 对不上」这两类问题，点击行为由 hook 层单测覆盖。`vitest.config.ts` 的 `include` 因此加上 `src/**/*.test.tsx`。
+  - **未做浏览器验证**：本机 KV 里的存储指向 IBM COS 与坚果云，沙箱内不一定连得通，所以没有跑真实数据下的目视验收。真正的交互级 UI 测试需要 jsdom + Testing Library，建议作为一个独立步骤再评估。
 - [ ] 6.4 列表头点击排序（name/size/modified），排序偏好按路径持久化。
 - [ ] 6.5 选中态底部操作条：重命名/复制/移动/删除/下载/复制链接。
 - [ ] 6.6 复制/移动对话框：目录选择树（复用 3.1 的 `/api/fs/dirs`）+ overwrite/skip_existing/merge；**跨存储时禁用并提示**（决策 3，消费 3.12 的错误码）。
