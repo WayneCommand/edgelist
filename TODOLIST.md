@@ -149,8 +149,19 @@
 
 ## 阶段六：文件管理器交互
 
-- [ ] 6.1 列表多选：checkbox 模式 + Shift 连选，替换单选 `selected` 状态。
-- [ ] 6.2 抽出 `components/files/Toolbar.tsx`：刷新/新建文件夹/上传/视图切换/排序/全选。
+> 目标是把「能用」的文件列表做成「好用」的文件管理器。后端早已批量就绪（`fs/remove` 收 `names[]`，`fs/copy`/`fs/move` 收 `names` 且逐项返回 `status`），所以本阶段基本都是前端工作。
+
+- [x] 6.1 列表多选：checkbox 模式 + Shift 连选，替换单选 `selected` 状态。
+  - 新增 `hooks/useSelection.ts`：以 `path` 作为身份（不是下标，列表重排后选中项不会串位），`anchor` 用 `useRef` 记录 Shift 连选的起点，`items` 是 `visible.filter(...)` 所以选中集合天然按列表顺序。
+  - `rangePaths(visible, anchor, index)` 单独导出并配单测，前向/后向/原地三种情况都覆盖。
+  - `components/files/FileTable.tsx` 接管渲染：checkbox 列 + `role="row"` + `aria-selected` + `tabIndex={0}`；单击 `selectOnly`、双击 `onOpen`、Enter 打开、Space 切换（带 `event.shiftKey` 即连选）；checkbox 的 `onClick` 阻止冒泡，避免点复选框顺带触发整行选中。
+  - `FileListSkeleton` 补了一列骨架，和新增的 checkbox 列对齐，加载态不会跳一下。
+- [x] 6.2 抽出 `components/files/FileToolbar.tsx`：全选 + 刷新/新建文件夹/上传。
+  - 实际文件名用 `FileToolbar.tsx`（与同目录 `FileTable.tsx`/`FilePreviewModal.tsx` 的 `File` 前缀一致），不是清单里写的 `Toolbar.tsx`。
+  - 全选框用 `ref` 回调设置 `node.indeterminate = selection.someSelected`——`indeterminate` 是 DOM 属性、React 没有对应 prop，这是唯一正确写法。
+  - 上传的 `<input type="file" multiple hidden>` 移进组件内部，选中后立刻 `event.target.value = ""`，否则连续上传同一个文件不会再触发 `change`。
+  - `FilesPage.tsx` 因此删掉了 `uploadRef`（连同 `useRef` 导入）与页头那组按钮，选中态操作条（预览/重命名/删除）保留在页面里——它属于 6.5 的「底部操作条」，等 6.5 再挪。
+  - **视图切换 / 排序** 两项控件随 6.3 / 6.4 一起补进同一个组件：先落组件骨架、再挂状态，比先塞两个占位按钮再回头改要干净。
 - [ ] 6.3 新增网格视图 `components/files/FileGrid.tsx` 与视图切换持久化（localStorage）。
 - [ ] 6.4 列表头点击排序（name/size/modified），排序偏好按路径持久化。
 - [ ] 6.5 选中态底部操作条：重命名/复制/移动/删除/下载/复制链接。

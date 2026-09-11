@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { Button as HeroButton, Skeleton } from "@heroui/react";
 import { useLocation, useNavigate } from "react-router";
 import { api } from "../lib/api";
@@ -14,6 +14,7 @@ import { Modal } from "../components/common/Modal";
 import { FileListSkeleton } from "../components/files/FileListSkeleton";
 import { FilePreviewModal } from "../components/files/FilePreviewModal";
 import { FileTable } from "../components/files/FileTable";
+import { FileToolbar } from "../components/files/FileToolbar";
 
 const PAGE_SIZE = 200;
 
@@ -38,7 +39,6 @@ export function FilesPage() {
 	const [previewDirty, setPreviewDirty] = useState(false);
 	const [previewSaving, setPreviewSaving] = useState(false);
 	const [previewLoading, setPreviewLoading] = useState(false);
-	const uploadRef = useRef<HTMLInputElement>(null);
 
 	const selection = useSelection(items);
 	const clearSelection = selection.clear;
@@ -262,25 +262,6 @@ export function FilesPage() {
 						{searching ? `Search: ${query}` : path === "/" ? "All files" : crumbs[crumbs.length - 1]}
 					</h1>
 				</div>
-				<div className="flex gap-2">
-					<HeroButton size="sm" variant="secondary" onPress={() => void load(path)}>
-						Refresh
-					</HeroButton>
-					<HeroButton size="sm" onPress={() => uploadRef.current?.click()}>
-						Upload
-					</HeroButton>
-					<input
-						ref={uploadRef}
-						hidden
-						type="file"
-						multiple
-						onChange={(event) => {
-							const files = event.target.files;
-							if (files?.length) void upload(files);
-							event.target.value = "";
-						}}
-					/>
-				</div>
 			</div>
 			<form className="mb-4 flex gap-2" onSubmit={search}>
 				<input
@@ -330,49 +311,43 @@ export function FilesPage() {
 						);
 					})}
 			</div>
-			<div className="mb-3 flex min-h-9 flex-wrap items-center gap-2">
-				{selection.count > 0 && (
-					<>
-						<span className="text-sm text-muted">
-							{selection.count === 1 ? selection.items[0].name : `${selection.count} selected`}
-						</span>
-						{single && !single.is_dir && (
-							<HeroButton
-								size="sm"
-								variant="outline"
-								onPress={() => (isPreviewable(single.name) ? void previewFile(single) : void download(single))}
-							>
-								{isPreviewable(single.name) ? "Preview/Edit" : "Download"}
-							</HeroButton>
-						)}
-						{single && (
-							<HeroButton
-								size="sm"
-								variant="outline"
-								onPress={() => {
-									setRenameName(single.name);
-									setRenameTarget(single);
-								}}
-							>
-								Rename
-							</HeroButton>
-						)}
-						<HeroButton size="sm" variant="danger" onPress={() => void removeSelected()}>
-							Delete
+			<FileToolbar
+				selection={selection}
+				onRefresh={() => void load(path)}
+				onNewFolder={() => setFolderName("")}
+				onUpload={(files) => void upload(files)}
+			/>
+			{selection.count > 0 && (
+				<div className="mb-3 flex min-h-9 flex-wrap items-center gap-2">
+					<span className="text-sm text-muted">
+						{selection.count === 1 ? selection.items[0].name : `${selection.count} selected`}
+					</span>
+					{single && !single.is_dir && (
+						<HeroButton
+							size="sm"
+							variant="outline"
+							onPress={() => (isPreviewable(single.name) ? void previewFile(single) : void download(single))}
+						>
+							{isPreviewable(single.name) ? "Preview/Edit" : "Download"}
 						</HeroButton>
-					</>
-				)}
-				<HeroButton
-					className="ml-auto"
-					size="sm"
-					variant="outline"
-					onPress={() => {
-						setFolderName("");
-					}}
-				>
-					New folder
-				</HeroButton>
-			</div>
+					)}
+					{single && (
+						<HeroButton
+							size="sm"
+							variant="outline"
+							onPress={() => {
+								setRenameName(single.name);
+								setRenameTarget(single);
+							}}
+						>
+							Rename
+						</HeroButton>
+					)}
+					<HeroButton size="sm" variant="danger" onPress={() => void removeSelected()}>
+						Delete
+					</HeroButton>
+				</div>
+			)}
 			<section className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
 				{error && (
 					<p className="border-b border-danger/20 bg-danger-soft px-5 py-3 text-sm text-danger-soft-foreground">
