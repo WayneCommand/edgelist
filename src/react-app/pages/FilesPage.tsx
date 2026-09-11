@@ -27,6 +27,7 @@ import { FileListSkeleton } from "../components/files/FileListSkeleton";
 import { FilePreviewModal } from "../components/files/FilePreviewModal";
 import { FileTable } from "../components/files/FileTable";
 import { FileToolbar } from "../components/files/FileToolbar";
+import { SelectionBar } from "../components/files/SelectionBar";
 
 const PAGE_SIZE = 200;
 
@@ -207,19 +208,43 @@ export function FilesPage() {
 		}
 	}
 
-	async function download(item: FileItem) {
-		try {
-			const response = await fetch(`/d${item.path}`, { headers: { Authorization: token } });
-			if (!response.ok) throw new Error("Download failed");
-			const blob = await response.blob();
-			const link = document.createElement("a");
-			link.href = URL.createObjectURL(blob);
-			link.download = item.name;
-			link.click();
-			URL.revokeObjectURL(link.href);
-		} catch (reason) {
-			notify(reason instanceof Error ? reason.message : "Unable to download", true);
+	async function download(items: FileItem[]) {
+		// Sequential on purpose: browsers throttle parallel blob downloads, and a
+		// failure on one entry should not abort the rest.
+		for (const item of items) {
+			try {
+				const response = await fetch(`/d${item.path}`, { headers: { Authorization: token } });
+				if (!response.ok) throw new Error(`Download failed: ${item.name}`);
+				const blob = await response.blob();
+				const link = document.createElement("a");
+				link.href = URL.createObjectURL(blob);
+				link.download = item.name;
+				link.click();
+				URL.revokeObjectURL(link.href);
+			} catch (reason) {
+				notify(reason instanceof Error ? reason.message : `Unable to download ${item.name}`, true);
+			}
 		}
+	}
+
+	async function copyLink(item: FileItem) {
+		try {
+			const data = await api<{ url: string }>("/api/fs/link", {
+				method: "POST",
+				body: JSON.stringify({ path: item.path }),
+			});
+			// The worker answers with a path-relative `/d...`, which is only useful
+			// once it is absolute.
+			await navigator.clipboard.writeText(new URL(data.url, window.location.origin).href);
+			notify("Link copied");
+		} catch (reason) {
+			notify(reason instanceof Error ? reason.message : "Unable to copy link", true);
+		}
+	}
+
+	function startRename(item: FileItem) {
+		setRenameName(item.name);
+		setRenameTarget(item);
 	}
 
 	function isPreviewable(name: string) {
@@ -286,15 +311,17 @@ export function FilesPage() {
 			await previewFile(item);
 			return;
 		}
-		await download(item);
+		await download([item]);
 	}
 
 	const crumbs = path.split("/").filter(Boolean);
 	// Search results arrive ranked by the server, so the headers only re-sort a
 	// real directory listing.
 	const sortable = searching ? undefined : { state: sort, change: changeSort };
+	// The floating selection bar sits over the end of the list; the padding keeps
+	// the last row reachable instead of permanently covered.
 	return (
-		<section>
+		<section className={selection.count > 0 ? "pb-24" : undefined}>
 			<div className="mb-5 flex flex-wrap items-center justify-between gap-3">
 				<div>
 					<p className="text-sm text-muted">Files</p>
@@ -359,37 +386,13 @@ export function FilesPage() {
 				onNewFolder={() => setFolderName("")}
 				onUpload={(files) => void upload(files)}
 			/>
-			{selection.count > 0 && (
-				<div className="mb-3 flex min-h-9 flex-wrap items-center gap-2">
-					<span className="text-sm text-muted">
-						{selection.count === 1 ? selection.items[0].name : `${selection.count} selected`}
-					</span>
-					{single && !single.is_dir && (
-						<HeroButton
-							size="sm"
-							variant="outline"
-							onPress={() => (isPreviewable(single.name) ? void previewFile(single) : void download(single))}
-						>
-							{isPreviewable(single.name) ? "Preview/Edit" : "Download"}
-						</HeroButton>
-					)}
-					{single && (
-						<HeroButton
-							size="sm"
-							variant="outline"
-							onPress={() => {
-								setRenameName(single.name);
-								setRenameTarget(single);
-							}}
-						>
-							Rename
-						</HeroButton>
-					)}
-					<HeroButton size="sm" variant="danger" onPress={() => void removeSelected()}>
-						Delete
-					</HeroButton>
-				</div>
-			)}
+			<SelectionBar
+				selection={selection}
+				onRename={() => single && startRename(single)}
+				onDelete={() => void removeSelected()}
+				onDownload={() => void download(selection.items)}
+				onCopyLink={() => single && void copyLink(single)}
+			/>
 			<section className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
 				{error && (
 					<p className="border-b border-danger/20 bg-danger-soft px-5 py-3 text-sm text-danger-soft-foreground">

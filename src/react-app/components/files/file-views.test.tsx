@@ -5,6 +5,7 @@ import type { FileItem } from "../../lib/types";
 import { FileGrid } from "./FileGrid";
 import { FileTable } from "./FileTable";
 import { FileToolbar } from "./FileToolbar";
+import { SelectionBar } from "./SelectionBar";
 
 /**
  * Render smoke tests. They go through `react-dom/server`, so they catch a
@@ -109,5 +110,43 @@ describe("file views", () => {
 			/>,
 		);
 		expect(html).toContain("2 selected");
+	});
+});
+
+const barHandlers = { onRename: noop, onDelete: noop, onDownload: noop, onCopyLink: noop };
+
+describe("selection bar", () => {
+	it("stays hidden with nothing selected", () => {
+		expect(renderToStaticMarkup(<SelectionBar selection={fakeSelection()} {...barHandlers} />)).toBe("");
+	});
+
+	it("names a single selection", () => {
+		const html = renderToStaticMarkup(
+			<SelectionBar selection={fakeSelection({ items: [items[1]], count: 1 })} {...barHandlers} />,
+		);
+		expect(html).toContain("readme.md");
+	});
+
+	it("keeps single-target actions for a multi-selection", () => {
+		const html = renderToStaticMarkup(<SelectionBar selection={fakeSelection({ items, count: 2 })} {...barHandlers} />);
+		expect(html).toContain("2 selected");
+		expect(html).toContain('title="Rename works on one entry at a time"');
+	});
+
+	it("refuses to download a selection holding a folder", () => {
+		const html = renderToStaticMarkup(
+			<SelectionBar selection={fakeSelection({ items: [items[0]], count: 1 })} {...barHandlers} />,
+		);
+		expect(html).toContain('title="Archives are not supported yet"');
+		expect(html).toContain('title="Folders have no link"');
+	});
+
+	it("leaves every action available for a single file", () => {
+		const html = renderToStaticMarkup(
+			<SelectionBar selection={fakeSelection({ items: [items[1]], count: 1 })} {...barHandlers} />,
+		);
+		// The shared class list mentions `disabled:` variants, so match the attribute.
+		expect(html).not.toContain('disabled=""');
+		expect(html).toContain("Copy link");
 	});
 });
