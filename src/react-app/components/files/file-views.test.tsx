@@ -43,6 +43,26 @@ describe("file views", () => {
 		expect(html).toContain("2.0 KB");
 	});
 
+	it("exposes the active sort on the header", () => {
+		const html = renderToStaticMarkup(
+			<FileTable
+				items={items}
+				selection={fakeSelection()}
+				sort={{ field: "size", direction: "desc" }}
+				onSort={noop}
+				onOpen={noop}
+			/>,
+		);
+		expect(html).toContain('aria-sort="descending"');
+		expect(html).toContain("↓");
+	});
+
+	it("renders plain header labels when sorting is off", () => {
+		const html = renderToStaticMarkup(<FileTable items={items} selection={fakeSelection()} onOpen={noop} />);
+		expect(html).toContain('aria-sort="none"');
+		expect(html).not.toContain("<button");
+	});
+
 	it("renders one tile per entry in grid view", () => {
 		const html = renderToStaticMarkup(<FileGrid items={items} selection={fakeSelection()} onOpen={noop} />);
 		expect(html).toContain("docs");

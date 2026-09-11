@@ -170,7 +170,15 @@
   - 网格瓦片复用了 `FileTable` 的交互契约（单击 `selectOnly`、双击打开、Space 切换、Enter 打开、Shift 连选），复选框在未选中时靠 hover / focus 才显形，避免瓦片被一排方框糊住。
   - 补 `components/files/file-views.test.tsx`：用 `react-dom/server` 的 `renderToStaticMarkup` 做渲染冒烟（列表行数、网格瓦片、选中态 `aria-selected`、工具栏 `aria-pressed` 与计数）。**不引入 jsdom / Testing Library** —— 零新依赖就能挡住「渲染直接崩」和「props 对不上」这两类问题，点击行为由 hook 层单测覆盖。`vitest.config.ts` 的 `include` 因此加上 `src/**/*.test.tsx`。
   - **未做浏览器验证**：本机 KV 里的存储指向 IBM COS 与坚果云，沙箱内不一定连得通，所以没有跑真实数据下的目视验收。真正的交互级 UI 测试需要 jsdom + Testing Library，建议作为一个独立步骤再评估。
-- [ ] 6.4 列表头点击排序（name/size/modified），排序偏好按路径持久化。
+- [x] 6.4 列表头点击排序（name/size/modified），排序偏好按路径持久化。
+  - 排序是 **服务端** 做的（`fsList` 收 `order_by` / `order_direction`，见 `worker/sort.ts` 的 `applySort`：先 `sortObjects` 再 `extractFolder`）。前端只负责发参数和记住偏好，绝不本地重排——分页之后本地排只会把当前这一页排乱。
+  - 偏好键 `edgelist:sort:<path>`，对齐 OpenList 的 `dir_sort_<path>`。值存成 `"name:asc"` 这种短字符串而不是 JSON：**原语** 才能安全地进依赖数组，否则每次 render 新解析出的对象会让 `load` 换身份、effect 无限重跑。
+  - `nextSortState` 抽成纯函数并配单测：点当前列翻方向，点别的列一律从 `asc` 开始。
+  - **拆开两个 effect**：一个只依赖 `initialPath` 负责「离开目录就清空搜索框」，另一个依赖 `[initialPath, load]` 负责取数。合成一个的话，改排序会顺手把用户刚敲进搜索框、还没提交的关键词清掉。
+  - 排序键用 **URL 里的路径**（`initialPath`）而不是 `path` state：用 state 的话，导航后 `path` 还没更新完，effect 会因为 key 变化再取一次，等于每次进目录发两次请求。
+  - 搜索态下 **表头不可排序**（传 `sort={undefined}`，退化成纯文本标签）：搜索结果由服务端按相关度给，点表头只重排当前这一页没有意义。这是有意的取舍，不是漏做。
+  - 表头补齐 `role="columnheader"` + `aria-sort`，数据格补 `role="gridcell"`；emoji 列改成固定 `w-8` 居中，否则表头和数据行的列宽对不齐。
+  - 顺带修 `FileListSkeleton`：加了与真实表头等宽的骨架行（否则出数据时会跳一下），并支持 `view="grid"` 时渲染瓦片骨架（原先在网格视图下会显示列表形状的骨架）。
 - [ ] 6.5 选中态底部操作条：重命名/复制/移动/删除/下载/复制链接。
 - [ ] 6.6 复制/移动对话框：目录选择树（复用 3.1 的 `/api/fs/dirs`）+ overwrite/skip_existing/merge；**跨存储时禁用并提示**（决策 3，消费 3.12 的错误码）。
 - [ ] 6.7 右键菜单 `components/files/ContextMenu.tsx`，按 `mask`（1.1）禁用不可用项。

@@ -1,11 +1,20 @@
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Button as HeroButton, Skeleton } from "@heroui/react";
 import { useLocation, useNavigate } from "react-router";
 import { api } from "../lib/api";
 import { collectRemovals, groupByParent, summarizeBatch, type RemoveOutcome } from "../lib/batch";
 import { languageForFile } from "../lib/format";
-import { DEFAULT_VIEW_MODE, VIEW_MODE_KEY, parseViewMode } from "../lib/preferences";
-import type { FileItem, FileListResponse } from "../lib/types";
+import {
+	DEFAULT_SORT_STATE,
+	DEFAULT_VIEW_MODE,
+	VIEW_MODE_KEY,
+	nextSortState,
+	parseSortState,
+	parseViewMode,
+	serializeSortState,
+	sortKeyFor,
+} from "../lib/preferences";
+import type { FileItem, FileListResponse, SortField } from "../lib/types";
 import { ROUTES, filesPathFor } from "../routes";
 import { useAuth } from "../hooks/useAuth";
 import { useConfirm } from "../hooks/useConfirm";
@@ -44,6 +53,12 @@ export function FilesPage() {
 	const [previewLoading, setPreviewLoading] = useState(false);
 	const [storedView, setStoredView] = useStoredState(VIEW_MODE_KEY, DEFAULT_VIEW_MODE);
 	const view = parseViewMode(storedView);
+	// The sort order is remembered per directory, keyed off the URL rather than
+	// `path` so a navigation reads the new directory's order straight away.
+	const [storedSort, setStoredSort] = useStoredState(sortKeyFor(initialPath), serializeSortState(DEFAULT_SORT_STATE));
+	// `storedSort` is a plain string, so the parsed object keeps a stable identity
+	// and `load` does not change on every render.
+	const sort = useMemo(() => parseSortState(storedSort), [storedSort]);
 
 	const selection = useSelection(items);
 	const clearSelection = selection.clear;
@@ -53,7 +68,7 @@ export function FilesPage() {
 		navigate({ pathname: ROUTES.files(next) });
 	}
 
-	// The directory is always passed in, so this callback never changes identity.
+	// The directory is passed in, so this callback only changes when the sort does.
 	const load = useCallback(
 		async (nextPath: string) => {
 			setLoading(true);
@@ -62,7 +77,13 @@ export function FilesPage() {
 			try {
 				const data = await api<FileListResponse>("/api/fs/list", {
 					method: "POST",
-					body: JSON.stringify({ path: nextPath, page: 1, per_page: PAGE_SIZE }),
+					body: JSON.stringify({
+						path: nextPath,
+						page: 1,
+						per_page: PAGE_SIZE,
+						order_by: sort.field,
+						order_direction: sort.direction,
+					}),
 				});
 				setPath(nextPath);
 				setItems(data.content ?? []);
@@ -72,13 +93,19 @@ export function FilesPage() {
 				setLoading(false);
 			}
 		},
-		[clearSelection],
+		[clearSelection, sort],
 	);
 
-	// The URL is the source of truth for the current file directory.
+	// Search results belong to the directory they were run in, so leaving it — by
+	// link or by the back button — drops the search. This is separate from the
+	// fetch below so that changing the sort does not wipe a typed query.
 	useEffect(() => {
 		setSearching(false);
 		setQuery("");
+	}, [initialPath]);
+
+	// The sort order is part of the request, so a new order re-fetches the listing.
+	useEffect(() => {
 		void load(initialPath);
 	}, [initialPath, load]);
 
@@ -245,6 +272,11 @@ export function FilesPage() {
 		setPreviewDirty(false);
 	}
 
+	const changeSort = useCallback(
+		(field: SortField) => setStoredSort(serializeSortState(nextSortState(sort, field))),
+		[setStoredSort, sort],
+	);
+
 	async function openFile(item: FileItem) {
 		if (item.is_dir) {
 			openDirectory(item.path);
@@ -258,6 +290,9 @@ export function FilesPage() {
 	}
 
 	const crumbs = path.split("/").filter(Boolean);
+	// Search results arrive ranked by the server, so the headers only re-sort a
+	// real directory listing.
+	const sortable = searching ? undefined : { state: sort, change: changeSort };
 	return (
 		<section>
 			<div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -362,13 +397,19 @@ export function FilesPage() {
 					</p>
 				)}
 				{loading ? (
-					<FileListSkeleton />
+					<FileListSkeleton view={view} />
 				) : !items.length ? (
 					<div className="p-16 text-center text-sm text-muted">No files found</div>
 				) : view === "grid" ? (
 					<FileGrid items={items} selection={selection} onOpen={(item) => void openFile(item)} />
 				) : (
-					<FileTable items={items} selection={selection} onOpen={(item) => void openFile(item)} />
+					<FileTable
+						items={items}
+						selection={selection}
+						sort={sortable?.state}
+						onSort={sortable?.change}
+						onOpen={(item) => void openFile(item)}
+					/>
 				)}
 			</section>
 			{folderName !== null && (

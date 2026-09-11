@@ -1,5 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_VIEW_MODE, VIEW_MODE_KEY, parseViewMode, readPreference, writePreference } from "./preferences";
+import {
+	DEFAULT_SORT_STATE,
+	DEFAULT_VIEW_MODE,
+	VIEW_MODE_KEY,
+	nextSortState,
+	parseSortState,
+	parseViewMode,
+	readPreference,
+	serializeSortState,
+	sortKeyFor,
+	writePreference,
+} from "./preferences";
 
 /** Minimal in-memory `localStorage`, since the suite runs in a Node environment. */
 function fakeStorage() {
@@ -47,5 +58,32 @@ describe("preferences", () => {
 		// OpenList also has an `image` layout, which this build does not render yet.
 		expect(parseViewMode("image")).toBe(DEFAULT_VIEW_MODE);
 		expect(parseViewMode("")).toBe(DEFAULT_VIEW_MODE);
+	});
+});
+
+describe("sort preferences", () => {
+	it("scopes the key to the directory", () => {
+		expect(sortKeyFor("/photos")).toBe("sort:/photos");
+		expect(sortKeyFor("/")).toBe("sort:/");
+	});
+
+	it("round-trips through the stored string", () => {
+		expect(serializeSortState({ field: "size", direction: "desc" })).toBe("size:desc");
+		expect(parseSortState("size:desc")).toEqual({ field: "size", direction: "desc" });
+		expect(parseSortState(serializeSortState(DEFAULT_SORT_STATE))).toEqual(DEFAULT_SORT_STATE);
+	});
+
+	it("falls back for unknown or partial values", () => {
+		expect(parseSortState("")).toEqual(DEFAULT_SORT_STATE);
+		expect(parseSortState("created:asc")).toEqual(DEFAULT_SORT_STATE);
+		expect(parseSortState("name")).toEqual({ field: "name", direction: "asc" });
+		// Anything that is not `desc` is ascending, matching the worker's own default.
+		expect(parseSortState("name:sideways")).toEqual({ field: "name", direction: "asc" });
+	});
+
+	it("flips the direction only for the active column", () => {
+		expect(nextSortState({ field: "name", direction: "asc" }, "name")).toEqual({ field: "name", direction: "desc" });
+		expect(nextSortState({ field: "name", direction: "desc" }, "name")).toEqual({ field: "name", direction: "asc" });
+		expect(nextSortState({ field: "name", direction: "desc" }, "size")).toEqual({ field: "size", direction: "asc" });
 	});
 });

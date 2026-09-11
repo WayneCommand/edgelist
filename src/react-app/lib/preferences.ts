@@ -12,6 +12,8 @@
  * order) are short enums, so JSON encoding would only add a parse step.
  */
 
+import type { SortField, SortState } from "./types";
+
 const PREFIX = "edgelist:";
 
 /** Key holding the file list view mode. Global, shared by every directory. */
@@ -42,4 +44,36 @@ export function writePreference(key: string, value: string): void {
 /** Unknown values (an older build, a hand-edited key) fall back to the table. */
 export function parseViewMode(raw: string): ViewMode {
 	return raw === "grid" ? "grid" : DEFAULT_VIEW_MODE;
+}
+
+export const DEFAULT_SORT_STATE: SortState = { field: "name", direction: "asc" };
+
+/** Sort order is remembered per directory, like OpenList's `dir_sort_<path>`. */
+export function sortKeyFor(path: string): string {
+	return `sort:${path}`;
+}
+
+function isSortField(value: string | undefined): value is SortField {
+	return value === "name" || value === "size" || value === "modified";
+}
+
+/**
+ * Stored as `"name:asc"`. A short string rather than JSON so the value is a
+ * primitive: callers can safely put it in a dependency array without the
+ * identity churn a freshly parsed object would bring.
+ */
+export function serializeSortState(state: SortState): string {
+	return `${state.field}:${state.direction}`;
+}
+
+export function parseSortState(raw: string): SortState {
+	const [field, direction] = raw.split(":");
+	if (!isSortField(field)) return DEFAULT_SORT_STATE;
+	return { field, direction: direction === "desc" ? "desc" : "asc" };
+}
+
+/** Clicking the active column flips the direction; another column starts ascending. */
+export function nextSortState(current: SortState, field: SortField): SortState {
+	if (current.field !== field) return { field, direction: "asc" };
+	return { field, direction: current.direction === "asc" ? "desc" : "asc" };
 }

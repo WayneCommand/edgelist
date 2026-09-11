@@ -34,3 +34,5 @@ export type Meta = { id: number; path: string; password?: string; write?: boolea
 
 export type SortField = "name" | "size" | "modified";
 export type SortDirection = "asc" | "desc";
+
+export type SortState = { field: SortField; direction: SortDirection };
