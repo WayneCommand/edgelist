@@ -14,7 +14,7 @@ import {
 	serializeSortState,
 	sortKeyFor,
 } from "../lib/preferences";
-import type { FileItem, FileListResponse, SortField } from "../lib/types";
+import type { FileItem, FileListResponse, SortField, TransferMode } from "../lib/types";
 import { ROUTES, filesPathFor } from "../routes";
 import { useAuth } from "../hooks/useAuth";
 import { useConfirm } from "../hooks/useConfirm";
@@ -28,6 +28,7 @@ import { FilePreviewModal } from "../components/files/FilePreviewModal";
 import { FileTable } from "../components/files/FileTable";
 import { FileToolbar } from "../components/files/FileToolbar";
 import { SelectionBar } from "../components/files/SelectionBar";
+import { TransferDialog } from "../components/files/TransferDialog";
 
 const PAGE_SIZE = 200;
 
@@ -52,6 +53,7 @@ export function FilesPage() {
 	const [previewDirty, setPreviewDirty] = useState(false);
 	const [previewSaving, setPreviewSaving] = useState(false);
 	const [previewLoading, setPreviewLoading] = useState(false);
+	const [transfer, setTransfer] = useState<{ mode: TransferMode; dir: string; names: string[] } | null>(null);
 	const [storedView, setStoredView] = useStoredState(VIEW_MODE_KEY, DEFAULT_VIEW_MODE);
 	const view = parseViewMode(storedView);
 	// The sort order is remembered per directory, keyed off the URL rather than
@@ -247,6 +249,16 @@ export function FilesPage() {
 		setRenameTarget(item);
 	}
 
+	// The API names one source directory per request, so a selection that spans
+	// directories (a search) has nothing to send. The bar greys the buttons out;
+	// this is the belt to that braces.
+	function startTransfer(mode: TransferMode) {
+		const grouped = groupByParent(selection.items);
+		if (grouped.size !== 1) return;
+		const [dir, names] = [...grouped][0];
+		setTransfer({ mode, dir, names });
+	}
+
 	function isPreviewable(name: string) {
 		return languageForFile(name) !== null;
 	}
@@ -389,6 +401,8 @@ export function FilesPage() {
 			<SelectionBar
 				selection={selection}
 				onRename={() => single && startRename(single)}
+				onCopy={() => startTransfer("copy")}
+				onMove={() => startTransfer("move")}
 				onDelete={() => void removeSelected()}
 				onDownload={() => void download(selection.items)}
 				onCopyLink={() => single && void copyLink(single)}
@@ -465,6 +479,17 @@ export function FilesPage() {
 					}}
 					onSave={() => void savePreview()}
 					onClose={() => void closePreview()}
+				/>
+			)}
+			{transfer && (
+				<TransferDialog
+					mode={transfer.mode}
+					srcDir={transfer.dir}
+					names={transfer.names}
+					onClose={() => setTransfer(null)}
+					// A transfer changes the listing and may move the selection out of
+					// it, so reload rather than patching state in place.
+					onTransferred={() => void load(path)}
 				/>
 			)}
 		</section>

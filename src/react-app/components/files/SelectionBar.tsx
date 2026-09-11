@@ -1,8 +1,11 @@
+import { groupByParent } from "../../lib/batch";
 import type { Selection } from "../../hooks/useSelection";
 
 type SelectionBarProps = {
 	selection: Selection;
 	onRename: () => void;
+	onCopy: () => void;
+	onMove: () => void;
 	onDelete: () => void;
 	onDownload: () => void;
 	onCopyLink: () => void;
@@ -16,12 +19,23 @@ type SelectionBarProps = {
  * Actions that need exactly one target stay enabled only for a single entry
  * rather than silently acting on the first of many.
  */
-export function SelectionBar({ selection, onRename, onDelete, onDownload, onCopyLink }: SelectionBarProps) {
+export function SelectionBar({
+	selection,
+	onRename,
+	onCopy,
+	onMove,
+	onDelete,
+	onDownload,
+	onCopyLink,
+}: SelectionBarProps) {
 	if (selection.count === 0) return null;
 	const single = selection.count === 1 ? selection.items[0] : null;
 	// Archives are not implemented, so a selection holding a directory cannot be
 	// fetched in one go. Refusing is clearer than downloading nothing.
 	const hasDirectory = selection.items.some((item) => item.is_dir);
+	// A transfer names one source directory, so a selection spanning several
+	// directories — which is what a search produces — has to be narrowed first.
+	const spansDirectories = groupByParent(selection.items).size > 1;
 
 	return (
 		<div className="pointer-events-none fixed inset-x-0 bottom-4 z-20 flex justify-center px-4">
@@ -34,6 +48,18 @@ export function SelectionBar({ selection, onRename, onDelete, onDownload, onCopy
 					disabled={!single}
 					title={single ? undefined : "Rename works on one entry at a time"}
 					onPress={onRename}
+				/>
+				<Action
+					label="Copy"
+					disabled={spansDirectories}
+					title={spansDirectories ? "Copy needs entries from a single folder" : undefined}
+					onPress={onCopy}
+				/>
+				<Action
+					label="Move"
+					disabled={spansDirectories}
+					title={spansDirectories ? "Move needs entries from a single folder" : undefined}
+					onPress={onMove}
 				/>
 				<Action
 					label="Download"

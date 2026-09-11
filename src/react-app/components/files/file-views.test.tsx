@@ -113,7 +113,7 @@ describe("file views", () => {
 	});
 });
 
-const barHandlers = { onRename: noop, onDelete: noop, onDownload: noop, onCopyLink: noop };
+const barHandlers = { onRename: noop, onCopy: noop, onMove: noop, onDelete: noop, onDownload: noop, onCopyLink: noop };
 
 describe("selection bar", () => {
 	it("stays hidden with nothing selected", () => {
@@ -148,5 +148,18 @@ describe("selection bar", () => {
 		// The shared class list mentions `disabled:` variants, so match the attribute.
 		expect(html).not.toContain('disabled=""');
 		expect(html).toContain("Copy link");
+	});
+
+	it("refuses to transfer a selection spanning several folders", () => {
+		// What a search produces: two entries from different directories.
+		const spread: FileItem[] = [
+			{ name: "a.txt", size: 1, is_dir: false, modified: "", path: "/one/a.txt" },
+			{ name: "b.txt", size: 1, is_dir: false, modified: "", path: "/two/b.txt" },
+		];
+		const html = renderToStaticMarkup(
+			<SelectionBar selection={fakeSelection({ items: spread, count: 2 })} {...barHandlers} />,
+		);
+		expect(html).toContain('title="Copy needs entries from a single folder"');
+		expect(html).toContain('title="Move needs entries from a single folder"');
 	});
 });

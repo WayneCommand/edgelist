@@ -187,7 +187,15 @@
   - 顺带去掉原先内联在页面里的「Preview/Edit」按钮：双击本来就能打开/预览，操作条专注"动作"而不是"打开"。同时给页面根节点在选中时加 `pb-24`，否则悬浮条会永久盖住最后一行。
   - **复制 / 移动两个按钮放到 6.6 一起做**：它们必须先有对话框才能点，先在 6.5 塞两个占位按钮、到 6.6 再回头改，等于白写一遍。6.6 会给 `SelectionBar` 补上这两个 prop。
   - 补 5 个渲染冒烟用例（空选区不渲染、单选显示文件名、多选禁用单目标动作、含目录时禁用下载/复制链接、单选文件时全可用）。
-- [ ] 6.6 复制/移动对话框：目录选择树（复用 3.1 的 `/api/fs/dirs`）+ overwrite/skip_existing/merge；**跨存储时禁用并提示**（决策 3，消费 3.12 的错误码）。
+- [x] 6.6 复制/移动对话框：目录选择树（复用 3.1 的 `/api/fs/dirs`）+ overwrite/skip_existing/merge；**跨存储时禁用并提示**（决策 3，消费 3.12 的错误码）。
+  - `components/files/DirectoryTree.tsx`：**懒加载** 树，节点首次展开才请求自己的子目录（`fs/dirs` 带 `depth: 1`）。一次递归拉全树会在 Workers 上按目录数放大请求量，懒加载则是"用户点几层就几次请求"。对齐 OpenList 的 `FolderTree`（同样是每个节点展开时 `fsDirs`）。
+  - `components/files/TransferDialog.tsx`：冲突策略三选一，互斥关系照抄 OpenList —— 勾 overwrite 会清掉 skip/merge，skip 与 merge 在 overwrite 或彼此开启时禁用；`merge` 在 move 下也禁用，因为后端只在 `kind === "copy"` 时用它，留着就是个无效开关。
+  - 三种状态都留了出口：全不勾＝遇到重名直接拒绝（后端 `TARGET_EXISTS`）；**逐项失败** 会留在对话框里列表展示（`name: error (code)`），部分成功不会静默；整请求失败（`VIRTUAL_MOUNT`、`NOT_DIRECTORY` 等）走 toast。
+  - 跨存储两道防线：前端用 `lib/transfer.ts` 的 `mountPathFor` 取源/目标各自的挂载点（**最长前缀**，且按 `/` 边界匹配，`/a` 不会误吃 `/a-b`），不同则按钮禁用并显示 `跨存储复制/移动不支持：/waynecos → /jianguoyun`；后端仍会返回 `CROSS_STORAGE_TRANSFER`，UI 把 `code` 一并显示出来。提示用中文是为了和后端 `fs-transfer.ts` 里那句 `跨存储复制/移动不支持` 完全一致——同一个限制不该有两种说法。
+  - `SelectionBar` 补上 Copy/Move，并在选区跨多个目录时禁用（后端一次只收一个 `src_dir`，而搜索结果天然跨目录）。
+  - **发现并修掉一个真 bug**：`GET /api/admin/storage/list` 返回的是 `{ content: [...] }` 而不是裸数组，我原先按裸数组写，`(storages ?? []).map` 会直接抛。是起本地 dev server 打真实接口时对出来的。
+  - **端到端验收（真浏览器 + 真数据）**：起 `vite dev`，用本地 KV 里的凭据登录，对 IBM COS 上的 `/waynecos` 跑通 28 项检查——登录、14 行列表、表头三列、视图切换与 `localStorage` 持久化、刷新后仍是网格、按 Size 排序（同时校验 `localStorage` 键值、`aria-sort="descending"` 和请求体里真的带了 `order_by=size&order_direction=asc`）、多选出现操作条、目录禁用下载/复制链接、打开复制对话框、展开树拿到 `/waynecos` `/jianguoyun` `/jianguoyun-backup`、切到 `/jianguoyun` 后出现中文提示且提交按钮禁用。截图见 `/tmp/edgelist-grid.png` 与 `/tmp/edgelist-transfer.png`（顺带验证了中文目录名 `临时存储`/`文档`/`软件` 正常渲染）。
+  - **没有写任何云端数据**：验收只走读取和被拒绝的路径（跨存储复制在写之前就返回），没往用户的 IBM COS / 坚果云里放过东西。
 - [ ] 6.7 右键菜单 `components/files/ContextMenu.tsx`，按 `mask`（1.1）禁用不可用项。
 - [ ] 6.8 拖放上传（含目录递归），替换单文件 `<input type="file">`。
 - [ ] 6.9 分页/加载更多 `components/files/Pager.tsx`（替换硬编码 `per_page: 200`）。
