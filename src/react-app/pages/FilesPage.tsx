@@ -3,6 +3,7 @@ import { Button as HeroButton, Skeleton } from "@heroui/react";
 import { useLocation, useNavigate } from "react-router";
 import { api } from "../lib/api";
 import { collectRemovals, groupByParent, summarizeBatch, type RemoveOutcome } from "../lib/batch";
+import { directoriesToCreate, targetPath, type DroppedTree } from "../lib/dropUpload";
 import { fileActions } from "../lib/fileActions";
 import { languageForFile } from "../lib/format";
 import { permissionsFor } from "../lib/mask";
@@ -27,6 +28,7 @@ import { useSelection } from "../hooks/useSelection";
 import { useStoredState } from "../hooks/useStoredState";
 import { Modal } from "../components/common/Modal";
 import { ContextMenu } from "../components/files/ContextMenu";
+import { DropZone } from "../components/files/DropZone";
 import { FileGrid } from "../components/files/FileGrid";
 import { FileListSkeleton } from "../components/files/FileListSkeleton";
 import { FilePreviewModal } from "../components/files/FilePreviewModal";
@@ -59,6 +61,7 @@ export function FilesPage() {
 	const [previewSaving, setPreviewSaving] = useState(false);
 	const [previewLoading, setPreviewLoading] = useState(false);
 	const [transfer, setTransfer] = useState<{ mode: TransferMode; dir: string; names: string[] } | null>(null);
+	const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
 	const [menu, setMenu] = useState<MenuPosition | null>(null);
 	const [storedView, setStoredView] = useStoredState(VIEW_MODE_KEY, DEFAULT_VIEW_MODE);
 	const view = parseViewMode(storedView);
@@ -195,26 +198,56 @@ export function FilesPage() {
 		}
 	}
 
-	async function upload(files: FileList) {
-		let uploaded = 0;
-		for (const file of files) {
-			try {
-				await api("/api/fs/put", {
-					method: "PUT",
-					headers: {
-						"File-Path": encodeURIComponent(`${path.replace(/\/$/, "")}/${file.name}`),
-						"Content-Type": file.type || "application/octet-stream",
-					},
-					body: file,
-				});
-				uploaded += 1;
-			} catch (reason) {
-				notify(reason instanceof Error ? reason.message : `Unable to upload ${file.name}`, true);
+	async function upload(tree: DroppedTree) {
+		if (!tree.files.length) return;
+		setUploading({ done: 0, total: tree.files.length });
+		try {
+			// Drivers that are not object stores (WebDAV) reject a PUT whose parent
+			// collection is missing, so the dropped tree is created first, parents
+			// before children. Failures here are swallowed on purpose: "already
+			// exists" is the common case for a re-drop, and the PUT that follows is
+			// the authoritative test — if the directory genuinely could not be
+			// made, the upload reports it per file.
+			for (const directory of directoriesToCreate(tree.directories)) {
+				try {
+					await api("/api/fs/mkdir", {
+						method: "POST",
+						body: JSON.stringify({ path: targetPath(path, directory) }),
+					});
+				} catch {
+					// Deliberately ignored — see the note above.
+				}
 			}
-		}
-		if (uploaded) {
-			notify(uploaded === 1 ? "Uploaded" : `Uploaded ${uploaded} files`);
-			await load(path);
+			let uploaded = 0;
+			let failed = 0;
+			for (const dropped of tree.files) {
+				try {
+					await api("/api/fs/put", {
+						method: "PUT",
+						headers: {
+							"File-Path": encodeURIComponent(targetPath(path, dropped.path)),
+							"Content-Type": dropped.file.type || "application/octet-stream",
+						},
+						body: dropped.file,
+					});
+					uploaded += 1;
+				} catch (reason) {
+					failed += 1;
+					notify(reason instanceof Error ? reason.message : `Unable to upload ${dropped.path}`, true);
+				} finally {
+					setUploading({ done: uploaded + failed, total: tree.files.length });
+				}
+			}
+			if (uploaded) {
+				notify(uploaded === 1 ? "Uploaded" : `Uploaded ${uploaded} files`);
+				// An upload invalidates whatever search produced the current listing,
+				// so fall back to a plain view of the directory that was written to.
+				setSearching(false);
+				setQuery("");
+				await load(path);
+			}
+		} finally {
+			setUploading(null);
 		}
 	}
 
@@ -349,184 +382,187 @@ export function FilesPage() {
 	// The floating selection bar sits over the end of the list; the padding keeps
 	// the last row reachable instead of permanently covered.
 	return (
-		<section className={selection.count > 0 ? "pb-24" : undefined}>
-			<div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-				<div>
-					<p className="text-sm text-muted">Files</p>
-					<h1 className="mt-1 text-2xl font-semibold">
-						{searching ? `Search: ${query}` : path === "/" ? "All files" : crumbs[crumbs.length - 1]?.name}
-					</h1>
+		<DropZone onDrop={(tree) => void upload(tree)} disabled={uploading !== null}>
+			<section className={selection.count > 0 ? "pb-24" : undefined}>
+				<div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+					<div>
+						<p className="text-sm text-muted">Files</p>
+						<h1 className="mt-1 text-2xl font-semibold">
+							{searching ? `Search: ${query}` : path === "/" ? "All files" : crumbs[crumbs.length - 1]?.name}
+						</h1>
+					</div>
 				</div>
-			</div>
-			<form className="mb-4 flex gap-2" onSubmit={search}>
-				<input
-					value={query}
-					onChange={(event) => setQuery(event.target.value)}
-					placeholder="Search files…"
-					className="min-w-0 flex-1 rounded-lg border border-border bg-field-background px-3 py-2 text-sm outline-none focus:border-focus"
-				/>
-				<HeroButton type="submit" size="sm" variant="secondary">
-					Search
-				</HeroButton>
-				{searching && (
-					<HeroButton
-						type="button"
-						size="sm"
-						variant="ghost"
-						onPress={() => {
-							setQuery("");
-							setSearching(false);
-							void load(path);
-						}}
-					>
-						Clear
-					</HeroButton>
-				)}
-			</form>
-			<div className="mb-4 flex items-center gap-2 text-sm text-muted">
-				<button
-					onClick={() => {
-						setSearching(false);
-						openDirectory("/");
-					}}
-					className="hover:text-accent"
-				>
-					Root
-				</button>
-				{!searching &&
-					crumbs.map((crumb) => (
-						<span key={crumb.path}>
-							/{" "}
-							<button onClick={() => openDirectory(crumb.path)} className="hover:text-accent">
-								{crumb.name}
-							</button>
-						</span>
-					))}
-			</div>
-			<FileToolbar
-				selection={selection}
-				view={view}
-				onViewChange={setStoredView}
-				onRefresh={() => void load(path)}
-				onNewFolder={() => setFolderName("")}
-				onUpload={(files) => void upload(files)}
-			/>
-			<SelectionBar
-				selection={selection}
-				permissions={permissions}
-				onRename={() => single && startRename(single)}
-				onCopy={() => startTransfer("copy")}
-				onMove={() => startTransfer("move")}
-				onDelete={() => void removeSelected()}
-				onDownload={() => void download(selection.items)}
-				onCopyLink={() => single && void copyLink(single)}
-			/>
-			<section className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
-				{error && (
-					<p className="border-b border-danger/20 bg-danger-soft px-5 py-3 text-sm text-danger-soft-foreground">
-						{error}
-					</p>
-				)}
-				{loading ? (
-					<FileListSkeleton view={view} />
-				) : !items.length ? (
-					<div className="p-16 text-center text-sm text-muted">No files found</div>
-				) : view === "grid" ? (
-					<FileGrid
-						items={items}
-						selection={selection}
-						onOpen={(item) => void openFile(item)}
-						onContextMenu={openMenu}
+				<form className="mb-4 flex gap-2" onSubmit={search}>
+					<input
+						value={query}
+						onChange={(event) => setQuery(event.target.value)}
+						placeholder="Search files…"
+						className="min-w-0 flex-1 rounded-lg border border-border bg-field-background px-3 py-2 text-sm outline-none focus:border-focus"
 					/>
-				) : (
-					<FileTable
-						items={items}
-						selection={selection}
-						sort={sortable?.state}
-						onSort={sortable?.change}
-						onOpen={(item) => void openFile(item)}
-						onContextMenu={openMenu}
+					<HeroButton type="submit" size="sm" variant="secondary">
+						Search
+					</HeroButton>
+					{searching && (
+						<HeroButton
+							type="button"
+							size="sm"
+							variant="ghost"
+							onPress={() => {
+								setQuery("");
+								setSearching(false);
+								void load(path);
+							}}
+						>
+							Clear
+						</HeroButton>
+					)}
+				</form>
+				<div className="mb-4 flex items-center gap-2 text-sm text-muted">
+					<button
+						onClick={() => {
+							setSearching(false);
+							openDirectory("/");
+						}}
+						className="hover:text-accent"
+					>
+						Root
+					</button>
+					{!searching &&
+						crumbs.map((crumb) => (
+							<span key={crumb.path}>
+								/{" "}
+								<button onClick={() => openDirectory(crumb.path)} className="hover:text-accent">
+									{crumb.name}
+								</button>
+							</span>
+						))}
+				</div>
+				<FileToolbar
+					selection={selection}
+					view={view}
+					uploading={uploading}
+					onViewChange={setStoredView}
+					onRefresh={() => void load(path)}
+					onNewFolder={() => setFolderName("")}
+					onUpload={(tree) => void upload(tree)}
+				/>
+				<SelectionBar
+					selection={selection}
+					permissions={permissions}
+					onRename={() => single && startRename(single)}
+					onCopy={() => startTransfer("copy")}
+					onMove={() => startTransfer("move")}
+					onDelete={() => void removeSelected()}
+					onDownload={() => void download(selection.items)}
+					onCopyLink={() => single && void copyLink(single)}
+				/>
+				<section className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+					{error && (
+						<p className="border-b border-danger/20 bg-danger-soft px-5 py-3 text-sm text-danger-soft-foreground">
+							{error}
+						</p>
+					)}
+					{loading ? (
+						<FileListSkeleton view={view} />
+					) : !items.length ? (
+						<div className="p-16 text-center text-sm text-muted">No files found</div>
+					) : view === "grid" ? (
+						<FileGrid
+							items={items}
+							selection={selection}
+							onOpen={(item) => void openFile(item)}
+							onContextMenu={openMenu}
+						/>
+					) : (
+						<FileTable
+							items={items}
+							selection={selection}
+							sort={sortable?.state}
+							onSort={sortable?.change}
+							onOpen={(item) => void openFile(item)}
+							onContextMenu={openMenu}
+						/>
+					)}
+				</section>
+				{folderName !== null && (
+					<Modal title="New folder" onClose={() => setFolderName(null)}>
+						<form className="space-y-4" onSubmit={createFolder}>
+							<input
+								autoFocus
+								required
+								value={folderName}
+								onChange={(event) => setFolderName(event.target.value)}
+								placeholder="Folder name"
+								className="w-full rounded-lg border border-border bg-field-background px-3 py-2 outline-none focus:border-focus"
+							/>
+							<HeroButton type="submit" fullWidth>
+								Create
+							</HeroButton>
+						</form>
+					</Modal>
+				)}
+				{renameTarget && (
+					<Modal title="Rename" onClose={() => setRenameTarget(null)}>
+						<form className="space-y-4" onSubmit={rename}>
+							<input
+								autoFocus
+								required
+								value={renameName}
+								onChange={(event) => setRenameName(event.target.value)}
+								className="w-full rounded-lg border border-border bg-field-background px-3 py-2 outline-none focus:border-focus"
+							/>
+							<HeroButton type="submit" fullWidth>
+								Save
+							</HeroButton>
+						</form>
+					</Modal>
+				)}
+				{previewLoading && (
+					<Modal title="Preview" onClose={() => setPreviewLoading(false)}>
+						<Skeleton className="h-48 w-full rounded-lg" />
+					</Modal>
+				)}
+				{preview && (
+					<FilePreviewModal
+						item={preview.item}
+						content={previewContent}
+						dirty={previewDirty}
+						saving={previewSaving}
+						onChange={(content) => {
+							setPreviewContent(content);
+							setPreviewDirty(content !== preview.content);
+						}}
+						onSave={() => void savePreview()}
+						onClose={() => void closePreview()}
+					/>
+				)}
+				{transfer && (
+					<TransferDialog
+						mode={transfer.mode}
+						srcDir={transfer.dir}
+						names={transfer.names}
+						onClose={() => setTransfer(null)}
+						// A transfer changes the listing and may move the selection out of
+						// it, so reload rather than patching state in place.
+						onTransferred={() => void load(path)}
+					/>
+				)}
+				{menu && (
+					<ContextMenu
+						position={menu}
+						items={fileActions(permissions, {
+							open: () => single && void openFile(single),
+							rename: () => single && startRename(single),
+							copy: () => startTransfer("copy"),
+							move: () => startTransfer("move"),
+							remove: () => void removeSelected(),
+							download: () => void download(selection.items),
+							link: () => single && void copyLink(single),
+						})}
+						onClose={() => setMenu(null)}
 					/>
 				)}
 			</section>
-			{folderName !== null && (
-				<Modal title="New folder" onClose={() => setFolderName(null)}>
-					<form className="space-y-4" onSubmit={createFolder}>
-						<input
-							autoFocus
-							required
-							value={folderName}
-							onChange={(event) => setFolderName(event.target.value)}
-							placeholder="Folder name"
-							className="w-full rounded-lg border border-border bg-field-background px-3 py-2 outline-none focus:border-focus"
-						/>
-						<HeroButton type="submit" fullWidth>
-							Create
-						</HeroButton>
-					</form>
-				</Modal>
-			)}
-			{renameTarget && (
-				<Modal title="Rename" onClose={() => setRenameTarget(null)}>
-					<form className="space-y-4" onSubmit={rename}>
-						<input
-							autoFocus
-							required
-							value={renameName}
-							onChange={(event) => setRenameName(event.target.value)}
-							className="w-full rounded-lg border border-border bg-field-background px-3 py-2 outline-none focus:border-focus"
-						/>
-						<HeroButton type="submit" fullWidth>
-							Save
-						</HeroButton>
-					</form>
-				</Modal>
-			)}
-			{previewLoading && (
-				<Modal title="Preview" onClose={() => setPreviewLoading(false)}>
-					<Skeleton className="h-48 w-full rounded-lg" />
-				</Modal>
-			)}
-			{preview && (
-				<FilePreviewModal
-					item={preview.item}
-					content={previewContent}
-					dirty={previewDirty}
-					saving={previewSaving}
-					onChange={(content) => {
-						setPreviewContent(content);
-						setPreviewDirty(content !== preview.content);
-					}}
-					onSave={() => void savePreview()}
-					onClose={() => void closePreview()}
-				/>
-			)}
-			{transfer && (
-				<TransferDialog
-					mode={transfer.mode}
-					srcDir={transfer.dir}
-					names={transfer.names}
-					onClose={() => setTransfer(null)}
-					// A transfer changes the listing and may move the selection out of
-					// it, so reload rather than patching state in place.
-					onTransferred={() => void load(path)}
-				/>
-			)}
-			{menu && (
-				<ContextMenu
-					position={menu}
-					items={fileActions(permissions, {
-						open: () => single && void openFile(single),
-						rename: () => single && startRename(single),
-						copy: () => startTransfer("copy"),
-						move: () => startTransfer("move"),
-						remove: () => void removeSelected(),
-						download: () => void download(selection.items),
-						link: () => single && void copyLink(single),
-					})}
-					onClose={() => setMenu(null)}
-				/>
-			)}
-		</section>
+		</DropZone>
 	);
 }

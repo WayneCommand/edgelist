@@ -1,19 +1,45 @@
-import { useRef } from "react";
+import { type ChangeEvent, useRef } from "react";
 import { Button as HeroButton } from "@heroui/react";
 import type { Selection } from "../../hooks/useSelection";
+import { pickedTree, type DroppedTree } from "../../lib/dropUpload";
 import type { ViewMode } from "../../lib/preferences";
 
 type FileToolbarProps = {
 	selection: Selection;
 	view: ViewMode;
+	/** Set while a batch is in flight, so the buttons can lock and show progress. */
+	uploading: { done: number; total: number } | null;
 	onViewChange: (view: ViewMode) => void;
 	onRefresh: () => void;
 	onNewFolder: () => void;
-	onUpload: (files: FileList) => void;
+	onUpload: (tree: DroppedTree) => void;
 };
 
-export function FileToolbar({ selection, view, onViewChange, onRefresh, onNewFolder, onUpload }: FileToolbarProps) {
-	const uploadRef = useRef<HTMLInputElement>(null);
+// `webkitdirectory` is how a browser offers a folder picker. React's JSX types do
+// not know the attribute, and the index signature keeps the spread honest.
+const DIRECTORY_PICKER: Record<string, string> = { webkitdirectory: "", directory: "" };
+
+export function FileToolbar({
+	selection,
+	view,
+	uploading,
+	onViewChange,
+	onRefresh,
+	onNewFolder,
+	onUpload,
+}: FileToolbarProps) {
+	const fileRef = useRef<HTMLInputElement>(null);
+	const folderRef = useRef<HTMLInputElement>(null);
+	const busy = uploading !== null;
+
+	// Both pickers differ only in what the browser lets the user choose, so the
+	// change handling is shared. Clearing `value` is what lets the same file be
+	// picked twice in a row — otherwise `change` never fires again.
+	function pick(event: ChangeEvent<HTMLInputElement>) {
+		const files = event.target.files;
+		if (files?.length) onUpload(pickedTree(files));
+		event.target.value = "";
+	}
 
 	return (
 		<div className="mb-3 flex flex-wrap items-center gap-3">
@@ -32,28 +58,27 @@ export function FileToolbar({ selection, view, onViewChange, onRefresh, onNewFol
 				{selection.count > 0 ? `${selection.count} selected` : "Select all"}
 			</label>
 			<div className="ml-auto flex flex-wrap items-center gap-2">
+				{uploading && (
+					<span role="status" className="text-xs text-muted">
+						Uploading {uploading.done}/{uploading.total}…
+					</span>
+				)}
 				<ViewSwitch view={view} onChange={onViewChange} />
-				<HeroButton size="sm" variant="outline" onPress={onNewFolder}>
+				<HeroButton size="sm" variant="outline" isDisabled={busy} onPress={onNewFolder}>
 					New folder
 				</HeroButton>
-				<HeroButton size="sm" variant="secondary" onPress={() => uploadRef.current?.click()}>
+				<HeroButton size="sm" variant="outline" isDisabled={busy} onPress={() => folderRef.current?.click()}>
+					Upload folder
+				</HeroButton>
+				<HeroButton size="sm" variant="secondary" isDisabled={busy} onPress={() => fileRef.current?.click()}>
 					Upload
 				</HeroButton>
 				<HeroButton size="sm" variant="ghost" onPress={onRefresh}>
 					Refresh
 				</HeroButton>
 			</div>
-			<input
-				ref={uploadRef}
-				hidden
-				type="file"
-				multiple
-				onChange={(event) => {
-					const files = event.target.files;
-					if (files?.length) onUpload(files);
-					event.target.value = "";
-				}}
-			/>
+			<input ref={fileRef} hidden type="file" multiple onChange={pick} />
+			<input ref={folderRef} hidden type="file" multiple {...DIRECTORY_PICKER} onChange={pick} />
 		</div>
 	);
 }

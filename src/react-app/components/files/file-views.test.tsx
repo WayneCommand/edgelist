@@ -80,6 +80,7 @@ describe("file views", () => {
 			<FileToolbar
 				selection={fakeSelection()}
 				view="grid"
+				uploading={null}
 				onViewChange={noop}
 				onRefresh={noop}
 				onNewFolder={noop}
@@ -91,11 +92,44 @@ describe("file views", () => {
 		expect(html).toContain("Select all");
 	});
 
+	it("offers both a file and a folder picker", () => {
+		const html = renderToStaticMarkup(
+			<FileToolbar
+				selection={fakeSelection()}
+				view="list"
+				uploading={null}
+				onViewChange={noop}
+				onRefresh={noop}
+				onNewFolder={noop}
+				onUpload={noop}
+			/>,
+		);
+		expect(html).toContain("Upload folder");
+		expect(html).toContain("webkitdirectory");
+	});
+
+	it("reports upload progress and locks the buttons while busy", () => {
+		const html = renderToStaticMarkup(
+			<FileToolbar
+				selection={fakeSelection()}
+				view="list"
+				uploading={{ done: 3, total: 8 }}
+				onViewChange={noop}
+				onRefresh={noop}
+				onNewFolder={noop}
+				onUpload={noop}
+			/>,
+		);
+		expect(html).toContain("Uploading 3/8");
+		expect(html).toContain('role="status"');
+	});
+
 	it("summarises the selection count in the toolbar", () => {
 		const html = renderToStaticMarkup(
 			<FileToolbar
 				selection={fakeSelection({ count: 2, someSelected: true })}
 				view="list"
+				uploading={null}
 				onViewChange={noop}
 				onRefresh={noop}
 				onNewFolder={noop}
