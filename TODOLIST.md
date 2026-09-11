@@ -162,7 +162,12 @@
   - 上传的 `<input type="file" multiple hidden>` 移进组件内部，选中后立刻 `event.target.value = ""`，否则连续上传同一个文件不会再触发 `change`。
   - `FilesPage.tsx` 因此删掉了 `uploadRef`（连同 `useRef` 导入）与页头那组按钮，选中态操作条（预览/重命名/删除）保留在页面里——它属于 6.5 的「底部操作条」，等 6.5 再挪。
   - **视图切换 / 排序** 两项控件随 6.3 / 6.4 一起补进同一个组件：先落组件骨架、再挂状态，比先塞两个占位按钮再回头改要干净。
-- [ ] 6.3 新增网格视图 `components/files/FileGrid.tsx` 与视图切换持久化（localStorage）。
+- [x] 6.3 新增网格视图 `components/files/FileGrid.tsx` 与视图切换持久化（localStorage）。
+  - `lib/preferences.ts` 统一收口持久化：单一 `edgelist:` 前缀、只存字符串、读写都包 try/catch（隐私模式 / 配额满 / Node 测试环境都不能把页面弄崩），并配 4 个单测覆盖「往返」「未写入回退」「无 storage」「旧值回退」。
+  - `hooks/useStoredState.ts` 在 **render 期** 读取而不是在 effect 里读：在 effect 里读会先画一帧默认值再跳变，而且会踩 `set-state-in-effect`。`key` 变化时旧 override 自动失效——这是 6.4 按路径存排序要用的能力。
+  - 视图切换按清单要求做成 **全局** 偏好（`edgelist:view-mode`），对齐 OpenList 的 `global_default_layout`。OpenList 还有第三个 `image` 布局，本版只做 `list`/`grid`，`parseViewMode` 把不认识的值（含 `image`）一律退回 `list`，避免读到旧值白屏。
+  - 顺手删掉 3 处 `accent-[var(--accent)]`：`index.css` 已有 `input[type="checkbox"] { accent-color: var(--accent) }`，而元素选择器特异性高于工具类，这个类从来没生效过。
+  - 网格瓦片复用了 `FileTable` 的交互契约（单击 `selectOnly`、双击打开、Space 切换、Enter 打开、Shift 连选），复选框在未选中时靠 hover / focus 才显形，避免瓦片被一排方框糊住。
 - [ ] 6.4 列表头点击排序（name/size/modified），排序偏好按路径持久化。
 - [ ] 6.5 选中态底部操作条：重命名/复制/移动/删除/下载/复制链接。
 - [ ] 6.6 复制/移动对话框：目录选择树（复用 3.1 的 `/api/fs/dirs`）+ overwrite/skip_existing/merge；**跨存储时禁用并提示**（决策 3，消费 3.12 的错误码）。

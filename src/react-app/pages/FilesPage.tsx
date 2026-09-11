@@ -4,13 +4,16 @@ import { useLocation, useNavigate } from "react-router";
 import { api } from "../lib/api";
 import { collectRemovals, groupByParent, summarizeBatch, type RemoveOutcome } from "../lib/batch";
 import { languageForFile } from "../lib/format";
+import { DEFAULT_VIEW_MODE, VIEW_MODE_KEY, parseViewMode } from "../lib/preferences";
 import type { FileItem, FileListResponse } from "../lib/types";
 import { ROUTES, filesPathFor } from "../routes";
 import { useAuth } from "../hooks/useAuth";
 import { useConfirm } from "../hooks/useConfirm";
 import { useNotify } from "../hooks/useNotify";
 import { useSelection } from "../hooks/useSelection";
+import { useStoredState } from "../hooks/useStoredState";
 import { Modal } from "../components/common/Modal";
+import { FileGrid } from "../components/files/FileGrid";
 import { FileListSkeleton } from "../components/files/FileListSkeleton";
 import { FilePreviewModal } from "../components/files/FilePreviewModal";
 import { FileTable } from "../components/files/FileTable";
@@ -39,6 +42,8 @@ export function FilesPage() {
 	const [previewDirty, setPreviewDirty] = useState(false);
 	const [previewSaving, setPreviewSaving] = useState(false);
 	const [previewLoading, setPreviewLoading] = useState(false);
+	const [storedView, setStoredView] = useStoredState(VIEW_MODE_KEY, DEFAULT_VIEW_MODE);
+	const view = parseViewMode(storedView);
 
 	const selection = useSelection(items);
 	const clearSelection = selection.clear;
@@ -313,6 +318,8 @@ export function FilesPage() {
 			</div>
 			<FileToolbar
 				selection={selection}
+				view={view}
+				onViewChange={setStoredView}
 				onRefresh={() => void load(path)}
 				onNewFolder={() => setFolderName("")}
 				onUpload={(files) => void upload(files)}
@@ -358,6 +365,8 @@ export function FilesPage() {
 					<FileListSkeleton />
 				) : !items.length ? (
 					<div className="p-16 text-center text-sm text-muted">No files found</div>
+				) : view === "grid" ? (
+					<FileGrid items={items} selection={selection} onOpen={(item) => void openFile(item)} />
 				) : (
 					<FileTable items={items} selection={selection} onOpen={(item) => void openFile(item)} />
 				)}

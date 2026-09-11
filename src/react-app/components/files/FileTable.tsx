@@ -54,7 +54,7 @@ function FileRow({ item, index, selection, onOpen }: FileRowProps) {
 				checked={selected}
 				readOnly
 				aria-label={`Select ${item.name}`}
-				className="h-4 w-4 shrink-0 accent-[var(--accent)]"
+				className="h-4 w-4 shrink-0"
 				onClick={(event) => {
 					event.stopPropagation();
 					selection.toggle(item, index, event.shiftKey);
