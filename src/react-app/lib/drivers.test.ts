@@ -34,7 +34,7 @@ const S3: DriverInfo = {
 		{ name: "secret_access_key", type: "string", default: "", required: true, secret: true },
 		{ name: "force_path_style", type: "bool", default: "false" },
 		{ name: "list_object_version", type: "select", default: "v2", options: "v1,v2" },
-		{ name: "sign_url_expire", type: "number", default: "4" },
+		{ name: "retry_count", type: "number", default: "4" },
 	],
 };
 
@@ -118,7 +118,7 @@ describe("defaultAddition", () => {
 		expect(defaultAddition(S3)).toEqual({
 			force_path_style: false,
 			list_object_version: "v2",
-			sign_url_expire: 4,
+			retry_count: 4,
 		});
 	});
 
@@ -148,7 +148,7 @@ describe("withDriver", () => {
 
 describe("itemValue", () => {
 	const boolItem: DriverItem = { name: "force_path_style", type: "bool", default: "false" };
-	const numberItem: DriverItem = { name: "sign_url_expire", type: "number", default: "4" };
+	const numberItem: DriverItem = { name: "retry_count", type: "number", default: "4" };
 
 	it("uses the stored value when the key exists", () => {
 		expect(itemValue({ bucket: "b" }, { name: "bucket", type: "string", default: "" })).toBe("b");
@@ -163,7 +163,7 @@ describe("itemValue", () => {
 	it("treats a stored string as the typed value", () => {
 		// A backup imported from elsewhere may hold "true" where a bool belongs.
 		expect(itemValue({ force_path_style: "true" }, boolItem)).toBe(true);
-		expect(itemValue({ sign_url_expire: "9" }, numberItem)).toBe(9);
+		expect(itemValue({ retry_count: "9" }, numberItem)).toBe(9);
 	});
 
 	it("treats an explicitly stored empty string as empty, not as the default", () => {
@@ -221,7 +221,7 @@ describe("newStorage", () => {
 		expect(draft.mount_path).toBe("");
 		expect(draft.order).toBe(0);
 		expect(draft.extract_folder).toBe("front");
-		expect(additionOf(draft)).toEqual({ force_path_style: false, list_object_version: "v2", sign_url_expire: 4 });
+		expect(additionOf(draft)).toEqual({ force_path_style: false, list_object_version: "v2", retry_count: 4 });
 	});
 
 	it("produces something usable even before the registry has loaded", () => {

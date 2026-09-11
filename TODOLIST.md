@@ -262,16 +262,59 @@
 
 ## 阶段七：存储管理（磁盘管理器）
 
-- [ ] 7.1 存储列表改为表格：`mount_path / driver / order / status / remark / 操作`，支持 driver 筛选。
-- [ ] 7.2 接启用/禁用操作（后端已有 `storageEnable/storageDisable`）。
-- [ ] 7.3 接"重载全部"（`storage/load_all`）与刷新按钮。
-- [ ] 7.4 新增 `components/storage/DriverField.tsx`：按 `Item.type` 渲染 string/number/bool/text/select。
-- [ ] 7.5 重写 `components/storage/StorageForm.tsx`：拉 `/api/admin/driver/list` 动态渲染公共项 + 驱动项，删除硬编码字段。
-- [ ] 7.6 表单支持切换驱动时重置 addition 并按 `Item.default` 回填。
-- [ ] 7.7 表单支持 `required` 校验、`help` 提示、`options` 下拉。
-- [ ] 7.8 存储删除改为二次确认弹窗（替换 `confirm()`，复用 5.4）。
-- [ ] 7.9 表单支持 JSON 导入/导出 addition（对齐 OpenList）。
-- [ ] 7.10 前端按新增/编辑分别调 `/create` 与 `/update`（配合 3.11）。
+- [x] 7.1 存储列表改为表格：`mount_path / driver / order / status / remark / 操作`，支持 driver 筛选。
+  - 新增 `components/storage/StorageTable.tsx`（表格 + `StorageTableSkeleton` 骨架）与 `StoragesPage.tsx` 作控制器。列头用 `role="columnheader"`、数据格 `role="cell"`，和 `FileTable` 一套约定。
+  - **筛选只列"真的用上了"的驱动**：从当前列表反推用到的 driver key，再和 registry 取交集。给一个没人挂载的驱动画 chip，等于给用户一个背后什么都没有的控件。chip 少于 2 个时整组不渲染（只有一个驱动时筛选没有意义）。空结果和"一条存储都没有"分成两种文案。
+  - 顺手把这一页从 `text-slate-400`/`bg-blue-50` 这批硬编码颜色改成主题变量（`text-muted`/`bg-accent-soft`），它是全项目最后一处没跟上主题的地方。
+- [x] 7.2 接启用/禁用操作（后端已有 `storageEnable/storageDisable`）。
+  - 两个端点是 **POST + query 参数**（`?id=N`），不是 JSON body——先 curl 确认过再写的前端，这是 6.6 那次 `{content:[...]}` 教训的延续。
+  - 切换期间该行三个按钮一起禁用（`busyId`），避免连点发出两次相反的请求。禁用中的行状态点变灰、文案 `Disabled`。
+- [x] 7.3 接"重载全部"（`storage/load_all`）与刷新按钮。
+  - 两个按钮分工明确：`Refresh` 只重取本地列表，`Reload all` 让 Worker 重读 KV 配置后再取。
+- [x] 7.4 新增 `components/storage/DriverField.tsx`：按 `Item.type` 渲染 string/number/bool/text/select。
+  - 只有"每种类型长什么样"在这一个组件里，`StorageFields` 只负责把 items 摆出来。
+  - number 输入框在 `onChange` 就转成 number：`<input type="number">` 交出来的仍是字符串，不转就会把 `"4"` 写进 addition，而 OpenList 那边期待的是数字。
+- [x] 7.5 重写 `components/storage/StorageForm.tsx`：拉 `/api/admin/driver/list` 动态渲染公共项 + 驱动项，删除硬编码字段。
+  - 拆成两个组件：`StorageFields.tsx` 是字段本体（无弹窗），`StorageForm.tsx` 只是套一层 Modal 加保存按钮。**拆的理由是可测**：HeroUI 的 Modal 走 portal，`renderToStaticMarkup` 拿到的是空字符串，字段抽出来才能做渲染冒烟。
+  - 字段标签由 `humanize(item.name)` 从字段名推出来（`secret_access_key` → "Secret Access Key"），**不建标签表**——标签表正是这一步要消灭的硬编码，新驱动会因为没人记得加一行而显示成 `some_new_key`。
+  - 删掉 `StorageEditor.tsx` / `StorageField.tsx` / `StorageToggle.tsx` / `WebdavFields.tsx` 与 `lib/storage.ts`（`readS3Form` / `storageForEditor` 随之作废）。
+  - **语言变化**：旧的存储表单是中文，现在跟应用其余部分一致改成英文。i18n 是 8.8 的事，在那之前不该只有一页是中文。
+  - **顺带发现 8 个假字段（阶段零漏网的）**：registry 里 S3 声明了 16 个 item，其中 `custom_host`、`enable_custom_host_presign`、`sign_url_expire`、`placeholder`、`remove_bucket`、`add_filename_to_disposition`、`enable_direct_upload`、`direct_upload_host` **在 `s3.ts` 里一次都没被读过**（全仓库 grep 确认）。它们从 OpenList 抄来时就带着，旧表单里也一样是死的——`remove_bucket` 当初甚至被标成 `disabled` 摆在那里。步骤 0.3 只清了代理/缓存/签名那批，漏了这 8 个。按阶段零的同一条原则**从 registry 移除**；`normalizeStorageConfig` 保留未知键，所以备份仍然双向无损。
+  - 并且**加了守卫**：`registry.test.ts` 用 `?raw` 把三个适配器的源码读进来，断言每个声明的 item 名字都能在**自己那个适配器**里找到，找不到就带着名字失败。已实测这个守卫会咬人（临时塞一个假 item 进去，报 `webdav declares "..." but its adapter never reads it`）。用 `?raw` 而不是 `node:fs` 是因为 worker 的 tsconfig 故意不引 Node 类型——`src/worker` 里不该能随手拿到 Workers 运行时没有的 API。
+- [x] 7.6 表单支持切换驱动时重置 addition 并按 `Item.default` 回填。
+  - `withDriver` **整体替换**而不是合并 addition：留着 S3 的 key 而 driver 已经写着 WebDAV，会让表单显示一堆不属于它的字段，还会把这些陈旧值存回去。
+  - 新建时直接切（没有东西可丢）；**编辑已有存储时先确认**——静默清空凭证是不可逆的。取消则驱动不变。
+  - `defaultAddition` 只收非空的 `default`：给每个可选字段写一个 `""` 会让记录里堆满无意义的键，然后一路进备份。
+- [x] 7.7 表单支持 `required` 校验、`help` 提示、`options` 下拉。
+  - `required` 直接落到原生属性，浏览器负责拦截并提示，不自己写一套校验状态机；`help` 渲染在控件下方；`select` 用 `item.options.split(",")`。
+- [x] 7.8 存储删除改为二次确认弹窗（替换 `confirm()`，复用 5.4）。
+  - **已在 5.3/5.4 顺手完成**：`StoragesPage` 早就用的是 `useConfirm()`（Promise 形式），本次没有改动，只补了验收。
+- [x] 7.9 表单支持 JSON 导入/导出 addition（对齐 OpenList）。
+  - **对齐的是 OpenList 的真实行为，不是清单原文**：OpenList 导入导出的是**整条存储记录**（`JSON.stringify(storage)`），不是只有 `addition`。所以这里也搬整条——`addition` 只是其中一个字段，整条更有用（可以把一个挂载在实例之间复制）。导入时丢弃 `id`/`status`/`disabled`/`modified` 四个服务端字段，和 OpenList 丢的完全一致。
+  - 顺带接受 `addition` 是**对象**的输入（有些导出是这样），统一成 API 存的那种字符串。
+  - 导出对话框明写"这份 JSON 含存储凭证"——OpenList 不提示，但把密码摊在屏幕上不说一声不合适。
+- [x] 7.10 前端按新增/编辑分别调 `/create` 与 `/update`（配合 3.11）。
+  - `editing.id > 0 ? "/update" : "/create"`。**3.11 的 `/update` 会校验 `id > 0`**，所以新增时错发到 `/update` 不是"碰巧能用"，而是 400。
+  - 实测新增的请求体是 `{"mount_path":"/imported","driver":"webdav","addition":"{...}"}`——**连 `id` 键都没有**，而不是 `id:0`。`JSON.stringify` 会丢掉 `undefined`，Worker 那边 `input.id || max+1` 照样给新 id，这条路径是对的。
+
+> ✅ **阶段七已完成**（10/10）。存储页从"能增删改"变成磁盘管理器：表格 + 状态 + 筛选 + 启用禁用 + 重载，
+> 表单完全由 registry 驱动，加一个驱动不用改前端一行。
+>
+> **验证**：新增 `lib/drivers.test.ts`（28 例）与 `components/storage/storage-views.test.tsx`（12 例，
+> `StorageTable` 4 + `StorageFields` 8），另加 registry 的"声明必须被读到"守卫。合计 **320 例 / 22 文件**；
+> `tsc -b` / `eslint .` / `prettier --check src` / `vite build` 全绿。
+>
+> **端到端验收 45 项全绿**（真浏览器 + 真数据）：表格六列齐全、3 行、驱动徽章与状态正确 → 筛选 S3 收敛到 1 行、
+> Clear 恢复 3 行 → Reload all 打到 `storage/load_all` → 新建对话框按 registry 出字段（含 select 下拉、
+> password 遮罩、required 标记、help 文案）→ 切到 WebDav 字段整体换掉、切回来还原 → 导出 JSON 含
+> `mount_path`/`driver` 且提示含凭证、Escape 可关 → 粘贴一条带 `id:99`/`status:disabled` 的记录导入后
+> 挂载路径与驱动都生效 → 保存走 `/create`（请求体里连 `id` 键都没有）→ 编辑保存走 `/update`（带 id）→
+> 编辑态切驱动先弹确认、取消后驱动不变 → 禁用后该行显示 `Disabled`、再启用恢复 `Enabled`（**跑完已还原**）
+> → 删除弹的是 ConfirmDialog 而不是 `window.confirm`，取消后存储还在。截图
+> `/tmp/edgelist-storages-{table,json,import,disabled,delete}.png`。
+>
+> **没有写任何云端数据**：`/create` 与 `/update` 两个端点在浏览器侧被 `page.route` 拦截并 `fulfill`，
+> 请求不出进程；启用/禁用只改**本地 dev KV**（miniflare）里的 `disabled` 标志，且跑完立刻切回原状态。
 
 ## 阶段八：增强（预览 / 缓存 / 上传）
 
@@ -301,12 +344,19 @@
 - [x] OpenList 备份可以导入，导出的备份可以被 OpenList 还原。
 - [x] `pnpm check` 通过，且不需要 push 即可完成本地验证。
 - [x] `.md`、`.yaml`、`.txt` 等文本文件可以在线编辑并保存回原存储。
-- [ ] 表单里不再存在"能改但不生效"的字段（假字段清理完成）。
+- [x] 表单里不再存在"能改但不生效"的字段（假字段清理完成）。
+  - 阶段零清掉 6 个，阶段七 7.5 又清掉 8 个（S3 的 `custom_host` 等，见 7.5），并加了守卫测试。
 - [ ] `extract_folder` 改名后，旧备份导入、新备份导出到 OpenList 均正确。
+  - 迁移本身有单测覆盖（0.7），但**没有真的拿 OpenList 跑过一次导入/导出往返**，所以这条先不勾。
 - [ ] 挂载点目录在列表中可识别为磁盘，重命名/删除/移动入口被正确禁用。
-- [ ] 嵌套挂载 `/a` + `/a/b` 可正确路由，禁用 `/a/b` 后回退到 `/a`。
-- [ ] 文件列表支持按名称（自然序）/大小/时间排序，目录前置。
-- [ ] 存储表单由 `/api/admin/driver/list` 驱动，新增驱动不需要改前端。
+  - 入口禁用已由 6.7/6.11 完成并验收；"可识别为磁盘"还差一个视觉标识（文件列表里挂载点仍是 📁），未做。
+- [x] 嵌套挂载 `/a` + `/a/b` 可正确路由，禁用 `/a/b` 后回退到 `/a`。
+  - `selectStorage` 的单测覆盖：嵌套、前缀误匹配（`/ab` vs `/a`）、disabled 回退外层（`config.test.ts`）。
+- [x] 文件列表支持按名称（自然序）/大小/时间排序，目录前置。
+  - 1.8/1.9/1.10 的服务端排序 + 6.4 的表头 UI，单测与真浏览器验收都覆盖了。
+- [x] 存储表单由 `/api/admin/driver/list` 驱动，新增驱动不需要改前端。
+  - 阶段二就绪，阶段七 7.5 接上。字段、类型、默认值、选项、必填、help 全部来自 registry；
+    7.4 的 `DriverField` 只决定每种类型长什么样。
 - [ ] Meta 规则对 `fs/*` 生效（读/写/隐藏/密码）。
 - [ ] 文件页支持多选、右键菜单、网格视图、列头排序。
 - [ ] 跨存储复制/移动被禁用且给出中文提示。

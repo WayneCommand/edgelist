@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
+// `?raw` rather than `node:fs`: the worker project deliberately excludes the
+// Node type definitions, so that nothing in `src/worker` can quietly reach for
+// an API the Workers runtime does not have.
+import openlistSource from "./openlist.ts?raw";
 import { hasValidStorageAddition } from "./config";
 import { DRIVERS, DRIVER_ITEM_TYPES, findDriver, getDriverInfo } from "./registry";
+import s3Source from "./s3.ts?raw";
+import webdavSource from "./webdav.ts?raw";
 import { OpenListAdapter } from "./openlist";
 import { S3Adapter } from "./s3";
 import { WebdavAdapter } from "./webdav";
@@ -37,6 +43,31 @@ describe("driver registry", () => {
 	it("keeps the WebDAV TLS bypass out of the form", () => {
 		const webdav = findDriver("webdav");
 		expect(webdav?.additionalItems.map((item) => item.name)).not.toContain("skip_tls_verify");
+	});
+});
+
+/**
+ * A declared item the adapter never reads is a form control that changes
+ * nothing, which is the failure mode this whole registry exists to prevent —
+ * so the declaration is checked against the implementation rather than trusted.
+ */
+describe("every declared field is a field something reads", () => {
+	const ADAPTER_SOURCE: Record<string, string> = {
+		object: s3Source,
+		webdav: webdavSource,
+		openlist: openlistSource,
+	};
+
+	it("names each item somewhere in its own adapter", () => {
+		for (const driver of DRIVERS) {
+			const source = ADAPTER_SOURCE[driver.key];
+			expect(source, `no adapter source mapped for ${driver.key}`).toBeDefined();
+			for (const item of driver.additionalItems) {
+				expect(source.includes(item.name), `${driver.key} declares "${item.name}" but its adapter never reads it`).toBe(
+					true,
+				);
+			}
+		}
 	});
 });
 

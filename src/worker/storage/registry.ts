@@ -113,6 +113,15 @@ export function getDriverInfo(driver: DriverDefinition) {
 // `root_folder_path` is intentionally absent: the S3 adapter maps a path
 // straight onto an object key and never prefixes it, so advertising the field
 // would be another control that does nothing. See TODOLIST 3.13.
+//
+// The rule this list lives by: an item exists only if the adapter reads it, and
+// `registry.test.ts` fails the build when one does not. That check is why the
+// OpenList-inherited S3 extras — `custom_host`, `enable_custom_host_presign`,
+// `sign_url_expire`, `placeholder`, `remove_bucket`,
+// `add_filename_to_disposition`, `enable_direct_upload`, `direct_upload_host` —
+// are gone: none of them was ever read, so every one of them was a form control
+// that changed nothing. `normalizeStorageConfig` keeps unknown keys, so a backup
+// still carries the values through untouched.
 const S3_ITEMS: DriverItem[] = [
 	{
 		name: "endpoint",
@@ -126,26 +135,8 @@ const S3_ITEMS: DriverItem[] = [
 	{ name: "secret_access_key", type: "string", default: "", required: true, secret: true },
 	{ name: "region", type: "string", default: "" },
 	{ name: "session_token", type: "string", default: "", secret: true },
-	{ name: "custom_host", type: "string", default: "" },
-	{ name: "enable_custom_host_presign", type: "bool", default: "false" },
-	{ name: "sign_url_expire", type: "number", default: "4" },
-	{ name: "placeholder", type: "string", default: "" },
 	{ name: "force_path_style", type: "bool", default: "false" },
 	{ name: "list_object_version", type: "select", default: "v2", options: "v1,v2" },
-	{
-		name: "remove_bucket",
-		type: "bool",
-		default: "false",
-		help: "Remove the bucket name from the path when a custom host is set",
-	},
-	{
-		name: "add_filename_to_disposition",
-		type: "bool",
-		default: "false",
-		help: "Add the filename to the Content-Disposition header",
-	},
-	{ name: "enable_direct_upload", type: "bool", default: "false" },
-	{ name: "direct_upload_host", type: "string", default: "" },
 ];
 
 const WEBDAV_ITEMS: DriverItem[] = [
