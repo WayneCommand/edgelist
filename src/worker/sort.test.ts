@@ -113,10 +113,14 @@ describe("applySort", () => {
 	const items = [item("b.txt"), item("dirB", { is_dir: true }), item("a.txt"), item("dirA", { is_dir: true })];
 
 	it("sorts first and then pulls folders to the front", () => {
-		expect(applySort(items, { orderBy: "name", orderDirection: "asc", extractFolder: "front" }).map((entry) => entry.name)).toEqual(["dirA", "dirB", "a.txt", "b.txt"]);
+		expect(
+			applySort(items, { orderBy: "name", orderDirection: "asc", extractFolder: "front" }).map((entry) => entry.name),
+		).toEqual(["dirA", "dirB", "a.txt", "b.txt"]);
 	});
 
 	it("keeps a descending sort when pulling folders to the back", () => {
-		expect(applySort(items, { orderBy: "name", orderDirection: "desc", extractFolder: "back" }).map((entry) => entry.name)).toEqual(["b.txt", "a.txt", "dirB", "dirA"]);
+		expect(
+			applySort(items, { orderBy: "name", orderDirection: "desc", extractFolder: "back" }).map((entry) => entry.name),
+		).toEqual(["b.txt", "a.txt", "dirB", "dirA"]);
 	});
 });

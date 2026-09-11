@@ -13,7 +13,10 @@ export function relativeStoragePath(mountPath: string, path: string): string {
 	return normalizePath(normalized.slice(mount.length) || "/");
 }
 
-export async function resolveStorage(env: Env & EdgeListBindings, path: string): Promise<{ config: StorageConfig; path: string; adapter: StorageAdapter }> {
+export async function resolveStorage(
+	env: Env & EdgeListBindings,
+	path: string,
+): Promise<{ config: StorageConfig; path: string; adapter: StorageAdapter }> {
 	const normalized = normalizePath(path);
 	const config = selectStorage(await listStorageConfigs(env.EDGE_CONFIG), normalized);
 	if (!config) throw new Error("Storage not found");
@@ -22,8 +25,11 @@ export async function resolveStorage(env: Env & EdgeListBindings, path: string):
 
 export function createAdapter(_env: Env & EdgeListBindings, config: StorageConfig): StorageAdapter {
 	switch (config.driver) {
-		case "openlist": return new OpenListAdapter(config);
-		case "object": return new S3Adapter(config);
-		case "webdav": return new WebdavAdapter(config);
+		case "openlist":
+			return new OpenListAdapter(config);
+		case "object":
+			return new S3Adapter(config);
+		case "webdav":
+			return new WebdavAdapter(config);
 	}
 }

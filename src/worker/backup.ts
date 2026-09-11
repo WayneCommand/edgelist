@@ -48,7 +48,7 @@ export async function backupExport(c: BackupContext) {
 		const input = await c.req.json<{ password?: string }>().catch(() => ({}) as { password?: string });
 		const password = input.password ?? "";
 		const settings = await readConfig(c.env.EDGE_CONFIG, CONFIG_KEYS.settings);
-		const metas = (await readConfig(c.env.EDGE_CONFIG, CONFIG_KEYS.metas) ?? []) as MetaConfig[];
+		const metas = ((await readConfig(c.env.EDGE_CONFIG, CONFIG_KEYS.metas)) ?? []) as MetaConfig[];
 		const storages = await listStorageConfigs(c.env.EDGE_CONFIG);
 		const backup: BackupData = {
 			encrypted: encrypt("encrypted", password),
@@ -61,51 +61,81 @@ export async function backupExport(c: BackupContext) {
 		if (password) {
 			backup.settings = backup.settings.map((item) => encryptRecord(item, password));
 		}
-		return new Response(JSON.stringify(backup, null, 2), { headers: { "content-type": "application/json; charset=utf-8", "content-disposition": `attachment; filename="openlist_backup.json"` } });
-	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to create backup", 500); }
+		return new Response(JSON.stringify(backup, null, 2), {
+			headers: {
+				"content-type": "application/json; charset=utf-8",
+				"content-disposition": `attachment; filename="openlist_backup.json"`,
+			},
+		});
+	} catch (error) {
+		return failure(error instanceof Error ? error.message : "Unable to create backup", 500);
+	}
 }
 
 export async function backupRestore(c: BackupContext) {
 	try {
 		const input = await c.req.json<{ password?: string; override?: boolean; data?: BackupData }>();
-		const data = input.data ?? input as unknown as BackupData;
-		if (!data || !Array.isArray(data.storages) || !Array.isArray(data.metas)) return failure("Invalid backup format", 400);
+		const data = input.data ?? (input as unknown as BackupData);
+		if (!data || !Array.isArray(data.storages) || !Array.isArray(data.metas))
+			return failure("Invalid backup format", 400);
 		const password = input.password ?? "";
 		const encrypted = Boolean(data.encrypted);
-		if (encrypted && decrypt(data.encrypted, password, true) !== "encrypted") return failure("Invalid backup password", 401);
-		const storages = data.storages.map((item) => normalizeStorageConfig(decryptRecord(item, password, encrypted) as StorageConfig));
+		if (encrypted && decrypt(data.encrypted, password, true) !== "encrypted")
+			return failure("Invalid backup password", 401);
+		const storages = data.storages.map((item) =>
+			normalizeStorageConfig(decryptRecord(item, password, encrypted) as StorageConfig),
+		);
 		const metas = data.metas.map((item) => decryptRecord(item, password, encrypted) as MetaConfig);
 		const currentStorages = await listStorageConfigs(c.env.EDGE_CONFIG);
-		const currentMetas = (await readConfig(c.env.EDGE_CONFIG, CONFIG_KEYS.metas) ?? []) as MetaConfig[];
-		const restoredStorages = assignIds(input.override ? mergeBy<StorageConfig>(currentStorages, storages, "mount_path") : storages.map((item) => ({ ...item, id: 0 })));
-		const restoredMetas = assignIds(input.override ? mergeBy<MetaConfig>(currentMetas, metas, "path") : metas.map((item) => ({ ...item, id: 0 })));
+		const currentMetas = ((await readConfig(c.env.EDGE_CONFIG, CONFIG_KEYS.metas)) ?? []) as MetaConfig[];
+		const restoredStorages = assignIds(
+			input.override
+				? mergeBy<StorageConfig>(currentStorages, storages, "mount_path")
+				: storages.map((item) => ({ ...item, id: 0 })),
+		);
+		const restoredMetas = assignIds(
+			input.override ? mergeBy<MetaConfig>(currentMetas, metas, "path") : metas.map((item) => ({ ...item, id: 0 })),
+		);
 		await c.env.EDGE_CONFIG.put(CONFIG_KEYS.storages, JSON.stringify(restoredStorages));
 		await c.env.EDGE_CONFIG.put(CONFIG_KEYS.metas, JSON.stringify(restoredMetas));
 		if (Array.isArray(data.settings)) {
-			const settings = data.settings.map((item) => decryptRecord(item, password, encrypted)).filter((item) => item.key !== "version" && item.key !== "index_progress");
+			const settings = data.settings
+				.map((item) => decryptRecord(item, password, encrypted))
+				.filter((item) => item.key !== "version" && item.key !== "index_progress");
 			await c.env.EDGE_CONFIG.put(CONFIG_KEYS.settings, JSON.stringify(settings));
 		}
-		return Response.json({ code: 200, message: "success", data: { storages: restoredStorages.length, metas: restoredMetas.length } });
-	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to restore backup", 400); }
+		return Response.json({
+			code: 200,
+			message: "success",
+			data: { storages: restoredStorages.length, metas: restoredMetas.length },
+		});
+	} catch (error) {
+		return failure(error instanceof Error ? error.message : "Unable to restore backup", 400);
+	}
 }
 
 function mergeBy<T extends Record<string, unknown>>(current: T[], incoming: T[], key: string): T[] {
 	const result = [...current];
 	for (const item of incoming) {
 		const index = result.findIndex((existing) => existing[key] === item[key]);
-		if (index === -1) result.push(item); else result[index] = { ...result[index], ...item };
+		if (index === -1) result.push(item);
+		else result[index] = { ...result[index], ...item };
 	}
 	return result;
 }
 
 function assignIds<T extends { id: number }>(items: T[]): T[] {
-	let nextId = Math.max(0, ...items.map((item) => Number.isFinite(item.id) && item.id > 0 ? item.id : 0)) + 1;
+	let nextId = Math.max(0, ...items.map((item) => (Number.isFinite(item.id) && item.id > 0 ? item.id : 0))) + 1;
 	const used = new Set<number>();
 	return items.map((item) => {
-		if (item.id > 0 && !used.has(item.id)) { used.add(item.id); return item; }
+		if (item.id > 0 && !used.has(item.id)) {
+			used.add(item.id);
+			return item;
+		}
 		while (used.has(nextId)) nextId += 1;
 		const result = { ...item, id: nextId };
-		used.add(nextId); nextId += 1;
+		used.add(nextId);
+		nextId += 1;
 		return result;
 	});
 }

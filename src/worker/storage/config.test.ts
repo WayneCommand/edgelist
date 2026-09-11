@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { ObjMask, OBJ_LOCKED, OBJ_READ_ONLY, type StorageConfig } from "./types";
-import { hasValidStorageAddition, listVirtualMounts, mergeFileObjects, mountDepth, normalizeStorageConfig, paginateFileObjects, selectStorage } from "./config";
+import {
+	hasValidStorageAddition,
+	listVirtualMounts,
+	mergeFileObjects,
+	mountDepth,
+	normalizeStorageConfig,
+	paginateFileObjects,
+	selectStorage,
+} from "./config";
 
 function storage(mountPath: string, order = 0, disabled = false): StorageConfig {
 	return {
@@ -17,7 +25,8 @@ function storage(mountPath: string, order = 0, disabled = false): StorageConfig 
 
 function kvWithStorages(storages: StorageConfig[]) {
 	return {
-		get: (_key: string, type: "json" | "text") => Promise.resolve(type === "json" ? storages : JSON.stringify(storages)),
+		get: (_key: string, type: "json" | "text") =>
+			Promise.resolve(type === "json" ? storages : JSON.stringify(storages)),
 	} as unknown as KVNamespace;
 }
 
@@ -40,7 +49,10 @@ describe("virtual mounts", () => {
 
 	it("prefers physical entries when a mount has the same name", () => {
 		const physical = [item("shared", "/data/shared"), item("file.txt")];
-		const virtual = [{ ...item("shared", "/data/shared"), is_dir: true }, { ...item("mount"), is_dir: true }];
+		const virtual = [
+			{ ...item("shared", "/data/shared"), is_dir: true },
+			{ ...item("mount"), is_dir: true },
+		];
 		const merged = mergeFileObjects(physical, virtual);
 		expect(merged.map((entry) => `${entry.name}:${entry.is_dir}`)).toEqual([
 			"shared:false",
@@ -100,7 +112,9 @@ describe("storage normalization", () => {
 	});
 
 	it("keeps the OpenList webdav_policy values", () => {
-		expect(normalizeStorageConfig({ ...storage("/a"), webdav_policy: "use_proxy_url" }).webdav_policy).toBe("use_proxy_url");
+		expect(normalizeStorageConfig({ ...storage("/a"), webdav_policy: "use_proxy_url" }).webdav_policy).toBe(
+			"use_proxy_url",
+		);
 		expect(normalizeStorageConfig({ ...storage("/a"), webdav_policy: "" }).webdav_policy).toBe("");
 	});
 
@@ -209,11 +223,27 @@ describe("storage selection", () => {
 
 describe("storage addition validation", () => {
 	it("requires driver-specific fields", () => {
-		expect(hasValidStorageAddition({ driver: "openlist", addition: JSON.stringify({ base_url: "https://list.example" }) })).toBe(true);
+		expect(
+			hasValidStorageAddition({ driver: "openlist", addition: JSON.stringify({ base_url: "https://list.example" }) }),
+		).toBe(true);
 		expect(hasValidStorageAddition({ driver: "openlist", addition: "{}" })).toBe(false);
-		expect(hasValidStorageAddition({ driver: "object", addition: JSON.stringify({ endpoint: "https://s3.example", bucket: "bucket", access_key_id: "key", secret_access_key: "secret" }) })).toBe(true);
-		expect(hasValidStorageAddition({ driver: "object", addition: JSON.stringify({ endpoint: "https://s3.example" }) })).toBe(false);
-		expect(hasValidStorageAddition({ driver: "webdav", addition: JSON.stringify({ address: "https://dav.example" }) })).toBe(true);
+		expect(
+			hasValidStorageAddition({
+				driver: "object",
+				addition: JSON.stringify({
+					endpoint: "https://s3.example",
+					bucket: "bucket",
+					access_key_id: "key",
+					secret_access_key: "secret",
+				}),
+			}),
+		).toBe(true);
+		expect(
+			hasValidStorageAddition({ driver: "object", addition: JSON.stringify({ endpoint: "https://s3.example" }) }),
+		).toBe(false);
+		expect(
+			hasValidStorageAddition({ driver: "webdav", addition: JSON.stringify({ address: "https://dav.example" }) }),
+		).toBe(true);
 		expect(hasValidStorageAddition({ driver: "webdav", addition: "not-json" })).toBe(false);
 	});
 });

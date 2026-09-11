@@ -3,7 +3,16 @@ import type { StorageConfig } from "./types";
 import { S3Adapter } from "./s3";
 
 function config(addition: Record<string, unknown>): StorageConfig {
-	return { id: 1, mount_path: "/", order: 0, driver: "object", status: "work", addition: JSON.stringify(addition), remark: "", disabled: false };
+	return {
+		id: 1,
+		mount_path: "/",
+		order: 0,
+		driver: "object",
+		status: "work",
+		addition: JSON.stringify(addition),
+		remark: "",
+		disabled: false,
+	};
 }
 
 function listingXml() {
@@ -19,24 +28,46 @@ function listingXml() {
 }
 
 function stubbedAdapter() {
-	vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200, text: async () => listingXml() })));
-	return new S3Adapter(config({ endpoint: "https://s3.example.test", bucket: "bucket", access_key_id: "key", secret_access_key: "secret" }));
+	vi.stubGlobal(
+		"fetch",
+		vi.fn(async () => ({ ok: true, status: 200, text: async () => listingXml() })),
+	);
+	return new S3Adapter(
+		config({
+			endpoint: "https://s3.example.test",
+			bucket: "bucket",
+			access_key_id: "key",
+			secret_access_key: "secret",
+		}),
+	);
 }
 
-	describe("S3 adapter compatibility", () => {
+describe("S3 adapter compatibility", () => {
 	it("follows OpenList defaults for custom endpoints", () => {
-		const adapter = new S3Adapter(config({ endpoint: "s3.example.test", bucket: "bucket", access_key_id: "key", secret_access_key: "secret" }));
+		const adapter = new S3Adapter(
+			config({ endpoint: "s3.example.test", bucket: "bucket", access_key_id: "key", secret_access_key: "secret" }),
+		);
 		expect(adapter).toBeDefined();
 	});
 
 	it("accepts the OpenList list object version option", () => {
-		const adapter = new S3Adapter(config({ endpoint: "https://s3.example.test", bucket: "bucket", access_key_id: "key", secret_access_key: "secret", list_object_version: "v2" }));
+		const adapter = new S3Adapter(
+			config({
+				endpoint: "https://s3.example.test",
+				bucket: "bucket",
+				access_key_id: "key",
+				secret_access_key: "secret",
+				list_object_version: "v2",
+			}),
+		);
 		expect(adapter).toBeDefined();
 	});
 });
 
 describe("S3 adapter listing", () => {
-	afterEach(() => { vi.unstubAllGlobals(); });
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
 
 	it("advertises an MD5 etag but skips multipart etags", async () => {
 		const { content } = await stubbedAdapter().list("/", { page: 1, per_page: 0, refresh: false });

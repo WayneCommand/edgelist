@@ -54,13 +54,16 @@ export class TransferValidationError extends Error {
 
 function requireDirectoryPath(value: string | undefined, field: "src_dir" | "dst_dir"): string {
 	const path = normalizePath(value ?? "/");
-	if (value && typeof value !== "string") throw new TransferValidationError("INVALID_FIELD", `${field} must be a string`);
+	if (value && typeof value !== "string")
+		throw new TransferValidationError("INVALID_FIELD", `${field} must be a string`);
 	return path;
 }
 
 function transferNames(value: unknown): string[] {
-	if (!Array.isArray(value) || !value.length) throw new TransferValidationError("INVALID_FIELD", "names must be a non-empty array");
-	if (value.length > MAX_TRANSFER_ITEMS) throw new TransferValidationError("TOO_MANY_ITEMS", `names cannot contain more than ${MAX_TRANSFER_ITEMS} items`);
+	if (!Array.isArray(value) || !value.length)
+		throw new TransferValidationError("INVALID_FIELD", "names must be a non-empty array");
+	if (value.length > MAX_TRANSFER_ITEMS)
+		throw new TransferValidationError("TOO_MANY_ITEMS", `names cannot contain more than ${MAX_TRANSFER_ITEMS} items`);
 	const names = value.map((item) => {
 		if (typeof item !== "string") throw new TransferValidationError("INVALID_FIELD", "every name must be a string");
 		const name = item.trim();
@@ -69,7 +72,8 @@ function transferNames(value: unknown): string[] {
 		}
 		return name;
 	});
-	if (new Set(names).size !== names.length) throw new TransferValidationError("DUPLICATE_NAMES", "names must be unique");
+	if (new Set(names).size !== names.length)
+		throw new TransferValidationError("DUPLICATE_NAMES", "names must be unique");
 	return names;
 }
 
@@ -86,19 +90,31 @@ async function findObject(adapter: StorageAdapter, path: string): Promise<FileOb
 	}
 }
 
-function transferOptions(kind: TransferKind, source: FileObject, target: FileObject | null, input: TransferInput, adapter: StorageAdapter): TransferOptions | "skip" {
+function transferOptions(
+	kind: TransferKind,
+	source: FileObject,
+	target: FileObject | null,
+	input: TransferInput,
+	adapter: StorageAdapter,
+): TransferOptions | "skip" {
 	if (!target) return { overwrite: false, merge: false };
 	if (input.skip_existing) return "skip";
 	if (input.overwrite) return { overwrite: true, merge: false };
-	if (kind === "copy" && input.merge && source.is_dir && target.is_dir && adapter.capabilities.has("merge")) return { overwrite: false, merge: true };
+	if (kind === "copy" && input.merge && source.is_dir && target.is_dir && adapter.capabilities.has("merge"))
+		return { overwrite: false, merge: true };
 	throw new TransferValidationError("TARGET_EXISTS", "Target already exists");
 }
 
-export async function planTransfers(kind: TransferKind, input: TransferInput, dependencies: TransferPlannerDependencies): Promise<TransferResult> {
+export async function planTransfers(
+	kind: TransferKind,
+	input: TransferInput,
+	dependencies: TransferPlannerDependencies,
+): Promise<TransferResult> {
 	const sourceDirectory = requireDirectoryPath(input.src_dir, "src_dir");
 	const destinationDirectory = requireDirectoryPath(input.dst_dir, "dst_dir");
 	const names = transferNames(input.names);
-	if (await dependencies.isVirtualMount(destinationDirectory)) throw new TransferValidationError("VIRTUAL_MOUNT", "Destination is a virtual mount directory");
+	if (await dependencies.isVirtualMount(destinationDirectory))
+		throw new TransferValidationError("VIRTUAL_MOUNT", "Destination is a virtual mount directory");
 	const destination = await dependencies.resolve(destinationDirectory);
 	const destinationObject = await destination.adapter.get(destination.path);
 	if (!destinationObject.is_dir) throw new TransferValidationError("NOT_DIRECTORY", "Destination is not a directory");
@@ -108,12 +124,19 @@ export async function planTransfers(kind: TransferKind, input: TransferInput, de
 		const sourcePath = joinPath(sourceDirectory, name);
 		const targetPath = joinPath(destination.path, name);
 		try {
-			if (await dependencies.isVirtualMount(sourcePath)) throw new TransferValidationError("VIRTUAL_MOUNT", "Virtual mount directories cannot be transferred");
+			if (await dependencies.isVirtualMount(sourcePath))
+				throw new TransferValidationError("VIRTUAL_MOUNT", "Virtual mount directories cannot be transferred");
 
 			const source = await dependencies.resolve(sourcePath);
-			if (source.config.mount_path !== destination.config.mount_path) throw new TransferValidationError("CROSS_STORAGE_TRANSFER", "跨存储复制/移动不支持");
-			if (!source.adapter.capabilities.has(kind)) throw new TransferValidationError("UNSUPPORTED_OPERATION", `存储不支持${kind === "copy" ? "复制" : "移动"}操作`);
-			if (source.path === "/") throw new TransferValidationError("ROOT_TRANSFER", "A storage root cannot be transferred");
+			if (source.config.mount_path !== destination.config.mount_path)
+				throw new TransferValidationError("CROSS_STORAGE_TRANSFER", "跨存储复制/移动不支持");
+			if (!source.adapter.capabilities.has(kind))
+				throw new TransferValidationError(
+					"UNSUPPORTED_OPERATION",
+					`存储不支持${kind === "copy" ? "复制" : "移动"}操作`,
+				);
+			if (source.path === "/")
+				throw new TransferValidationError("ROOT_TRANSFER", "A storage root cannot be transferred");
 
 			const sourceObject = await source.adapter.get(source.path);
 			if (sourceObject.mask) {
@@ -121,21 +144,28 @@ export async function planTransfers(kind: TransferKind, input: TransferInput, de
 				if (sourceObject.mask & maskBit) {
 					throw new TransferValidationError("MASK_RESTRICTED", `Cannot ${kind} this item`);
 				}
-				if (kind === "move" && (sourceObject.mask & ObjMask.NoRemove)) {
+				if (kind === "move" && sourceObject.mask & ObjMask.NoRemove) {
 					throw new TransferValidationError("MASK_RESTRICTED", "Cannot remove this item");
 				}
 			}
-			if (sourcePath === targetPath) throw new TransferValidationError("SAME_PATH", "Source and destination are the same");
-			if (sourceObject.is_dir && targetPath.startsWith(`${sourcePath}/`)) throw new TransferValidationError("NESTED_TRANSFER", "A directory cannot be transferred into itself");
+			if (sourcePath === targetPath)
+				throw new TransferValidationError("SAME_PATH", "Source and destination are the same");
+			if (sourceObject.is_dir && targetPath.startsWith(`${sourcePath}/`))
+				throw new TransferValidationError("NESTED_TRANSFER", "A directory cannot be transferred into itself");
 			if (sourceObject.is_dir && (await dependencies.listVirtualMounts(sourcePath)).length) {
-				throw new TransferValidationError("MOUNTED_DIRECTORY", "A directory containing mounted storages cannot be transferred synchronously");
+				throw new TransferValidationError(
+					"MOUNTED_DIRECTORY",
+					"A directory containing mounted storages cannot be transferred synchronously",
+				);
 			}
 
 			const targetResolution = await dependencies.resolve(targetPath);
-			if (targetResolution.config.mount_path !== source.config.mount_path) throw new TransferValidationError("CROSS_STORAGE_TRANSFER", "跨存储复制/移动不支持");
-			if (targetResolution.path === "/") throw new TransferValidationError("OVERWRITE_MOUNT", "A storage mount cannot be overwritten");
+			if (targetResolution.config.mount_path !== source.config.mount_path)
+				throw new TransferValidationError("CROSS_STORAGE_TRANSFER", "跨存储复制/移动不支持");
+			if (targetResolution.path === "/")
+				throw new TransferValidationError("OVERWRITE_MOUNT", "A storage mount cannot be overwritten");
 			const target = await findObject(targetResolution.adapter, targetPath);
-			if (target?.mask && (target.mask & ObjMask.NoWrite)) {
+			if (target?.mask && target.mask & ObjMask.NoWrite) {
 				throw new TransferValidationError("MASK_RESTRICTED", "Cannot write to target");
 			}
 			const options = transferOptions(kind, sourceObject, target, input, source.adapter);

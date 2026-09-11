@@ -85,28 +85,34 @@ describe("adapter capabilities match registry", () => {
 	});
 
 	it("S3Adapter capabilities match registry", () => {
-		const adapter = new S3Adapter(mockConfig("object", {
-			endpoint: "https://s3.example.com",
-			bucket: "test",
-			access_key_id: "key",
-			secret_access_key: "secret",
-		}));
+		const adapter = new S3Adapter(
+			mockConfig("object", {
+				endpoint: "https://s3.example.com",
+				bucket: "test",
+				access_key_id: "key",
+				secret_access_key: "secret",
+			}),
+		);
 		const registry = findDriver("object")!;
 		expect([...adapter.capabilities]).toEqual([...registry.capabilities]);
 	});
 
 	it("WebdavAdapter capabilities match registry", () => {
-		const adapter = new WebdavAdapter(mockConfig("webdav", {
-			url: "https://webdav.example.com",
-		}));
+		const adapter = new WebdavAdapter(
+			mockConfig("webdav", {
+				url: "https://webdav.example.com",
+			}),
+		);
 		const registry = findDriver("webdav")!;
 		expect([...adapter.capabilities]).toEqual([...registry.capabilities]);
 	});
 
 	it("OpenListAdapter capabilities match registry", () => {
-		const adapter = new OpenListAdapter(mockConfig("openlist", {
-			base_url: "https://openlist.example.com",
-		}));
+		const adapter = new OpenListAdapter(
+			mockConfig("openlist", {
+				base_url: "https://openlist.example.com",
+			}),
+		);
 		const registry = findDriver("openlist")!;
 		expect([...adapter.capabilities]).toEqual([...registry.capabilities]);
 	});

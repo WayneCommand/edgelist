@@ -68,9 +68,12 @@ export function sortObjects(items: readonly FileObject[], orderBy: string, order
 	const direction = orderDirection === "desc" ? -1 : 1;
 	return [...items].sort((left, right) => {
 		switch (orderBy) {
-			case "size": return (left.size - right.size) * direction;
-			case "modified": return (timestamp(left.modified) - timestamp(right.modified)) * direction;
-			default: return compareNatural(left.name, right.name) * direction;
+			case "size":
+				return (left.size - right.size) * direction;
+			case "modified":
+				return (timestamp(left.modified) - timestamp(right.modified)) * direction;
+			default:
+				return compareNatural(left.name, right.name) * direction;
 		}
 	});
 }

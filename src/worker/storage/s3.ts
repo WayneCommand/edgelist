@@ -34,7 +34,12 @@ function encode(value: string): string {
 }
 
 function canonicalPath(pathname: string): string {
-	return pathname.split("/").map((segment) => encode(decodeURIComponent(segment))).join("/") || "/";
+	return (
+		pathname
+			.split("/")
+			.map((segment) => encode(decodeURIComponent(segment)))
+			.join("/") || "/"
+	);
 }
 
 function hex(buffer: ArrayBuffer): string {
@@ -69,7 +74,17 @@ function etagHash(etag?: string): Record<string, unknown> | undefined {
 function fileObject(key: string, size: string, modified: string, etag?: string, isDir = false): FileObject {
 	const name = key.split("/").filter(Boolean).pop() ?? key;
 	const date = modified ? new Date(modified).toISOString() : new Date(0).toISOString();
-	return { name, size: isDir ? 0 : Number(size) || 0, is_dir: isDir, modified: date, created: date, path: `/${key}`, mask: 0, provider: "object", hashinfo: etagHash(etag) };
+	return {
+		name,
+		size: isDir ? 0 : Number(size) || 0,
+		is_dir: isDir,
+		modified: date,
+		created: date,
+		path: `/${key}`,
+		mask: 0,
+		provider: "object",
+		hashinfo: etagHash(etag),
+	};
 }
 
 export class S3Adapter implements StorageAdapter {
@@ -87,7 +102,8 @@ export class S3Adapter implements StorageAdapter {
 
 	constructor(config: StorageConfig) {
 		const addition = JSON.parse(config.addition || "{}") as S3Addition;
-		if (!addition.endpoint || !addition.bucket || !addition.access_key_id || !addition.secret_access_key) throw new Error("S3 storage requires endpoint, bucket, access_key_id and secret_access_key");
+		if (!addition.endpoint || !addition.bucket || !addition.access_key_id || !addition.secret_access_key)
+			throw new Error("S3 storage requires endpoint, bucket, access_key_id and secret_access_key");
 		this.endpoint = endpointUrl(addition.endpoint);
 		this.region = addition.region || "us-east-1";
 		this.bucket = addition.bucket;
@@ -108,7 +124,11 @@ export class S3Adapter implements StorageAdapter {
 		return url;
 	}
 
-	private async request(method: string, key = "", options: { query?: Record<string, string>; headers?: Record<string, string>; body?: BodyInit | null } = {}) {
+	private async request(
+		method: string,
+		key = "",
+		options: { query?: Record<string, string>; headers?: Record<string, string>; body?: BodyInit | null } = {},
+	) {
 		const url = this.url(key, options.query);
 		const payloadHash = "UNSIGNED-PAYLOAD";
 		const headers = new Headers(options.headers);
@@ -116,13 +136,32 @@ export class S3Adapter implements StorageAdapter {
 		headers.set("x-amz-content-sha256", payloadHash);
 		if (this.sessionToken) headers.set("x-amz-security-token", this.sessionToken);
 		const now = new Date();
-		const amzDate = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+		const amzDate = now
+			.toISOString()
+			.replace(/[-:]/g, "")
+			.replace(/\.\d{3}Z$/, "Z");
 		const date = amzDate.slice(0, 8);
 		headers.set("x-amz-date", amzDate);
-		const canonicalHeaders = [...headers.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([name, value]) => `${name.toLowerCase()}:${value.trim().replace(/\s+/g, " ")}\n`).join("");
-		const signedHeaders = [...headers.keys()].map((name) => name.toLowerCase()).sort().join(";");
-		const canonicalQuery = [...url.searchParams.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([name, value]) => `${encode(name)}=${encode(value)}`).join("&");
-		const canonicalRequest = [method, canonicalPath(url.pathname), canonicalQuery, canonicalHeaders, signedHeaders, payloadHash].join("\n");
+		const canonicalHeaders = [...headers.entries()]
+			.sort(([a], [b]) => a.localeCompare(b))
+			.map(([name, value]) => `${name.toLowerCase()}:${value.trim().replace(/\s+/g, " ")}\n`)
+			.join("");
+		const signedHeaders = [...headers.keys()]
+			.map((name) => name.toLowerCase())
+			.sort()
+			.join(";");
+		const canonicalQuery = [...url.searchParams.entries()]
+			.sort(([a], [b]) => a.localeCompare(b))
+			.map(([name, value]) => `${encode(name)}=${encode(value)}`)
+			.join("&");
+		const canonicalRequest = [
+			method,
+			canonicalPath(url.pathname),
+			canonicalQuery,
+			canonicalHeaders,
+			signedHeaders,
+			payloadHash,
+		].join("\n");
 		const scope = `${date}/${this.region}/s3/aws4_request`;
 		const stringToSign = ["AWS4-HMAC-SHA256", amzDate, scope, await sha256(canonicalRequest)].join("\n");
 		const kDate = await hmac(encoder.encode(`AWS4${this.secretAccessKey}`), date);
@@ -130,19 +169,30 @@ export class S3Adapter implements StorageAdapter {
 		const kService = await hmac(kRegion, "s3");
 		const signingKey = await hmac(kService, "aws4_request");
 		const signature = hex(await hmac(signingKey, stringToSign));
-		headers.set("authorization", `AWS4-HMAC-SHA256 Credential=${this.accessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`);
+		headers.set(
+			"authorization",
+			`AWS4-HMAC-SHA256 Credential=${this.accessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
+		);
 		return fetch(url, { method, headers, body: options.body });
 	}
 
 	async list(path: string, options: ListOptions) {
 		const prefix = objectPath(path, this.rootPath).replace(/\/$/, "");
-		const query: Record<string, string> = { delimiter: "/", prefix: prefix ? `${prefix}/` : "", "max-keys": String(options.per_page || 1000) };
+		const query: Record<string, string> = {
+			delimiter: "/",
+			prefix: prefix ? `${prefix}/` : "",
+			"max-keys": String(options.per_page || 1000),
+		};
 		if (this.listObjectVersion === "v2") query["list-type"] = "2";
 		const response = await this.request("GET", "", { query });
 		if (!response.ok) throw new Error(`S3 list failed with ${response.status}`);
 		const xml = await response.text();
-		const directories = xmlItems(xml, "CommonPrefixes").map((item) => fileObject(xmlValue(item, "Prefix").replace(/\/$/, ""), "0", "", undefined, true));
-		const files = xmlItems(xml, "Contents").map((item) => fileObject(xmlValue(item, "Key"), xmlValue(item, "Size"), xmlValue(item, "LastModified"), xmlValue(item, "ETag")));
+		const directories = xmlItems(xml, "CommonPrefixes").map((item) =>
+			fileObject(xmlValue(item, "Prefix").replace(/\/$/, ""), "0", "", undefined, true),
+		);
+		const files = xmlItems(xml, "Contents").map((item) =>
+			fileObject(xmlValue(item, "Key"), xmlValue(item, "Size"), xmlValue(item, "LastModified"), xmlValue(item, "ETag")),
+		);
 		const content = [...directories, ...files];
 		const pageSize = options.per_page || content.length;
 		const start = Math.max(0, (options.page - 1) * pageSize);
@@ -158,7 +208,11 @@ export class S3Adapter implements StorageAdapter {
 			const response = await this.request("GET", "", { query });
 			if (!response.ok) throw new Error(`S3 list failed with ${response.status}`);
 			const xml = await response.text();
-			keys.push(...xmlItems(xml, "Contents").map((item) => xmlValue(item, "Key")).filter(Boolean));
+			keys.push(
+				...xmlItems(xml, "Contents")
+					.map((item) => xmlValue(item, "Key"))
+					.filter(Boolean),
+			);
 			continuationToken = xmlValue(xml, "NextContinuationToken");
 		} while (continuationToken);
 		return keys;
@@ -174,7 +228,12 @@ export class S3Adapter implements StorageAdapter {
 		if (!key) return fileObject("/", "0", "", undefined, true);
 		const response = await this.request("HEAD", key);
 		if (response.ok) {
-			return fileObject(key, response.headers.get("content-length") ?? "0", response.headers.get("last-modified") ?? "", response.headers.get("etag") ?? undefined);
+			return fileObject(
+				key,
+				response.headers.get("content-length") ?? "0",
+				response.headers.get("last-modified") ?? "",
+				response.headers.get("etag") ?? undefined,
+			);
 		}
 		const directory = await this.request("HEAD", `${key}/`);
 		if (!directory.ok) throw new Error("File not found");
@@ -182,18 +241,25 @@ export class S3Adapter implements StorageAdapter {
 	}
 
 	async read(path: string, range?: string) {
-		const response = await this.request("GET", objectPath(path, this.rootPath), { headers: range ? { range } : undefined });
+		const response = await this.request("GET", objectPath(path, this.rootPath), {
+			headers: range ? { range } : undefined,
+		});
 		if (!response.ok) return new Response("Not found", { status: response.status });
 		return response;
 	}
 
 	async write(path: string, request: Request) {
-		const response = await this.request("PUT", objectPath(path, this.rootPath), { headers: { "content-type": request.headers.get("content-type") ?? "application/octet-stream" }, body: request.body });
+		const response = await this.request("PUT", objectPath(path, this.rootPath), {
+			headers: { "content-type": request.headers.get("content-type") ?? "application/octet-stream" },
+			body: request.body,
+		});
 		if (!response.ok) throw new Error(`S3 upload failed with ${response.status}`);
 	}
 
 	async mkdir(path: string) {
-		const response = await this.request("PUT", `${objectPath(path, this.rootPath).replace(/\/$/, "")}/`, { body: new Uint8Array() });
+		const response = await this.request("PUT", `${objectPath(path, this.rootPath).replace(/\/$/, "")}/`, {
+			body: new Uint8Array(),
+		});
 		if (!response.ok) throw new Error(`S3 mkdir failed with ${response.status}`);
 	}
 
@@ -224,7 +290,9 @@ export class S3Adapter implements StorageAdapter {
 		const source = objectPath(path, this.rootPath);
 		const target = `${source.slice(0, source.lastIndexOf("/") + 1)}${name}`;
 		if (!overwrite && (await this.request("HEAD", target)).ok) throw new Error("Target already exists");
-		const copied = await this.request("PUT", target, { headers: { "x-amz-copy-source": `/${encode(this.bucket)}/${source.split("/").map(encode).join("/")}` } });
+		const copied = await this.request("PUT", target, {
+			headers: { "x-amz-copy-source": `/${encode(this.bucket)}/${source.split("/").map(encode).join("/")}` },
+		});
 		if (!copied.ok) throw new Error(`S3 copy failed with ${copied.status}`);
 		await this.remove(source);
 	}
@@ -254,7 +322,8 @@ export class S3Adapter implements StorageAdapter {
 		const destinationKey = objectPath(destination, this.rootPath);
 		if (!sourceKey || !destinationKey) throw new Error("Cannot transfer a storage root");
 		const sourcePrefix = `${sourceKey}/`;
-		const isDirectory = (await this.objectExists(`${sourceKey}/`)) || (await this.listObjectKeys(sourcePrefix)).length > 0;
+		const isDirectory =
+			(await this.objectExists(`${sourceKey}/`)) || (await this.listObjectKeys(sourcePrefix)).length > 0;
 		if (isDirectory) await this.copyDirectory(sourceKey, destinationKey);
 		else await this.copyKey(sourceKey, destinationKey);
 	}

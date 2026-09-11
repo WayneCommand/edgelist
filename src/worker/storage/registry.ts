@@ -64,9 +64,21 @@ function buildCommonItems(config: DriverConfig): DriverItem[] {
 	];
 	if (config.localSort) {
 		items.push(
-			{ name: "order_by", type: "select", default: "", options: "name,size,modified", help: "Primary sort key; empty means upstream order" },
+			{
+				name: "order_by",
+				type: "select",
+				default: "",
+				options: "name,size,modified",
+				help: "Primary sort key; empty means upstream order",
+			},
 			{ name: "order_direction", type: "select", default: "asc", options: "asc,desc" },
-			{ name: "extract_folder", type: "select", default: "front", options: "front,back", help: "Folders before files (front) or after (back)" },
+			{
+				name: "extract_folder",
+				type: "select",
+				default: "front",
+				options: "front,back",
+				help: "Folders before files (front) or after (back)",
+			},
 		);
 	}
 	return items;
@@ -90,7 +102,13 @@ export function getDriverInfo(driver: DriverDefinition) {
 // straight onto an object key and never prefixes it, so advertising the field
 // would be another control that does nothing. See TODOLIST 3.13.
 const S3_ITEMS: DriverItem[] = [
-	{ name: "endpoint", type: "string", default: "", required: true, help: "S3 API endpoint, for example https://s3.example.com" },
+	{
+		name: "endpoint",
+		type: "string",
+		default: "",
+		required: true,
+		help: "S3 API endpoint, for example https://s3.example.com",
+	},
 	{ name: "bucket", type: "string", default: "", required: true },
 	{ name: "access_key_id", type: "string", default: "", required: true },
 	{ name: "secret_access_key", type: "string", default: "", required: true },
@@ -102,21 +120,43 @@ const S3_ITEMS: DriverItem[] = [
 	{ name: "placeholder", type: "string", default: "" },
 	{ name: "force_path_style", type: "bool", default: "false" },
 	{ name: "list_object_version", type: "select", default: "v2", options: "v1,v2" },
-	{ name: "remove_bucket", type: "bool", default: "false", help: "Remove the bucket name from the path when a custom host is set" },
-	{ name: "add_filename_to_disposition", type: "bool", default: "false", help: "Add the filename to the Content-Disposition header" },
+	{
+		name: "remove_bucket",
+		type: "bool",
+		default: "false",
+		help: "Remove the bucket name from the path when a custom host is set",
+	},
+	{
+		name: "add_filename_to_disposition",
+		type: "bool",
+		default: "false",
+		help: "Add the filename to the Content-Disposition header",
+	},
 	{ name: "enable_direct_upload", type: "bool", default: "false" },
 	{ name: "direct_upload_host", type: "string", default: "" },
 ];
 
 const WEBDAV_ITEMS: DriverItem[] = [
-	{ name: "url", type: "string", default: "", required: true, help: "WebDAV address; `address` is accepted as an alias" },
+	{
+		name: "url",
+		type: "string",
+		default: "",
+		required: true,
+		help: "WebDAV address; `address` is accepted as an alias",
+	},
 	{ name: "username", type: "string", default: "" },
 	{ name: "password", type: "string", default: "" },
 	{ name: "root_folder_path", type: "string", default: "/" },
 ];
 
 const OPENLIST_ITEMS: DriverItem[] = [
-	{ name: "base_url", type: "string", default: "", required: true, help: "Upstream OpenList address; `url` is accepted as an alias" },
+	{
+		name: "base_url",
+		type: "string",
+		default: "",
+		required: true,
+		help: "Upstream OpenList address; `url` is accepted as an alias",
+	},
 	{ name: "token", type: "string", default: "" },
 	{ name: "username", type: "string", default: "" },
 	{ name: "password", type: "string", default: "" },

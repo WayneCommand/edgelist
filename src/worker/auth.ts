@@ -25,13 +25,10 @@ async function sha256(value: string): Promise<string> {
 }
 
 async function sign(payload: string, secret: string): Promise<string> {
-	const key = await crypto.subtle.importKey(
-		"raw",
-		encoder.encode(secret),
-		{ name: "HMAC", hash: "SHA-256" },
-		false,
-		["sign", "verify"],
-	);
+	const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, [
+		"sign",
+		"verify",
+	]);
 	return base64url(await crypto.subtle.sign("HMAC", key, encoder.encode(payload)));
 }
 
@@ -66,7 +63,10 @@ export async function login(c: Context<{ Bindings: Env & EdgeListBindings }>, ha
 	const config = await getAuthConfig(c.env.EDGE_CONFIG);
 	if (!config) return failure("Authentication is not configured", 500);
 	const expectedSecret = hashed ? await sha256(config.secretKey) : config.secretKey;
-	if (!(await constantTimeEqual(accessKey, config.accessKey)) || !(await constantTimeEqual(suppliedSecret, expectedSecret))) {
+	if (
+		!(await constantTimeEqual(accessKey, config.accessKey)) ||
+		!(await constantTimeEqual(suppliedSecret, expectedSecret))
+	) {
 		return failure("Invalid username or password", 401);
 	}
 	const now = Math.floor(Date.now() / 1000);

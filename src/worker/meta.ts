@@ -48,24 +48,45 @@ export async function getNearestMeta(kv: KVNamespace, path: string): Promise<Met
 
 export function canRead(user: { id?: number } | null, meta: MetaConfig | null, path: string): boolean {
 	if (!user || !meta) return true;
-	if (meta.read_users && meta.read_users.length > 0 && user.id !== undefined && !meta.read_users.includes(user.id) && metaCoversPath(meta.path, path, meta.read_users_sub ?? false)) {
+	if (
+		meta.read_users &&
+		meta.read_users.length > 0 &&
+		user.id !== undefined &&
+		!meta.read_users.includes(user.id) &&
+		metaCoversPath(meta.path, path, meta.read_users_sub ?? false)
+	) {
 		return false;
 	}
 	return true;
 }
 
-export function canWrite(user: { id?: number; permission?: number } | null, meta: MetaConfig | null, path: string): boolean {
+export function canWrite(
+	user: { id?: number; permission?: number } | null,
+	meta: MetaConfig | null,
+	path: string,
+): boolean {
 	if (!user || !meta) return true;
 	if (meta.write === false && metaCoversPath(meta.path, path, meta.w_sub ?? false)) {
 		return false;
 	}
-	if (meta.write_users && meta.write_users.length > 0 && user.id !== undefined && !meta.write_users.includes(user.id) && metaCoversPath(meta.path, path, meta.write_users_sub ?? false)) {
+	if (
+		meta.write_users &&
+		meta.write_users.length > 0 &&
+		user.id !== undefined &&
+		!meta.write_users.includes(user.id) &&
+		metaCoversPath(meta.path, path, meta.write_users_sub ?? false)
+	) {
 		return false;
 	}
 	return true;
 }
 
-export function canAccess(user: { id?: number; permission?: number } | null, meta: MetaConfig | null, reqPath: string, password?: string): boolean {
+export function canAccess(
+	user: { id?: number; permission?: number } | null,
+	meta: MetaConfig | null,
+	reqPath: string,
+	password?: string,
+): boolean {
 	if (!user || !meta) return true;
 	if (meta.hide && meta.h_sub && metaCoversPath(meta.path, pathDir(reqPath), true)) {
 		const patterns = meta.hide.split("\n").filter(Boolean);
@@ -73,7 +94,9 @@ export function canAccess(user: { id?: number; permission?: number } | null, met
 		for (const pattern of patterns) {
 			try {
 				if (new RegExp(pattern).test(fileName)) return false;
-			} catch { /* invalid regex pattern, skip */ }
+			} catch {
+				/* invalid regex pattern, skip */
+			}
 		}
 	}
 	if (!canRead(user, meta, reqPath)) return false;

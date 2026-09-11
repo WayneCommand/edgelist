@@ -78,7 +78,14 @@ describe("backup restore migration", () => {
 
 	it("keeps fields OpenList defines but EdgeList does not implement", async () => {
 		const store = await restore([
-			legacyStorage({ cache_expiration: 30, custom_cache_policies: "*.iso", web_proxy: true, down_proxy_url: "https://proxy.example", disable_index: true, enable_sign: true }),
+			legacyStorage({
+				cache_expiration: 30,
+				custom_cache_policies: "*.iso",
+				web_proxy: true,
+				down_proxy_url: "https://proxy.example",
+				disable_index: true,
+				enable_sign: true,
+			}),
 		]);
 		const [restored] = store.get(STORAGES_KEY) as StorageConfig[];
 		expect(restored).toMatchObject({
@@ -92,8 +99,17 @@ describe("backup restore migration", () => {
 	});
 
 	it("keeps native OpenList values untouched", async () => {
-		const store = await restore([legacyStorage({ extract_folder: "back", webdav_policy: "use_proxy_url", order_by: "size", order_direction: "desc" })]);
-		expect(store.get(STORAGES_KEY)).toMatchObject([{ extract_folder: "back", webdav_policy: "use_proxy_url", order_by: "size", order_direction: "desc" }]);
+		const store = await restore([
+			legacyStorage({
+				extract_folder: "back",
+				webdav_policy: "use_proxy_url",
+				order_by: "size",
+				order_direction: "desc",
+			}),
+		]);
+		expect(store.get(STORAGES_KEY)).toMatchObject([
+			{ extract_folder: "back", webdav_policy: "use_proxy_url", order_by: "size", order_direction: "desc" },
+		]);
 	});
 
 	it("assigns ids and leaves unrelated storages in place when overriding", async () => {
@@ -108,15 +124,28 @@ describe("backup restore migration", () => {
 
 describe("backup export", () => {
 	it("emits OpenList spellings and no longer leaks folder_order", async () => {
-		const data = await exported([legacyStorage({ id: 1, extract_folder: "front", webdav_policy: "302_redirect", order_by: "name" })]);
-		expect(data.storages[0]).toMatchObject({ extract_folder: "front", webdav_policy: "302_redirect", order_by: "name" });
+		const data = await exported([
+			legacyStorage({ id: 1, extract_folder: "front", webdav_policy: "302_redirect", order_by: "name" }),
+		]);
+		expect(data.storages[0]).toMatchObject({
+			extract_folder: "front",
+			webdav_policy: "302_redirect",
+			order_by: "name",
+		});
 		expect(data.storages[0].folder_order).toBeUndefined();
 	});
 
 	it("round trips a legacy backup into an OpenList-readable export", async () => {
-		const store = await restore([legacyStorage({ folder_order: "before", webdav_policy: "302", order_by: "created", cache_expiration: 30 })]);
+		const store = await restore([
+			legacyStorage({ folder_order: "before", webdav_policy: "302", order_by: "created", cache_expiration: 30 }),
+		]);
 		const { kv } = fakeKv({ [STORAGES_KEY]: store.get(STORAGES_KEY) as StorageConfig[] });
 		const data = await exported(await listStorageConfigs(kv));
-		expect(data.storages[0]).toMatchObject({ extract_folder: "front", webdav_policy: "302_redirect", order_by: "name", cache_expiration: 30 });
+		expect(data.storages[0]).toMatchObject({
+			extract_folder: "front",
+			webdav_policy: "302_redirect",
+			order_by: "name",
+			cache_expiration: 30,
+		});
 	});
 });

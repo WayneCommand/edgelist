@@ -17,7 +17,15 @@ describe("storage paths", () => {
 
 describe("object mask", () => {
 	it("matches the OpenList bit positions", () => {
-		expect([ObjMask.Virtual, ObjMask.NoRename, ObjMask.NoRemove, ObjMask.NoMove, ObjMask.NoCopy, ObjMask.NoWrite, ObjMask.Temp]).toEqual([1, 2, 4, 8, 16, 32, 64]);
+		expect([
+			ObjMask.Virtual,
+			ObjMask.NoRename,
+			ObjMask.NoRemove,
+			ObjMask.NoMove,
+			ObjMask.NoCopy,
+			ObjMask.NoWrite,
+			ObjMask.Temp,
+		]).toEqual([1, 2, 4, 8, 16, 32, 64]);
 	});
 
 	it("composes Locked and ReadOnly the way OpenList does", () => {
@@ -33,8 +41,23 @@ describe("storage configuration", () => {
 		expect(isStorageConfig({ mount_path: "/files", driver: "object" })).toBe(true);
 		expect(isStorageConfig({ mount_path: "/files", driver: "S3" })).toBe(true);
 		expect(isStorageConfig({ mount_path: "/files", driver: "s3" })).toBe(true);
-		expect(normalizeStorageConfig({ mount_path: "/files", driver: "WebDav", addition: '{"address":"https://dav.example"}' } as never)).toMatchObject({ driver: "webdav", addition: '{"address":"https://dav.example","url":"https://dav.example"}' });
-		expect(normalizeStorageConfig({ mount_path: "/files", driver: "OpenList", addition: '{"url":"https://list.example"}' } as never)).toMatchObject({ driver: "openlist", addition: '{"url":"https://list.example","base_url":"https://list.example"}' });
+		expect(
+			normalizeStorageConfig({
+				mount_path: "/files",
+				driver: "WebDav",
+				addition: '{"address":"https://dav.example"}',
+			} as never),
+		).toMatchObject({ driver: "webdav", addition: '{"address":"https://dav.example","url":"https://dav.example"}' });
+		expect(
+			normalizeStorageConfig({
+				mount_path: "/files",
+				driver: "OpenList",
+				addition: '{"url":"https://list.example"}',
+			} as never),
+		).toMatchObject({
+			driver: "openlist",
+			addition: '{"url":"https://list.example","base_url":"https://list.example"}',
+		});
 		expect(isStorageConfig({ mount_path: "/files", driver: "minio" })).toBe(false);
 		expect(isStorageConfig({ driver: "webdav" })).toBe(false);
 	});

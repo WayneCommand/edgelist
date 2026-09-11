@@ -6,17 +6,262 @@ import { StorageField } from "./StorageField";
 import { StorageToggle } from "./StorageToggle";
 import { WebdavFields } from "./WebdavFields";
 
-export function StorageEditor({ editing, setEditing, onSave, onClose, error }: { editing: Storage; setEditing: (storage: Storage) => void; onSave: (event: FormEvent<HTMLFormElement>) => void; onClose: () => void; error: string }) {
+export function StorageEditor({
+	editing,
+	setEditing,
+	onSave,
+	onClose,
+	error,
+}: {
+	editing: Storage;
+	setEditing: (storage: Storage) => void;
+	onSave: (event: FormEvent<HTMLFormElement>) => void;
+	onClose: () => void;
+	error: string;
+}) {
 	const s3 = editing.driver === "object" || String(editing.driver).toLowerCase() === "s3";
 	const addition = readS3Form(editing.addition);
-	function update(field: string, value: string | number | boolean) { setEditing({ ...editing, addition: JSON.stringify({ ...readS3Form(editing.addition), [field]: value }) }); }
-	function input(field: string, fallback = "") { return String(addition[field] ?? fallback); }
-	function numberInput(field: string, fallback = 0) { return Number(addition[field] ?? fallback); }
-	return <Modal wide title={editing.id ? "Edit storage" : "Add storage"} onClose={onClose}><form className="max-h-[78vh] space-y-6 overflow-y-auto pr-1" onSubmit={onSave}>
-		<section><h3 className="mb-3 text-base font-semibold">通用配置</h3><div className="grid gap-3 sm:grid-cols-2"><StorageField label="驱动" required><select value={editing.driver} onChange={(event) => setEditing({ ...editing, driver: event.target.value as Storage["driver"] })} className="w-full rounded-lg border border-slate-200 px-3 py-2"><option value="object">对象存储</option><option value="openlist">OpenList</option><option value="webdav">WebDAV</option></select></StorageField><StorageField label="挂载路径" required><input required value={editing.mount_path} onChange={(event) => setEditing({ ...editing, mount_path: event.target.value })} placeholder="/ibm" className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="序号"><input type="number" value={editing.order ?? 0} onChange={(event) => setEditing({ ...editing, order: Number(event.target.value) })} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="备注"><input value={editing.remark} onChange={(event) => setEditing({ ...editing, remark: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField></div></section>
-		<section><h3 className="mb-3 text-base font-semibold">排序</h3><div className="grid gap-3 sm:grid-cols-2"><StorageField label="排序依据"><select value={String(editing.order_by ?? "name")} onChange={(event) => setEditing({ ...editing, order_by: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2"><option value="name">名称</option><option value="size">大小</option><option value="modified">修改时间</option></select></StorageField><StorageField label="排序方式"><select value={String(editing.order_direction ?? "asc")} onChange={(event) => setEditing({ ...editing, order_direction: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2"><option value="asc">升序</option><option value="desc">降序</option></select></StorageField><StorageField label="文件夹顺序"><select value={String(editing.extract_folder ?? "front")} onChange={(event) => setEditing({ ...editing, extract_folder: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2"><option value="front">文件夹在前</option><option value="back">文件夹在后</option></select></StorageField></div></section>
-		{ s3 ? <section><h3 className="mb-3 text-base font-semibold">S3 对象存储凭证</h3><div className="grid gap-3 sm:grid-cols-2"><StorageField label="根文件夹路径" required><input required value={input("root_folder_path", "/")} onChange={(event) => update("root_folder_path", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="存储桶" required><input required value={input("bucket")} onChange={(event) => update("bucket", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="端点" required><input required value={input("endpoint")} onChange={(event) => update("endpoint", event.target.value)} placeholder="https://s3.example.com" className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="地区"><input value={input("region")} onChange={(event) => update("region", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="访问密钥 ID" required><input required value={input("access_key_id")} onChange={(event) => update("access_key_id", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="访问密钥" required><input required type="password" value={input("secret_access_key")} onChange={(event) => update("secret_access_key", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="会话令牌"><input value={input("session_token")} onChange={(event) => update("session_token", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField></div></section> : editing.driver === "webdav" ? <WebdavFields addition={addition} update={update} input={input} /> : <section><h3 className="mb-3 text-base font-semibold">驱动配置</h3><textarea required value={editing.addition} onChange={(event) => setEditing({ ...editing, addition: event.target.value })} rows={7} placeholder="Driver JSON configuration" className="w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs" /></section> }
-		{ s3 && <section><h3 className="mb-3 text-base font-semibold">高级选项</h3><div className="grid gap-3 sm:grid-cols-2"><StorageField label="自定义主机"><input value={input("custom_host")} onChange={(event) => update("custom_host", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="签名链接有效期"><input type="number" min="1" value={numberInput("sign_url_expire", 4)} onChange={(event) => update("sign_url_expire", Number(event.target.value))} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="占位文件名"><input value={input("placeholder")} onChange={(event) => update("placeholder", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="列出对象版本"><select value={input("list_object_version", "v2")} onChange={(event) => update("list_object_version", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2"><option value="v1">V1</option><option value="v2">V2</option></select></StorageField><StorageToggle label="启用自定义主机预签名" checked={Boolean(addition.enable_custom_host_presign)} onChange={(value) => update("enable_custom_host_presign", value)} /><StorageToggle label="强制路径样式" checked={Boolean(addition.force_path_style)} onChange={(value) => update("force_path_style", value)} /><StorageToggle disabled label="移除存储桶" checked={Boolean(addition.remove_bucket)} onChange={(value) => update("remove_bucket", value)} /><StorageToggle label="添加 Filename 到 Disposition" checked={Boolean(addition.add_filename_to_disposition)} onChange={(value) => update("add_filename_to_disposition", value)} /><StorageToggle label="启用前端直传" checked={Boolean(addition.enable_direct_upload)} onChange={(value) => update("enable_direct_upload", value)} /><StorageField label="直传主机"><input value={input("direct_upload_host")} onChange={(event) => update("direct_upload_host", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField></div></section>}
-		{error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}<button className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white">保存存储</button>
-	</form></Modal>;
+	function update(field: string, value: string | number | boolean) {
+		setEditing({ ...editing, addition: JSON.stringify({ ...readS3Form(editing.addition), [field]: value }) });
+	}
+	function input(field: string, fallback = "") {
+		return String(addition[field] ?? fallback);
+	}
+	function numberInput(field: string, fallback = 0) {
+		return Number(addition[field] ?? fallback);
+	}
+	return (
+		<Modal wide title={editing.id ? "Edit storage" : "Add storage"} onClose={onClose}>
+			<form className="max-h-[78vh] space-y-6 overflow-y-auto pr-1" onSubmit={onSave}>
+				<section>
+					<h3 className="mb-3 text-base font-semibold">通用配置</h3>
+					<div className="grid gap-3 sm:grid-cols-2">
+						<StorageField label="驱动" required>
+							<select
+								value={editing.driver}
+								onChange={(event) => setEditing({ ...editing, driver: event.target.value as Storage["driver"] })}
+								className="w-full rounded-lg border border-slate-200 px-3 py-2"
+							>
+								<option value="object">对象存储</option>
+								<option value="openlist">OpenList</option>
+								<option value="webdav">WebDAV</option>
+							</select>
+						</StorageField>
+						<StorageField label="挂载路径" required>
+							<input
+								required
+								value={editing.mount_path}
+								onChange={(event) => setEditing({ ...editing, mount_path: event.target.value })}
+								placeholder="/ibm"
+								className="w-full rounded-lg border border-slate-200 px-3 py-2"
+							/>
+						</StorageField>
+						<StorageField label="序号">
+							<input
+								type="number"
+								value={editing.order ?? 0}
+								onChange={(event) => setEditing({ ...editing, order: Number(event.target.value) })}
+								className="w-full rounded-lg border border-slate-200 px-3 py-2"
+							/>
+						</StorageField>
+						<StorageField label="备注">
+							<input
+								value={editing.remark}
+								onChange={(event) => setEditing({ ...editing, remark: event.target.value })}
+								className="w-full rounded-lg border border-slate-200 px-3 py-2"
+							/>
+						</StorageField>
+					</div>
+				</section>
+				<section>
+					<h3 className="mb-3 text-base font-semibold">排序</h3>
+					<div className="grid gap-3 sm:grid-cols-2">
+						<StorageField label="排序依据">
+							<select
+								value={String(editing.order_by ?? "name")}
+								onChange={(event) => setEditing({ ...editing, order_by: event.target.value })}
+								className="w-full rounded-lg border border-slate-200 px-3 py-2"
+							>
+								<option value="name">名称</option>
+								<option value="size">大小</option>
+								<option value="modified">修改时间</option>
+							</select>
+						</StorageField>
+						<StorageField label="排序方式">
+							<select
+								value={String(editing.order_direction ?? "asc")}
+								onChange={(event) => setEditing({ ...editing, order_direction: event.target.value })}
+								className="w-full rounded-lg border border-slate-200 px-3 py-2"
+							>
+								<option value="asc">升序</option>
+								<option value="desc">降序</option>
+							</select>
+						</StorageField>
+						<StorageField label="文件夹顺序">
+							<select
+								value={String(editing.extract_folder ?? "front")}
+								onChange={(event) => setEditing({ ...editing, extract_folder: event.target.value })}
+								className="w-full rounded-lg border border-slate-200 px-3 py-2"
+							>
+								<option value="front">文件夹在前</option>
+								<option value="back">文件夹在后</option>
+							</select>
+						</StorageField>
+					</div>
+				</section>
+				{s3 ? (
+					<section>
+						<h3 className="mb-3 text-base font-semibold">S3 对象存储凭证</h3>
+						<div className="grid gap-3 sm:grid-cols-2">
+							<StorageField label="根文件夹路径" required>
+								<input
+									required
+									value={input("root_folder_path", "/")}
+									onChange={(event) => update("root_folder_path", event.target.value)}
+									className="w-full rounded-lg border border-slate-200 px-3 py-2"
+								/>
+							</StorageField>
+							<StorageField label="存储桶" required>
+								<input
+									required
+									value={input("bucket")}
+									onChange={(event) => update("bucket", event.target.value)}
+									className="w-full rounded-lg border border-slate-200 px-3 py-2"
+								/>
+							</StorageField>
+							<StorageField label="端点" required>
+								<input
+									required
+									value={input("endpoint")}
+									onChange={(event) => update("endpoint", event.target.value)}
+									placeholder="https://s3.example.com"
+									className="w-full rounded-lg border border-slate-200 px-3 py-2"
+								/>
+							</StorageField>
+							<StorageField label="地区">
+								<input
+									value={input("region")}
+									onChange={(event) => update("region", event.target.value)}
+									className="w-full rounded-lg border border-slate-200 px-3 py-2"
+								/>
+							</StorageField>
+							<StorageField label="访问密钥 ID" required>
+								<input
+									required
+									value={input("access_key_id")}
+									onChange={(event) => update("access_key_id", event.target.value)}
+									className="w-full rounded-lg border border-slate-200 px-3 py-2"
+								/>
+							</StorageField>
+							<StorageField label="访问密钥" required>
+								<input
+									required
+									type="password"
+									value={input("secret_access_key")}
+									onChange={(event) => update("secret_access_key", event.target.value)}
+									className="w-full rounded-lg border border-slate-200 px-3 py-2"
+								/>
+							</StorageField>
+							<StorageField label="会话令牌">
+								<input
+									value={input("session_token")}
+									onChange={(event) => update("session_token", event.target.value)}
+									className="w-full rounded-lg border border-slate-200 px-3 py-2"
+								/>
+							</StorageField>
+						</div>
+					</section>
+				) : editing.driver === "webdav" ? (
+					<WebdavFields addition={addition} update={update} input={input} />
+				) : (
+					<section>
+						<h3 className="mb-3 text-base font-semibold">驱动配置</h3>
+						<textarea
+							required
+							value={editing.addition}
+							onChange={(event) => setEditing({ ...editing, addition: event.target.value })}
+							rows={7}
+							placeholder="Driver JSON configuration"
+							className="w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs"
+						/>
+					</section>
+				)}
+				{s3 && (
+					<section>
+						<h3 className="mb-3 text-base font-semibold">高级选项</h3>
+						<div className="grid gap-3 sm:grid-cols-2">
+							<StorageField label="自定义主机">
+								<input
+									value={input("custom_host")}
+									onChange={(event) => update("custom_host", event.target.value)}
+									className="w-full rounded-lg border border-slate-200 px-3 py-2"
+								/>
+							</StorageField>
+							<StorageField label="签名链接有效期">
+								<input
+									type="number"
+									min="1"
+									value={numberInput("sign_url_expire", 4)}
+									onChange={(event) => update("sign_url_expire", Number(event.target.value))}
+									className="w-full rounded-lg border border-slate-200 px-3 py-2"
+								/>
+							</StorageField>
+							<StorageField label="占位文件名">
+								<input
+									value={input("placeholder")}
+									onChange={(event) => update("placeholder", event.target.value)}
+									className="w-full rounded-lg border border-slate-200 px-3 py-2"
+								/>
+							</StorageField>
+							<StorageField label="列出对象版本">
+								<select
+									value={input("list_object_version", "v2")}
+									onChange={(event) => update("list_object_version", event.target.value)}
+									className="w-full rounded-lg border border-slate-200 px-3 py-2"
+								>
+									<option value="v1">V1</option>
+									<option value="v2">V2</option>
+								</select>
+							</StorageField>
+							<StorageToggle
+								label="启用自定义主机预签名"
+								checked={Boolean(addition.enable_custom_host_presign)}
+								onChange={(value) => update("enable_custom_host_presign", value)}
+							/>
+							<StorageToggle
+								label="强制路径样式"
+								checked={Boolean(addition.force_path_style)}
+								onChange={(value) => update("force_path_style", value)}
+							/>
+							<StorageToggle
+								disabled
+								label="移除存储桶"
+								checked={Boolean(addition.remove_bucket)}
+								onChange={(value) => update("remove_bucket", value)}
+							/>
+							<StorageToggle
+								label="添加 Filename 到 Disposition"
+								checked={Boolean(addition.add_filename_to_disposition)}
+								onChange={(value) => update("add_filename_to_disposition", value)}
+							/>
+							<StorageToggle
+								label="启用前端直传"
+								checked={Boolean(addition.enable_direct_upload)}
+								onChange={(value) => update("enable_direct_upload", value)}
+							/>
+							<StorageField label="直传主机">
+								<input
+									value={input("direct_upload_host")}
+									onChange={(event) => update("direct_upload_host", event.target.value)}
+									className="w-full rounded-lg border border-slate-200 px-3 py-2"
+								/>
+							</StorageField>
+						</div>
+					</section>
+				)}
+				{error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+				<button className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white">保存存储</button>
+			</form>
+		</Modal>
+	);
 }

@@ -2,7 +2,13 @@ import type { Context } from "hono";
 import type { EdgeListBindings } from "./env";
 import { planTransfers, type TransferInput, type TransferKind, type TransferPlannerDependencies } from "./fs-transfer";
 import { canAccess, canWrite, getNearestMeta } from "./meta";
-import { getStorageConfig, isVirtualMount, listVirtualMounts, mergeFileObjects, paginateFileObjects } from "./storage/config";
+import {
+	getStorageConfig,
+	isVirtualMount,
+	listVirtualMounts,
+	mergeFileObjects,
+	paginateFileObjects,
+} from "./storage/config";
 import { resolveStorage } from "./storage/factory";
 import { normalizePath, ObjMask, type FileObject, type StorageConfig } from "./storage/types";
 import { applySort, resolveSort } from "./sort";
@@ -10,12 +16,18 @@ import { failure, respond } from "./response";
 
 type FsContext = Context<{ Bindings: Env & EdgeListBindings; Variables: { auth: Record<string, unknown> } }>;
 
-async function checkWriteMask(c: FsContext, path: string, maskBit: number, errorMessage: string, checkParent = false): Promise<Response | null> {
+async function checkWriteMask(
+	c: FsContext,
+	path: string,
+	maskBit: number,
+	errorMessage: string,
+	checkParent = false,
+): Promise<Response | null> {
 	const targetPath = checkParent ? normalizePath(path.split("/").slice(0, -1).join("/") || "/") : path;
 	const resolved = await resolveStorage(c.env, targetPath);
 	try {
 		const file = await resolved.adapter.get(resolved.path);
-		if (file.mask && (file.mask & maskBit)) {
+		if (file.mask && file.mask & maskBit) {
 			return failure(errorMessage, 403);
 		}
 	} catch {
@@ -68,7 +80,16 @@ async function body<T>(c: FsContext): Promise<T> {
 
 export async function fsList(c: FsContext) {
 	try {
-		const input = await body<{ path?: string; page?: number; per_page?: number; refresh?: boolean; order_by?: string; order_direction?: string; extract_folder?: string; password?: string }>(c);
+		const input = await body<{
+			path?: string;
+			page?: number;
+			per_page?: number;
+			refresh?: boolean;
+			order_by?: string;
+			order_direction?: string;
+			extract_folder?: string;
+			password?: string;
+		}>(c);
 		const requestedPath = normalizePath(input.path ?? "/");
 		const auth = c.get("auth") as Record<string, unknown> | undefined;
 		const user = auth ? { id: 0, permission: 3 } : null;
@@ -82,19 +103,28 @@ export async function fsList(c: FsContext) {
 		try {
 			const resolved = await resolveStorage(c.env, input.path ?? "/");
 			storage = resolved.config;
-			const result = await resolved.adapter.list(resolved.path, { page: 1, per_page: 0, refresh: input.refresh ?? false });
+			const result = await resolved.adapter.list(resolved.path, {
+				page: 1,
+				per_page: 0,
+				refresh: input.refresh ?? false,
+			});
 			physicalItems = result.content.map((item) => ({ ...item, path: publicFilePath(requestedPath, item.name) }));
 		} catch (error) {
 			if (!virtualMounts.length) throw error;
 		}
 		let allItems = mergeFileObjects(physicalItems, virtualMounts);
 		if (meta?.hide && meta.h_sub) {
-			const patterns = meta.hide.split("\n").filter(Boolean).map((p) => new RegExp(p));
+			const patterns = meta.hide
+				.split("\n")
+				.filter(Boolean)
+				.map((p) => new RegExp(p));
 			allItems = allItems.filter((item) => !patterns.some((re) => re.test(item.name)));
 		}
 		const sorted = applySort(allItems, resolveSort(input, storage));
 		return respond(c, paginateFileObjects(sorted, input.page ?? 1, input.per_page ?? 0));
-	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to list path", 400); }
+	} catch (error) {
+		return failure(error instanceof Error ? error.message : "Unable to list path", 400);
+	}
 }
 
 export async function fsGet(c: FsContext) {
@@ -110,13 +140,25 @@ export async function fsGet(c: FsContext) {
 		if (await isVirtualMount(c.env.EDGE_CONFIG, requestedPath)) {
 			const segments = requestedPath.split("/").filter(Boolean);
 			const name = segments.pop() ?? "/";
-			const virtual = (await listVirtualMounts(c.env.EDGE_CONFIG, normalizePath(`/${segments.join("/")}`))).find((item) => item.name === name);
-			const fallback: FileObject = { name, size: 0, is_dir: true, modified: new Date(0).toISOString(), created: new Date(0).toISOString(), path: requestedPath, mask: 0 };
+			const virtual = (await listVirtualMounts(c.env.EDGE_CONFIG, normalizePath(`/${segments.join("/")}`))).find(
+				(item) => item.name === name,
+			);
+			const fallback: FileObject = {
+				name,
+				size: 0,
+				is_dir: true,
+				modified: new Date(0).toISOString(),
+				created: new Date(0).toISOString(),
+				path: requestedPath,
+				mask: 0,
+			};
 			return respond(c, virtual ?? fallback);
 		}
 		const resolved = await resolveStorage(c.env, input.path ?? "/");
 		return respond(c, await resolved.adapter.get(resolved.path));
-	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to get path", 404); }
+	} catch (error) {
+		return failure(error instanceof Error ? error.message : "Unable to get path", 404);
+	}
 }
 
 export async function fsMkdir(c: FsContext) {
@@ -149,7 +191,9 @@ export async function fsMkdir(c: FsContext) {
 		const resolved = await resolveStorage(c.env, targetPath);
 		await resolved.adapter.mkdir(resolved.path);
 		return respond(c, null);
-	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to create directory", 400); }
+	} catch (error) {
+		return failure(error instanceof Error ? error.message : "Unable to create directory", 400);
+	}
 }
 
 export async function fsRename(c: FsContext) {
@@ -167,7 +211,9 @@ export async function fsRename(c: FsContext) {
 		const resolved = await resolveStorage(c.env, input.path);
 		await resolved.adapter.rename(resolved.path, input.name, input.overwrite ?? false);
 		return respond(c, null);
-	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to rename path", 400); }
+	} catch (error) {
+		return failure(error instanceof Error ? error.message : "Unable to rename path", 400);
+	}
 }
 
 export async function fsRemove(c: FsContext) {
@@ -190,7 +236,7 @@ export async function fsRemove(c: FsContext) {
 				const resolved = await resolveStorage(c.env, normalizePath(`${input.dir}/${name}`));
 				await resolved.adapter.remove(resolved.path);
 				return name;
-			})
+			}),
 		);
 		const removed: string[] = [];
 		const failed: Array<{ name: string; error: string }> = [];
@@ -204,7 +250,9 @@ export async function fsRemove(c: FsContext) {
 			}
 		}
 		return respond(c, { removed, failed });
-	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to remove path", 400); }
+	} catch (error) {
+		return failure(error instanceof Error ? error.message : "Unable to remove path", 400);
+	}
 }
 
 export async function fsPut(c: FsContext) {
@@ -223,7 +271,9 @@ export async function fsPut(c: FsContext) {
 		const resolved = await resolveStorage(c.env, targetPath);
 		await resolved.adapter.write(resolved.path, c.req.raw);
 		return respond(c, null);
-	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to upload file", 400); }
+	} catch (error) {
+		return failure(error instanceof Error ? error.message : "Unable to upload file", 400);
+	}
 }
 
 export async function fsFormUpload(c: FsContext) {
@@ -248,7 +298,9 @@ export async function fsFormUpload(c: FsContext) {
 		const request = new Request("https://dummy", { method: "PUT", headers, body: file.stream() });
 		await resolved.adapter.write(resolved.path, request);
 		return respond(c, null);
-	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to upload file", 400); }
+	} catch (error) {
+		return failure(error instanceof Error ? error.message : "Unable to upload file", 400);
+	}
 }
 
 export async function fileDownload(c: FsContext) {
@@ -264,16 +316,32 @@ export async function fileDownload(c: FsContext) {
 		const resolved = await resolveStorage(c.env, path);
 		const response = await resolved.adapter.read(resolved.path, c.req.header("Range"));
 		const fileName = path.split("/").pop() ?? "file";
-		const encodedFileName = encodeURIComponent(fileName).replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
+		const encodedFileName = encodeURIComponent(fileName).replace(
+			/[!'()*]/g,
+			(char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
+		);
 		const headers = new Headers(response.headers);
-		headers.set("Content-Disposition", `attachment; filename="${encodedFileName}"; filename*=UTF-8''${encodedFileName}`);
+		headers.set(
+			"Content-Disposition",
+			`attachment; filename="${encodedFileName}"; filename*=UTF-8''${encodedFileName}`,
+		);
 		return new Response(response.body, { status: response.status, headers });
-	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to download file", 404); }
+	} catch (error) {
+		return failure(error instanceof Error ? error.message : "Unable to download file", 404);
+	}
 }
 
 export async function fsSearch(c: FsContext) {
 	try {
-		const input = await body<{ parent?: string; keywords?: string; scope?: number; page?: number; per_page?: number; max_depth?: number; max_dirs?: number }>(c);
+		const input = await body<{
+			parent?: string;
+			keywords?: string;
+			scope?: number;
+			page?: number;
+			per_page?: number;
+			max_depth?: number;
+			max_dirs?: number;
+		}>(c);
 		const parent = normalizePath(input.parent ?? "/");
 		const keywords = (input.keywords ?? "").toLocaleLowerCase();
 		const scope = input.scope ?? 0;
@@ -290,13 +358,17 @@ export async function fsSearch(c: FsContext) {
 			const { path: current, depth } = pending.shift()!;
 			if (visited.has(current)) continue;
 			visited.add(current);
-			if (depth > maxDepth) { truncated = true; continue; }
+			if (depth > maxDepth) {
+				truncated = true;
+				continue;
+			}
 			const currentMeta = await getNearestMeta(c.env.EDGE_CONFIG, current);
 			if (!canAccess(user, currentMeta, current)) continue;
 			if (!(await getStorageConfig(c.env.EDGE_CONFIG, current))) {
 				const virtual = await listVirtualMounts(c.env.EDGE_CONFIG, current);
 				for (const item of virtual) {
-					if (item.name.toLocaleLowerCase().includes(keywords) && (scope === 0 || scope === 1)) found.push({ parent: current, name: item.name, is_dir: true, size: 0, path: item.path });
+					if (item.name.toLocaleLowerCase().includes(keywords) && (scope === 0 || scope === 1))
+						found.push({ parent: current, name: item.name, is_dir: true, size: 0, path: item.path });
 					pending.push({ path: item.path, depth: depth + 1 });
 				}
 				continue;
@@ -308,7 +380,8 @@ export async function fsSearch(c: FsContext) {
 				const itemPath = normalizePath(`${current}/${item.name}`);
 				const matchesName = item.name.toLocaleLowerCase().includes(keywords);
 				const matchesScope = scope === 0 || (scope === 1 && item.is_dir) || (scope === 2 && !item.is_dir);
-				if (matchesName && matchesScope) found.push({ parent: current, name: item.name, is_dir: item.is_dir, size: item.size, path: itemPath });
+				if (matchesName && matchesScope)
+					found.push({ parent: current, name: item.name, is_dir: item.is_dir, size: item.size, path: itemPath });
 				if (item.is_dir) pending.push({ path: itemPath, depth: depth + 1 });
 			}
 		}
@@ -316,7 +389,9 @@ export async function fsSearch(c: FsContext) {
 		const pageSize = Math.max(1, input.per_page ?? 100);
 		const start = Math.max(0, ((input.page ?? 1) - 1) * pageSize);
 		return respond(c, { content: found.slice(start, start + pageSize), total: found.length, truncated });
-	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to search files", 400); }
+	} catch (error) {
+		return failure(error instanceof Error ? error.message : "Unable to search files", 400);
+	}
 }
 
 interface DirTreeNode {
@@ -362,7 +437,9 @@ export async function fsDirs(c: FsContext) {
 		const depth = Math.min(Math.max(input.depth ?? 1), 10);
 		const tree = await buildDirTree(c, parentPath, 0, depth);
 		return respond(c, tree);
-	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to list directories", 400); }
+	} catch (error) {
+		return failure(error instanceof Error ? error.message : "Unable to list directories", 400);
+	}
 }
 
 export async function fsRemoveEmptyDirectory(c: FsContext) {
@@ -387,7 +464,11 @@ export async function fsRemoveEmptyDirectory(c: FsContext) {
 			if (await isVirtualMount(c.env.EDGE_CONFIG, childPath)) continue;
 			try {
 				const childResolved = await resolveStorage(c.env, childPath);
-				const childResult = await childResolved.adapter.list(childResolved.path, { page: 1, per_page: 1000, refresh: false });
+				const childResult = await childResolved.adapter.list(childResolved.path, {
+					page: 1,
+					per_page: 1000,
+					refresh: false,
+				});
 				if (childResult.content.length === 0) {
 					await childResolved.adapter.remove(childResolved.path);
 					removed.push(childPath);
@@ -395,7 +476,9 @@ export async function fsRemoveEmptyDirectory(c: FsContext) {
 			} catch {}
 		}
 		return respond(c, { removed });
-	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to remove empty directories", 400); }
+	} catch (error) {
+		return failure(error instanceof Error ? error.message : "Unable to remove empty directories", 400);
+	}
 }
 
 export async function fsLink(c: FsContext) {
@@ -415,7 +498,9 @@ export async function fsLink(c: FsContext) {
 		const file = await resolved.adapter.get(resolved.path);
 		if (file.is_dir) return failure("Cannot get link for a directory", 400);
 		return respond(c, { url: `/d${targetPath}` });
-	} catch (error) { return failure(error instanceof Error ? error.message : "Unable to get link", 400); }
+	} catch (error) {
+		return failure(error instanceof Error ? error.message : "Unable to get link", 400);
+	}
 }
 
 // TODO: Multipart upload is a non-functional skeleton.

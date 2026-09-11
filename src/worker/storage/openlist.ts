@@ -44,9 +44,14 @@ export class OpenListAdapter implements StorageAdapter {
 		if (this.headers.has("Authorization") || !this.username || !this.password) return;
 		if (!this.authPromise) {
 			this.authPromise = (async () => {
-				const response = await fetch(`${this.baseUrl}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: this.username, password: this.password }) });
-				const result = await response.json() as OpenListEnvelope<{ token: string }>;
-				if (!response.ok || result.code !== 200 || !result.data?.token) throw new Error(result.message || "OpenList login failed");
+				const response = await fetch(`${this.baseUrl}/api/auth/login`, {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ username: this.username, password: this.password }),
+				});
+				const result = (await response.json()) as OpenListEnvelope<{ token: string }>;
+				if (!response.ok || result.code !== 200 || !result.data?.token)
+					throw new Error(result.message || "OpenList login failed");
 				this.headers.set("Authorization", result.data.token);
 			})();
 		}
@@ -54,7 +59,10 @@ export class OpenListAdapter implements StorageAdapter {
 	}
 
 	private pathUrl(path: string) {
-		return `${this.baseUrl}${path.split("/").map((part) => part ? encodeURIComponent(part) : "").join("/")}`;
+		return `${this.baseUrl}${path
+			.split("/")
+			.map((part) => (part ? encodeURIComponent(part) : ""))
+			.join("/")}`;
 	}
 
 	private async json<T>(path: string, init: RequestInit): Promise<T> {
@@ -91,7 +99,8 @@ export class OpenListAdapter implements StorageAdapter {
 		await this.authenticate();
 		const headers = new Headers(request.headers);
 		headers.set("File-Path", encodeURIComponent(path));
-		if (!headers.has("Authorization") && this.headers.has("Authorization")) headers.set("Authorization", this.headers.get("Authorization")!);
+		if (!headers.has("Authorization") && this.headers.has("Authorization"))
+			headers.set("Authorization", this.headers.get("Authorization")!);
 		const response = await fetch(`${this.baseUrl}/api/fs/put`, { method: "PUT", headers, body: request.body });
 		if (!response.ok) throw new Error(`OpenList upload failed with ${response.status}`);
 	}
@@ -112,7 +121,12 @@ export class OpenListAdapter implements StorageAdapter {
 		await this.json<null>("/fs/rename", { method: "POST", body: JSON.stringify({ path, name, overwrite }) });
 	}
 
-	private async transfer(kind: "copy" | "move", source: string, destination: string, options: TransferOptions): Promise<void> {
+	private async transfer(
+		kind: "copy" | "move",
+		source: string,
+		destination: string,
+		options: TransferOptions,
+	): Promise<void> {
 		const sourceDirectory = source.slice(0, source.lastIndexOf("/")) || "/";
 		const destinationDirectory = destination.slice(0, destination.lastIndexOf("/")) || "/";
 		await this.json<unknown>(`/fs/${kind}`, {

@@ -2,14 +2,32 @@ import type { FileObject, ListOptions, StorageAdapter, StorageConfig, TransferOp
 import { normalizePath } from "./types";
 import { findDriver } from "./registry";
 
-interface WebdavAddition { url?: string; address?: string; username?: string; password?: string; root_folder_path?: string; skip_tls_verify?: boolean }
+interface WebdavAddition {
+	url?: string;
+	address?: string;
+	username?: string;
+	password?: string;
+	root_folder_path?: string;
+	skip_tls_verify?: boolean;
+}
 
-function xmlValue(xml: string, tag: string): string { return xml.match(new RegExp(`<[^>]*${tag}[^>]*>([^<]*)<`, "i"))?.[1] ?? ""; }
+function xmlValue(xml: string, tag: string): string {
+	return xml.match(new RegExp(`<[^>]*${tag}[^>]*>([^<]*)<`, "i"))?.[1] ?? "";
+}
 
 function toObject(path: string, size: string, modified: string, isDir: boolean): FileObject {
 	const clean = normalizePath(path);
 	const date = modified ? new Date(modified).toISOString() : new Date(0).toISOString();
-	return { name: clean.split("/").filter(Boolean).pop() ?? "/", size: Number(size) || 0, is_dir: isDir, modified: date, created: date, path: clean, mask: 0, provider: "webdav" };
+	return {
+		name: clean.split("/").filter(Boolean).pop() ?? "/",
+		size: Number(size) || 0,
+		is_dir: isDir,
+		modified: date,
+		created: date,
+		path: clean,
+		mask: 0,
+		provider: "webdav",
+	};
 }
 
 export class WebdavAdapter implements StorageAdapter {
@@ -27,13 +45,22 @@ export class WebdavAdapter implements StorageAdapter {
 		const configuredRoot = normalizePath(addition.root_folder_path ?? "/");
 		this.rootPath = `${this.endpoint.pathname.replace(/\/$/, "")}${configuredRoot === "/" ? "" : configuredRoot}`;
 		this.headers = new Headers();
-		if (addition.username || addition.password) this.headers.set("Authorization", `Basic ${btoa(`${addition.username ?? ""}:${addition.password ?? ""}`)}`);
+		if (addition.username || addition.password)
+			this.headers.set("Authorization", `Basic ${btoa(`${addition.username ?? ""}:${addition.password ?? ""}`)}`);
 	}
 
 	private url(path: string) {
 		const url = new URL(this.endpoint);
 		const relative = normalizePath(path);
-		url.pathname = `${this.rootPath}${relative === "/" ? "" : relative.split("/").map((part) => encodeURIComponent(part)).join("/")}` || "/";
+		url.pathname =
+			`${this.rootPath}${
+				relative === "/"
+					? ""
+					: relative
+							.split("/")
+							.map((part) => encodeURIComponent(part))
+							.join("/")
+			}` || "/";
 		return url;
 	}
 
@@ -59,7 +86,14 @@ export class WebdavAdapter implements StorageAdapter {
 			const item = match[1];
 			const itemPath = this.relativeHref(xmlValue(item, "href"));
 			if (!itemPath || itemPath === normalizePath(path)) continue;
-			content.push(toObject(itemPath, xmlValue(item, "getcontentlength"), xmlValue(item, "getlastmodified"), /collection/i.test(item)));
+			content.push(
+				toObject(
+					itemPath,
+					xmlValue(item, "getcontentlength"),
+					xmlValue(item, "getlastmodified"),
+					/collection/i.test(item),
+				),
+			);
 		}
 		const pageSize = options.per_page || content.length;
 		const start = Math.max(0, (options.page - 1) * pageSize);
@@ -73,10 +107,16 @@ export class WebdavAdapter implements StorageAdapter {
 		return toObject(path, xmlValue(xml, "getcontentlength"), xmlValue(xml, "getlastmodified"), /collection/i.test(xml));
 	}
 
-	read(path: string, range?: string) { return this.request(path, { headers: range ? { Range: range } : undefined }); }
+	read(path: string, range?: string) {
+		return this.request(path, { headers: range ? { Range: range } : undefined });
+	}
 
 	async write(path: string, request: Request) {
-		const response = await this.request(path, { method: "PUT", headers: { "content-type": request.headers.get("content-type") ?? "application/octet-stream" }, body: request.body });
+		const response = await this.request(path, {
+			method: "PUT",
+			headers: { "content-type": request.headers.get("content-type") ?? "application/octet-stream" },
+			body: request.body,
+		});
 		if (!response.ok) throw new Error(`WebDAV upload failed with ${response.status}`);
 	}
 
@@ -92,7 +132,10 @@ export class WebdavAdapter implements StorageAdapter {
 
 	async rename(path: string, name: string, overwrite: boolean) {
 		const target = normalizePath(`${path.slice(0, path.lastIndexOf("/") + 1)}${name}`);
-		const response = await this.request(path, { method: "MOVE", headers: { Destination: this.url(target).toString(), Overwrite: overwrite ? "T" : "F" } });
+		const response = await this.request(path, {
+			method: "MOVE",
+			headers: { Destination: this.url(target).toString(), Overwrite: overwrite ? "T" : "F" },
+		});
 		if (!response.ok) throw new Error(`WebDAV rename failed with ${response.status}`);
 	}
 

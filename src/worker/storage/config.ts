@@ -1,5 +1,13 @@
 import { CONFIG_KEYS, readConfig, type EdgeListBindings } from "../env";
-import { normalizePath, ObjMask, OBJ_LOCKED, OBJ_READ_ONLY, type FileObject, type StorageConfig, type StorageDriver } from "./types";
+import {
+	normalizePath,
+	ObjMask,
+	OBJ_LOCKED,
+	OBJ_READ_ONLY,
+	type FileObject,
+	type StorageConfig,
+	type StorageDriver,
+} from "./types";
 
 export async function listStorageConfigs(kv: KVNamespace): Promise<StorageConfig[]> {
 	const value = await readConfig(kv, CONFIG_KEYS.storages);
@@ -23,7 +31,10 @@ export async function listVirtualMounts(kv: KVNamespace, parentPath: string): Pr
 	const prefix = parent === "/" ? "/" : `${parent}/`;
 	const mounts = (await listStorageConfigs(kv))
 		.filter((storage) => !storage.disabled)
-		.sort((left, right) => left.order - right.order || normalizePath(left.mount_path).localeCompare(normalizePath(right.mount_path)));
+		.sort(
+			(left, right) =>
+				left.order - right.order || normalizePath(left.mount_path).localeCompare(normalizePath(right.mount_path)),
+		);
 	const children = new Map<string, FileObject>();
 	for (const storage of mounts) {
 		const mount = normalizePath(storage.mount_path);
@@ -60,7 +71,11 @@ export function mergeFileObjects(items: FileObject[], virtualMounts: FileObject[
 	return [...items, ...virtualMounts.filter((mount) => !seen.has(mount.name))];
 }
 
-export function paginateFileObjects(items: FileObject[], page: number, perPage: number): { content: FileObject[]; total: number } {
+export function paginateFileObjects(
+	items: FileObject[],
+	page: number,
+	perPage: number,
+): { content: FileObject[]; total: number } {
 	if (perPage <= 0) return { content: items, total: items.length };
 	const start = Math.max(0, (Math.max(1, page) - 1) * perPage);
 	return { content: items.slice(start, start + perPage), total: items.length };
@@ -88,7 +103,11 @@ export function selectStorage(configs: StorageConfig[], path: string): StorageCo
 		.sort((left, right) => {
 			const leftMount = normalizePath(left.mount_path);
 			const rightMount = normalizePath(right.mount_path);
-			return mountDepth(rightMount) - mountDepth(leftMount) || rightMount.length - leftMount.length || leftMount.localeCompare(rightMount);
+			return (
+				mountDepth(rightMount) - mountDepth(leftMount) ||
+				rightMount.length - leftMount.length ||
+				leftMount.localeCompare(rightMount)
+			);
 		})[0];
 }
 
@@ -105,7 +124,17 @@ export function isStorageConfig(value: unknown): value is StorageConfig {
 }
 
 export function isStorageDriver(value: unknown): value is StorageDriver {
-	return value === "openlist" || value === "OpenList" || value === "object" || value === "s3" || value === "S3" || value === "Doge" || value === "webdav" || value === "WebDav" || value === "WebDAV";
+	return (
+		value === "openlist" ||
+		value === "OpenList" ||
+		value === "object" ||
+		value === "s3" ||
+		value === "S3" ||
+		value === "Doge" ||
+		value === "webdav" ||
+		value === "WebDav" ||
+		value === "WebDAV"
+	);
 }
 
 // Storage fields that OpenList spells differently from early EdgeList builds.
@@ -116,7 +145,11 @@ export function isStorageDriver(value: unknown): value is StorageDriver {
 type SelectRule = { aliases?: Record<string, string>; allowed: readonly string[]; fallback: string };
 
 // Early EdgeList builds used `folder_order` with `before`/`after`.
-const EXTRACT_FOLDER: SelectRule = { aliases: { before: "front", after: "back" }, allowed: ["", "front", "back"], fallback: "front" };
+const EXTRACT_FOLDER: SelectRule = {
+	aliases: { before: "front", after: "back" },
+	allowed: ["", "front", "back"],
+	fallback: "front",
+};
 
 // `""` is OpenList's "leave the upstream order alone". `created` was an
 // EdgeList-only option that OpenList cannot express, so it folds to the default.
@@ -138,11 +171,12 @@ function selectValue(candidate: unknown, rule: SelectRule): string | undefined {
 export function normalizeStorageConfig(value: StorageConfig): StorageConfig {
 	const rawDriver = String(value.driver);
 	const normalizedDriver = rawDriver.toLowerCase();
-	const driver: StorageDriver = normalizedDriver === "s3" || normalizedDriver === "doge" || normalizedDriver === "object"
-		? "object"
-		: normalizedDriver === "webdav"
-			? "webdav"
-			: "openlist";
+	const driver: StorageDriver =
+		normalizedDriver === "s3" || normalizedDriver === "doge" || normalizedDriver === "object"
+			? "object"
+			: normalizedDriver === "webdav"
+				? "webdav"
+				: "openlist";
 	let addition = value.addition || "{}";
 	try {
 		const config = JSON.parse(addition) as Record<string, unknown>;
@@ -172,7 +206,8 @@ export function hasValidStorageAddition(config: Pick<StorageConfig, "driver" | "
 	} catch {
 		return false;
 	}
-	const required = (names: string[]) => names.every((name) => typeof addition[name] === "string" && addition[name].length > 0);
+	const required = (names: string[]) =>
+		names.every((name) => typeof addition[name] === "string" && addition[name].length > 0);
 	if (config.driver === "openlist") return required(["base_url"]) || required(["url"]);
 	if (config.driver === "object") return required(["endpoint", "bucket", "access_key_id", "secret_access_key"]);
 	if (config.driver === "webdav") return required(["url"]) || required(["address"]);

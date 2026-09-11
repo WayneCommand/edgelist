@@ -15,10 +15,7 @@ export const CONFIG_KEYS = {
 	settings: "config:settings",
 } as const;
 
-export async function readConfig(
-	kv: KVNamespace,
-	key: string,
-): Promise<unknown | null> {
+export async function readConfig(kv: KVNamespace, key: string): Promise<unknown | null> {
 	const value = await kv.get(key, "json");
 	return value ?? null;
 }

@@ -1,14 +1,6 @@
 export type StorageDriver = "openlist" | "object" | "webdav";
 
-export type StorageCapability =
-	| "read"
-	| "write"
-	| "mkdir"
-	| "remove"
-	| "rename"
-	| "copy"
-	| "move"
-	| "merge";
+export type StorageCapability = "read" | "write" | "mkdir" | "remove" | "rename" | "copy" | "move" | "merge";
 
 export interface StorageConfig {
 	id: number;

@@ -26,7 +26,38 @@ function Shell() {
 	const { signOut } = useAuth();
 	const route = routeFor(useLocation().pathname);
 	const navigate = useNavigate();
-	return <main className="min-h-screen bg-background text-foreground"><Toast.Provider placement="bottom end" /><header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-separator/80 bg-surface/95 px-6 backdrop-blur"><div className="flex items-center gap-3"><button className="flex items-center gap-3" onClick={() => navigate(ROUTES.files())}><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent font-bold text-accent-foreground">E</div><span className="font-semibold">EdgeList</span></button></div><nav className="hidden gap-1 sm:flex">{NAV_ITEMS.map(({ kind, label, path }) => <button key={kind} className={`rounded-lg px-3 py-2 text-sm ${route.kind === kind ? "bg-accent-soft font-medium text-accent-soft-foreground" : "text-muted hover:bg-surface-secondary"}`} onClick={() => navigate(path)}>{label}</button>)}</nav><HeroButton size="sm" variant="ghost" onPress={signOut}>Sign out</HeroButton></header><div className="mx-auto max-w-6xl p-6"><Outlet /></div></main>;
+	return (
+		<main className="min-h-screen bg-background text-foreground">
+			<Toast.Provider placement="bottom end" />
+			<header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-separator/80 bg-surface/95 px-6 backdrop-blur">
+				<div className="flex items-center gap-3">
+					<button className="flex items-center gap-3" onClick={() => navigate(ROUTES.files())}>
+						<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent font-bold text-accent-foreground">
+							E
+						</div>
+						<span className="font-semibold">EdgeList</span>
+					</button>
+				</div>
+				<nav className="hidden gap-1 sm:flex">
+					{NAV_ITEMS.map(({ kind, label, path }) => (
+						<button
+							key={kind}
+							className={`rounded-lg px-3 py-2 text-sm ${route.kind === kind ? "bg-accent-soft font-medium text-accent-soft-foreground" : "text-muted hover:bg-surface-secondary"}`}
+							onClick={() => navigate(path)}
+						>
+							{label}
+						</button>
+					))}
+				</nav>
+				<HeroButton size="sm" variant="ghost" onPress={signOut}>
+					Sign out
+				</HeroButton>
+			</header>
+			<div className="mx-auto max-w-6xl p-6">
+				<Outlet />
+			</div>
+		</main>
+	);
 }
 
 export default function App() {

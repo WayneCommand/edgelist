@@ -4,13 +4,20 @@ import { CONFIG_KEYS, readConfig } from "./env";
 import { failure, respond } from "./response";
 import type { MetaConfig } from "./meta";
 import { DRIVERS, findDriver, getDriverInfo } from "./storage/registry";
-import { hasValidStorageAddition, isStorageDriver, listStorageConfigs, normalizePath, normalizeStorageConfig, type StorageConfig } from "./storage";
+import {
+	hasValidStorageAddition,
+	isStorageDriver,
+	listStorageConfigs,
+	normalizePath,
+	normalizeStorageConfig,
+	type StorageConfig,
+} from "./storage";
 
 type AdminContext = Context<{ Bindings: Env & EdgeListBindings }>;
 
 async function readArray<T>(kv: KVNamespace, key: string): Promise<T[]> {
 	const value = await readConfig(kv, key);
-	return Array.isArray(value) ? value as T[] : [];
+	return Array.isArray(value) ? (value as T[]) : [];
 }
 
 async function saveArray(kv: KVNamespace, key: string, value: unknown[]) {
@@ -40,7 +47,7 @@ export async function storageGet(c: AdminContext) {
 
 export async function storageSave(c: AdminContext) {
 	try {
-	const input = await c.req.json<StorageConfig>();
+		const input = await c.req.json<StorageConfig>();
 		if (!input.mount_path || !input.driver) return failure("mount_path and driver are required", 400);
 		if (!isStorageDriver(input.driver)) return failure("Unsupported storage driver", 400);
 		const storages = await readArray<StorageConfig>(c.env.EDGE_CONFIG, CONFIG_KEYS.storages);
@@ -56,10 +63,13 @@ export async function storageSave(c: AdminContext) {
 			modified: new Date().toISOString(),
 			status: normalized.disabled ? "disabled" : normalized.status || "work",
 		};
-		if (index === -1) storages.push(item); else storages[index] = item;
+		if (index === -1) storages.push(item);
+		else storages[index] = item;
 		await saveArray(c.env.EDGE_CONFIG, CONFIG_KEYS.storages, storages);
 		return respond(c, null);
-	} catch (error) { return failure(error instanceof Error ? error.message : "Invalid storage", 400); }
+	} catch (error) {
+		return failure(error instanceof Error ? error.message : "Invalid storage", 400);
+	}
 }
 
 export async function storageCreate(c: AdminContext) {
@@ -73,7 +83,9 @@ export async function storageUpdate(c: AdminContext) {
 		const storages = await readArray<StorageConfig>(c.env.EDGE_CONFIG, CONFIG_KEYS.storages);
 		if (!storages.some((item) => item.id === input.id)) return failure("Storage not found", 404);
 		return storageSave(c);
-	} catch (error) { return failure(error instanceof Error ? error.message : "Invalid storage", 400); }
+	} catch (error) {
+		return failure(error instanceof Error ? error.message : "Invalid storage", 400);
+	}
 }
 
 async function changeStorageDisabled(c: AdminContext, disabled: boolean) {
@@ -88,7 +100,11 @@ async function changeStorageDisabled(c: AdminContext, disabled: boolean) {
 		modified: new Date().toISOString(),
 		status: disabled ? "disabled" : "work",
 	};
-	await saveArray(c.env.EDGE_CONFIG, CONFIG_KEYS.storages, storages.map((item) => item.id === id ? updated : item));
+	await saveArray(
+		c.env.EDGE_CONFIG,
+		CONFIG_KEYS.storages,
+		storages.map((item) => (item.id === id ? updated : item)),
+	);
 	return respond(c, null);
 }
 
@@ -108,14 +124,18 @@ export async function storageLoadAll(c: AdminContext) {
 export async function storageDelete(c: AdminContext) {
 	try {
 		const input = await c.req.json<{ id?: number; mount_path?: string }>();
-		if (!(typeof input.id === "number" && input.id > 0) && !input.mount_path) return failure("id or mount_path is required", 400);
+		if (!(typeof input.id === "number" && input.id > 0) && !input.mount_path)
+			return failure("id or mount_path is required", 400);
 		const storages = await readArray<StorageConfig>(c.env.EDGE_CONFIG, CONFIG_KEYS.storages);
-		const filtered = typeof input.id === "number" && input.id > 0
-			? removeByIdentity(storages, "id", input.id)
-			: removeByIdentity(storages, "mount_path", input.mount_path);
+		const filtered =
+			typeof input.id === "number" && input.id > 0
+				? removeByIdentity(storages, "id", input.id)
+				: removeByIdentity(storages, "mount_path", input.mount_path);
 		await saveArray(c.env.EDGE_CONFIG, CONFIG_KEYS.storages, filtered);
 		return respond(c, null);
-	} catch (error) { return failure(error instanceof Error ? error.message : "Invalid storage", 400); }
+	} catch (error) {
+		return failure(error instanceof Error ? error.message : "Invalid storage", 400);
+	}
 }
 
 export async function metaList(c: AdminContext) {
@@ -130,10 +150,13 @@ export async function metaSave(c: AdminContext) {
 		const metas = await readArray<MetaConfig>(c.env.EDGE_CONFIG, CONFIG_KEYS.metas);
 		const index = metas.findIndex((item) => item.id === input.id || item.path === input.path);
 		const item = { ...input, id: input.id || Math.max(0, ...metas.map((meta) => meta.id || 0)) + 1 };
-		if (index === -1) metas.push(item); else metas[index] = item;
+		if (index === -1) metas.push(item);
+		else metas[index] = item;
 		await saveArray(c.env.EDGE_CONFIG, CONFIG_KEYS.metas, metas);
 		return respond(c, null);
-	} catch (error) { return failure(error instanceof Error ? error.message : "Invalid metadata", 400); }
+	} catch (error) {
+		return failure(error instanceof Error ? error.message : "Invalid metadata", 400);
+	}
 }
 
 export async function metaDelete(c: AdminContext) {
@@ -141,16 +164,22 @@ export async function metaDelete(c: AdminContext) {
 		const input = await c.req.json<{ id?: number; path?: string }>();
 		if (!(typeof input.id === "number" && input.id > 0) && !input.path) return failure("id or path is required", 400);
 		const metas = await readArray<MetaConfig>(c.env.EDGE_CONFIG, CONFIG_KEYS.metas);
-		const filtered = typeof input.id === "number" && input.id > 0
-			? removeByIdentity(metas, "id", input.id)
-			: removeByIdentity(metas, "path", input.path);
+		const filtered =
+			typeof input.id === "number" && input.id > 0
+				? removeByIdentity(metas, "id", input.id)
+				: removeByIdentity(metas, "path", input.path);
 		await saveArray(c.env.EDGE_CONFIG, CONFIG_KEYS.metas, filtered);
 		return respond(c, null);
-	} catch (error) { return failure(error instanceof Error ? error.message : "Invalid metadata", 400); }
+	} catch (error) {
+		return failure(error instanceof Error ? error.message : "Invalid metadata", 400);
+	}
 }
 
 export function driverNames(c: AdminContext) {
-	return respond(c, DRIVERS.map((d) => d.name));
+	return respond(
+		c,
+		DRIVERS.map((d) => d.name),
+	);
 }
 
 export function driverList(c: AdminContext) {

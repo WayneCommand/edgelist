@@ -149,7 +149,10 @@ describe("getNearestMeta", () => {
 	});
 
 	it("should find exact match", async () => {
-		const metas = [{ id: 1, path: "/docs" }, { id: 2, path: "/docs/secret" }];
+		const metas = [
+			{ id: 1, path: "/docs" },
+			{ id: 2, path: "/docs/secret" },
+		];
 		const kv = { get: async () => metas } as unknown as KVNamespace;
 		const result = await getNearestMeta(kv, "/docs/secret");
 		expect(result?.id).toBe(2);
