@@ -1,0 +1,168 @@
+import { PAGE_SIZE_OPTIONS, parsePageSize, serializePageSize, type PageMode } from "../../lib/preferences";
+import { pageCount, pageNumbers, pageRange } from "../../lib/pagination";
+
+type PagerProps = {
+	mode: PageMode;
+	page: number;
+	pageSize: number;
+	/** How many entries the server says there are in total, not on this page. */
+	total: number;
+	/** A page change is in flight; the "load more" button reports this too. */
+	loading: boolean;
+	onPage: (page: number) => void;
+	onPageSize: (size: number) => void;
+	onMode: (mode: PageMode) => void;
+	onLoadMore: () => void;
+};
+
+/**
+ * The bar under a listing: how much is shown, how much to show at a time, and
+ * how to reach the rest. It renders nothing for an empty directory, because the
+ * "No files found" panel already says everything a pager could.
+ */
+export function Pager({ mode, page, pageSize, total, loading, onPage, onPageSize, onMode, onLoadMore }: PagerProps) {
+	if (total <= 0) return null;
+	const pages = pageCount(total, pageSize);
+	const { from, to } = pageRange(page, pageSize, total);
+	// With no page size there is only ever one page, and `to` is the total.
+	const counted =
+		mode === "load_more"
+			? `Showing ${to} of ${total}`
+			: pages > 1
+				? `${from}–${to} of ${total}`
+				: `${total} ${total === 1 ? "item" : "items"}`;
+	return (
+		<div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm">
+			<p className="text-muted">{counted}</p>
+			<div className="flex flex-wrap items-center gap-2">
+				<PageSizeSelect pageSize={pageSize} onChange={onPageSize} />
+				<ModeSwitch mode={mode} onChange={onMode} />
+				{mode === "load_more"
+					? to < total && (
+							<button
+								type="button"
+								disabled={loading}
+								onClick={onLoadMore}
+								className="rounded-lg border border-border px-3 py-1 text-xs transition-colors hover:bg-surface-secondary disabled:opacity-50"
+							>
+								{loading ? "Loading…" : "Show more"}
+							</button>
+						)
+					: pages > 1 && <PageButtons page={page} pages={pages} onPage={onPage} />}
+			</div>
+		</div>
+	);
+}
+
+function PageSizeSelect({ pageSize, onChange }: { pageSize: number; onChange: (size: number) => void }) {
+	return (
+		<label className="flex items-center gap-1.5 text-xs text-muted">
+			Per page
+			<select
+				value={serializePageSize(pageSize)}
+				onChange={(event) => onChange(parsePageSize(event.target.value))}
+				className="rounded-lg border border-border bg-field-background px-2 py-1 text-xs text-foreground outline-none focus:border-focus"
+			>
+				{PAGE_SIZE_OPTIONS.map((size) => (
+					<option key={size} value={serializePageSize(size)}>
+						{size > 0 ? size : "All"}
+					</option>
+				))}
+			</select>
+		</label>
+	);
+}
+
+/**
+ * The two ways more of a directory can arrive. "Pages" replaces the list, "Load
+ * more" appends to it — the action button inside that mode says "Show more", so
+ * the switch and the button never read the same.
+ */
+const MODES: ReadonlyArray<{ mode: PageMode; label: string }> = [
+	{ mode: "pagination", label: "Pages" },
+	{ mode: "load_more", label: "Load more" },
+];
+
+function ModeSwitch({ mode, onChange }: { mode: PageMode; onChange: (mode: PageMode) => void }) {
+	return (
+		<div
+			role="group"
+			aria-label="Paging mode"
+			className="flex items-center gap-0.5 rounded-lg border border-border p-0.5"
+		>
+			{MODES.map((option) => (
+				<button
+					key={option.mode}
+					type="button"
+					aria-pressed={mode === option.mode}
+					onClick={() => onChange(option.mode)}
+					className={`rounded-md px-2 py-1 text-xs transition-colors ${
+						mode === option.mode ? "bg-accent-soft text-accent" : "text-muted hover:text-foreground"
+					}`}
+				>
+					{option.label}
+				</button>
+			))}
+		</div>
+	);
+}
+
+function PageButtons({ page, pages, onPage }: { page: number; pages: number; onPage: (page: number) => void }) {
+	return (
+		<div className="flex items-center gap-0.5">
+			<PageStep label="Previous page" disabled={page <= 1} onPress={() => onPage(page - 1)}>
+				‹
+			</PageStep>
+			{pageNumbers(page, pages).map((item, index) =>
+				item === "gap" ? (
+					// Keyed by position: the gaps themselves are not identifiable.
+					<span key={`gap-${index}`} className="px-1 text-muted">
+						…
+					</span>
+				) : (
+					<button
+						key={item}
+						type="button"
+						// `aria-current` is how a pager marks the active page.
+						aria-current={item === page ? "page" : undefined}
+						onClick={() => onPage(item)}
+						className={`min-w-7 rounded-md px-2 py-1 text-xs transition-colors ${
+							item === page
+								? "bg-accent text-accent-foreground"
+								: "text-muted hover:bg-surface-secondary hover:text-foreground"
+						}`}
+					>
+						{item}
+					</button>
+				),
+			)}
+			<PageStep label="Next page" disabled={page >= pages} onPress={() => onPage(page + 1)}>
+				›
+			</PageStep>
+		</div>
+	);
+}
+
+function PageStep({
+	label,
+	disabled,
+	onPress,
+	children,
+}: {
+	label: string;
+	disabled: boolean;
+	onPress: () => void;
+	children: string;
+}) {
+	return (
+		<button
+			type="button"
+			aria-label={label}
+			disabled={disabled}
+			onClick={onPress}
+			className="min-w-7 rounded-md px-2 py-1 text-xs text-muted transition-colors hover:bg-surface-secondary hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
+		>
+			{children}
+		</button>
+	);
+}

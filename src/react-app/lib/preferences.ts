@@ -9,7 +9,8 @@
  * never important enough to break the page.
  *
  * Values are kept as plain strings: the preferences we persist (view mode, sort
- * order) are short enums, so JSON encoding would only add a parse step.
+ * order, page size, paging mode) are short enums, so JSON encoding would only
+ * add a parse step.
  */
 
 import type { SortField, SortState } from "./types";
@@ -76,4 +77,44 @@ export function parseSortState(raw: string): SortState {
 export function nextSortState(current: SortState, field: SortField): SortState {
 	if (current.field !== field) return { field, direction: "asc" };
 	return { field, direction: current.direction === "asc" ? "desc" : "asc" };
+}
+
+/** Key holding how many entries a page shows. Global, shared by every directory. */
+export const PAGE_SIZE_KEY = "page-size";
+
+/** Key holding whether the list replaces the page or grows past it. */
+export const PAGE_MODE_KEY = "page-mode";
+
+/**
+ * `0` means "the whole directory in one go", which `fsList` already reads as no
+ * pagination. 200 is what this app requested unconditionally before the setting
+ * existed, so it stays the default and nothing changes for anyone who never
+ * opens the control.
+ */
+export const DEFAULT_PAGE_SIZE = 200;
+
+export const PAGE_SIZE_OPTIONS = [50, 100, 200, 500, 0] as const;
+
+export function serializePageSize(size: number): string {
+	return size > 0 ? String(size) : "all";
+}
+
+/**
+ * Only the offered sizes are accepted. A stored value the selector cannot show
+ * would otherwise leave the dropdown displaying one size while the listing is
+ * fetched with another — the two have to agree.
+ */
+export function parsePageSize(raw: string): number {
+	if (raw === "all") return 0;
+	const size = Number(raw);
+	return PAGE_SIZE_OPTIONS.some((option) => option > 0 && option === size) ? size : DEFAULT_PAGE_SIZE;
+}
+
+/** `pagination` swaps the page, `load_more` appends the next one to the list. */
+export type PageMode = "pagination" | "load_more";
+
+export const DEFAULT_PAGE_MODE: PageMode = "pagination";
+
+export function parsePageMode(raw: string): PageMode {
+	return raw === "load_more" ? "load_more" : DEFAULT_PAGE_MODE;
 }

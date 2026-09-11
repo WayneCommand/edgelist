@@ -8,16 +8,25 @@ import { fileActions } from "../lib/fileActions";
 import { languageForFile } from "../lib/format";
 import { permissionsFor } from "../lib/mask";
 import type { MenuPosition } from "../lib/menu";
+import { clampPage, perPageFor } from "../lib/pagination";
 import { crumbsOf } from "../lib/paths";
 import {
+	DEFAULT_PAGE_MODE,
+	DEFAULT_PAGE_SIZE,
 	DEFAULT_SORT_STATE,
 	DEFAULT_VIEW_MODE,
+	PAGE_MODE_KEY,
+	PAGE_SIZE_KEY,
 	VIEW_MODE_KEY,
 	nextSortState,
+	parsePageMode,
+	parsePageSize,
 	parseSortState,
 	parseViewMode,
+	serializePageSize,
 	serializeSortState,
 	sortKeyFor,
+	type PageMode,
 } from "../lib/preferences";
 import type { FileItem, FileListResponse, SortField, TransferMode } from "../lib/types";
 import { ROUTES, filesPathFor } from "../routes";
@@ -34,10 +43,9 @@ import { FileListSkeleton } from "../components/files/FileListSkeleton";
 import { FilePreviewModal } from "../components/files/FilePreviewModal";
 import { FileTable } from "../components/files/FileTable";
 import { FileToolbar } from "../components/files/FileToolbar";
+import { Pager } from "../components/files/Pager";
 import { SelectionBar } from "../components/files/SelectionBar";
 import { TransferDialog } from "../components/files/TransferDialog";
-
-const PAGE_SIZE = 200;
 
 export function FilesPage() {
 	const notify = useNotify();
@@ -52,6 +60,10 @@ export function FilesPage() {
 	const [error, setError] = useState("");
 	const [query, setQuery] = useState("");
 	const [searching, setSearching] = useState(false);
+	const [page, setPage] = useState(1);
+	// What the server says the directory holds, not how much of it we hold.
+	const [total, setTotal] = useState(0);
+	const [loadingMore, setLoadingMore] = useState(false);
 	const [folderName, setFolderName] = useState<string | null>(null);
 	const [renameTarget, setRenameTarget] = useState<FileItem | null>(null);
 	const [renameName, setRenameName] = useState("");
@@ -71,6 +83,10 @@ export function FilesPage() {
 	// `storedSort` is a plain string, so the parsed object keeps a stable identity
 	// and `load` does not change on every render.
 	const sort = useMemo(() => parseSortState(storedSort), [storedSort]);
+	const [storedPageSize, setStoredPageSize] = useStoredState(PAGE_SIZE_KEY, serializePageSize(DEFAULT_PAGE_SIZE));
+	const [storedPageMode, setStoredPageMode] = useStoredState(PAGE_MODE_KEY, DEFAULT_PAGE_MODE);
+	const pageSize = parsePageSize(storedPageSize);
+	const pageMode = parsePageMode(storedPageMode);
 
 	const selection = useSelection(items);
 	const clearSelection = selection.clear;
@@ -82,32 +98,38 @@ export function FilesPage() {
 		navigate({ pathname: ROUTES.files(next) });
 	}
 
-	// The directory is passed in, so this callback only changes when the sort does.
+	// The directory is passed in, so this callback only changes when the query
+	// does — a new sort order or page size re-runs the effect below.
 	const load = useCallback(
-		async (nextPath: string) => {
-			setLoading(true);
+		async (nextPath: string, nextPage = 1, append = false) => {
+			if (append) setLoadingMore(true);
+			else setLoading(true);
 			setError("");
-			clearSelection();
+			// Growing the list keeps the selection; replacing it cannot.
+			if (!append) clearSelection();
 			try {
 				const data = await api<FileListResponse>("/api/fs/list", {
 					method: "POST",
 					body: JSON.stringify({
 						path: nextPath,
-						page: 1,
-						per_page: PAGE_SIZE,
+						page: nextPage,
+						per_page: perPageFor(pageSize, "list"),
 						order_by: sort.field,
 						order_direction: sort.direction,
 					}),
 				});
 				setPath(nextPath);
-				setItems(data.content ?? []);
+				setPage(nextPage);
+				setTotal(data.total ?? 0);
+				setItems((previous) => (append ? [...previous, ...(data.content ?? [])] : (data.content ?? [])));
 			} catch (reason) {
 				setError(reason instanceof Error ? reason.message : "Unable to load files");
 			} finally {
-				setLoading(false);
+				if (append) setLoadingMore(false);
+				else setLoading(false);
 			}
 		},
-		[clearSelection, sort],
+		[clearSelection, pageSize, sort],
 	);
 
 	// Search results belong to the directory they were run in, so leaving it — by
@@ -123,26 +145,38 @@ export function FilesPage() {
 		void load(initialPath);
 	}, [initialPath, load]);
 
-	async function search(event?: FormEvent) {
+	// Search results page exactly like a listing does, so the pager below the
+	// list can drive either one.
+	async function search(event?: FormEvent, nextPage = 1, append = false) {
 		event?.preventDefault();
 		if (!query.trim()) {
 			await load(path);
 			return;
 		}
 		setSearching(true);
-		setLoading(true);
+		if (append) setLoadingMore(true);
+		else setLoading(true);
 		setError("");
-		clearSelection();
+		if (!append) clearSelection();
 		try {
 			const data = await api<FileListResponse>("/api/fs/search", {
 				method: "POST",
-				body: JSON.stringify({ parent: path, keywords: query, scope: 0, page: 1, per_page: PAGE_SIZE }),
+				body: JSON.stringify({
+					parent: path,
+					keywords: query,
+					scope: 0,
+					page: nextPage,
+					per_page: perPageFor(pageSize, "search"),
+				}),
 			});
-			setItems(data.content ?? []);
+			setPage(nextPage);
+			setTotal(data.total ?? 0);
+			setItems((previous) => (append ? [...previous, ...(data.content ?? [])] : (data.content ?? [])));
 		} catch (reason) {
 			setError(reason instanceof Error ? reason.message : "Unable to search files");
 		} finally {
-			setLoading(false);
+			if (append) setLoadingMore(false);
+			else setLoading(false);
 		}
 	}
 
@@ -156,7 +190,7 @@ export function FilesPage() {
 			});
 			notify("Folder created");
 			setFolderName(null);
-			await load(path);
+			await load(path, page);
 		} catch (reason) {
 			notify(reason instanceof Error ? reason.message : "Unable to create folder", true);
 		}
@@ -172,7 +206,7 @@ export function FilesPage() {
 			});
 			notify("Renamed");
 			setRenameTarget(null);
-			await load(path);
+			await load(path, page);
 		} catch (reason) {
 			notify(reason instanceof Error ? reason.message : "Unable to rename", true);
 		}
@@ -192,7 +226,9 @@ export function FilesPage() {
 			);
 			const summary = summarizeBatch(collectRemovals(settled), "item");
 			notify(summary.message, summary.error);
-			await load(path);
+			// Deleting the last entry of the last page would otherwise leave an empty
+			// page behind, so land on one that still has entries.
+			await load(path, clampPage(page, total - targets.length, pageSize));
 		} catch (reason) {
 			notify(reason instanceof Error ? reason.message : "Unable to delete", true);
 		}
@@ -244,7 +280,7 @@ export function FilesPage() {
 				// so fall back to a plain view of the directory that was written to.
 				setSearching(false);
 				setQuery("");
-				await load(path);
+				await load(path, page);
 			}
 		} finally {
 			setUploading(null);
@@ -355,6 +391,31 @@ export function FilesPage() {
 		[setStoredSort, sort],
 	);
 
+	// Search results and directory listings are paged by the same control, so the
+	// two destinations live behind one pair of helpers.
+	function goToPage(nextPage: number) {
+		if (searching) void search(undefined, nextPage);
+		else void load(path, nextPage);
+	}
+
+	function loadMore() {
+		if (searching) void search(undefined, page + 1, true);
+		else void load(path, page + 1, true);
+	}
+
+	// Changing the page size re-runs the effect above, because `load` reads it.
+	function changePageSize(size: number) {
+		setStoredPageSize(serializePageSize(size));
+	}
+
+	// The appended pages only make sense while the list keeps growing, so switching
+	// back to paged mode starts from the top.
+	function changePageMode(next: PageMode) {
+		setStoredPageMode(next);
+		if (searching) void search(undefined, 1);
+		else void load(path, 1);
+	}
+
 	async function openFile(item: FileItem) {
 		if (item.is_dir) {
 			openDirectory(item.path);
@@ -442,7 +503,7 @@ export function FilesPage() {
 					view={view}
 					uploading={uploading}
 					onViewChange={setStoredView}
-					onRefresh={() => void load(path)}
+					onRefresh={() => void load(path, page)}
 					onNewFolder={() => setFolderName("")}
 					onUpload={(tree) => void upload(tree)}
 				/>
@@ -484,6 +545,17 @@ export function FilesPage() {
 						/>
 					)}
 				</section>
+				<Pager
+					mode={pageMode}
+					page={page}
+					pageSize={pageSize}
+					total={total}
+					loading={loadingMore}
+					onPage={goToPage}
+					onPageSize={changePageSize}
+					onMode={changePageMode}
+					onLoadMore={loadMore}
+				/>
 				{folderName !== null && (
 					<Modal title="New folder" onClose={() => setFolderName(null)}>
 						<form className="space-y-4" onSubmit={createFolder}>
@@ -544,7 +616,7 @@ export function FilesPage() {
 						onClose={() => setTransfer(null)}
 						// A transfer changes the listing and may move the selection out of
 						// it, so reload rather than patching state in place.
-						onTransferred={() => void load(path)}
+						onTransferred={() => void load(path, page)}
 					/>
 				)}
 				{menu && (

@@ -1,12 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+	DEFAULT_PAGE_MODE,
+	DEFAULT_PAGE_SIZE,
 	DEFAULT_SORT_STATE,
 	DEFAULT_VIEW_MODE,
+	PAGE_SIZE_OPTIONS,
 	VIEW_MODE_KEY,
 	nextSortState,
+	parsePageMode,
+	parsePageSize,
 	parseSortState,
 	parseViewMode,
 	readPreference,
+	serializePageSize,
 	serializeSortState,
 	sortKeyFor,
 	writePreference,
@@ -85,5 +91,44 @@ describe("sort preferences", () => {
 		expect(nextSortState({ field: "name", direction: "asc" }, "name")).toEqual({ field: "name", direction: "desc" });
 		expect(nextSortState({ field: "name", direction: "desc" }, "name")).toEqual({ field: "name", direction: "asc" });
 		expect(nextSortState({ field: "name", direction: "desc" }, "size")).toEqual({ field: "size", direction: "asc" });
+	});
+});
+
+describe("paging preferences", () => {
+	it("round-trips a page size", () => {
+		expect(serializePageSize(100)).toBe("100");
+		expect(parsePageSize("100")).toBe(100);
+	});
+
+	it("spells 'all' as a word rather than a zero", () => {
+		expect(serializePageSize(0)).toBe("all");
+		expect(parsePageSize("all")).toBe(0);
+	});
+
+	it("falls back for anything unrecognised", () => {
+		expect(parsePageSize("")).toBe(DEFAULT_PAGE_SIZE);
+		expect(parsePageSize("banana")).toBe(DEFAULT_PAGE_SIZE);
+		expect(parsePageSize("0")).toBe(DEFAULT_PAGE_SIZE);
+		expect(parsePageSize("-5")).toBe(DEFAULT_PAGE_SIZE);
+		// A size the selector cannot show would leave it disagreeing with the request.
+		expect(parsePageSize("5")).toBe(DEFAULT_PAGE_SIZE);
+	});
+
+	it("keeps the page size the app used before the setting existed", () => {
+		expect(DEFAULT_PAGE_SIZE).toBe(200);
+		expect(parsePageSize(serializePageSize(DEFAULT_PAGE_SIZE))).toBe(DEFAULT_PAGE_SIZE);
+	});
+
+	it("defaults to replacing the page rather than growing it", () => {
+		expect(parsePageMode("pagination")).toBe("pagination");
+		expect(parsePageMode("load_more")).toBe("load_more");
+		expect(parsePageMode("")).toBe(DEFAULT_PAGE_MODE);
+		expect(parsePageMode("infinite")).toBe(DEFAULT_PAGE_MODE);
+	});
+
+	it("offers every page size option as a parseable value", () => {
+		for (const size of PAGE_SIZE_OPTIONS) {
+			expect(parsePageSize(serializePageSize(size))).toBe(size);
+		}
 	});
 });

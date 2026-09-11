@@ -6,6 +6,7 @@ import type { FileItem } from "../../lib/types";
 import { FileGrid } from "./FileGrid";
 import { FileTable } from "./FileTable";
 import { FileToolbar } from "./FileToolbar";
+import { Pager } from "./Pager";
 import { SelectionBar } from "./SelectionBar";
 
 /**
@@ -188,5 +189,69 @@ describe("selection bar", () => {
 		const html = renderToStaticMarkup(<SelectionBar {...barProps(spread)} />);
 		expect(html).toContain('title="Copy needs entries from a single folder"');
 		expect(html).toContain('title="Move needs entries from a single folder"');
+	});
+});
+
+const pagerHandlers = { onPage: noop, onPageSize: noop, onMode: noop, onLoadMore: noop };
+
+function pagerProps(overrides: Partial<Parameters<typeof Pager>[0]> = {}) {
+	return {
+		mode: "pagination" as const,
+		page: 1,
+		pageSize: 100,
+		total: 342,
+		loading: false,
+		...pagerHandlers,
+		...overrides,
+	};
+}
+
+describe("pager", () => {
+	it("renders nothing for an empty directory", () => {
+		expect(renderToStaticMarkup(<Pager {...pagerProps({ total: 0 })} />)).toBe("");
+	});
+
+	it("reports the range the page shows", () => {
+		expect(renderToStaticMarkup(<Pager {...pagerProps()} />)).toContain("1–100 of 342");
+	});
+
+	it("marks the current page", () => {
+		const html = renderToStaticMarkup(<Pager {...pagerProps({ page: 2 })} />);
+		expect(html).toContain('aria-current="page"');
+		expect(html).toContain('aria-pressed="true"');
+	});
+
+	it("drops the page numbers when everything fits", () => {
+		const html = renderToStaticMarkup(<Pager {...pagerProps({ total: 12 })} />);
+		expect(html).toContain("12 items");
+		expect(html).not.toContain('aria-label="Next page"');
+	});
+
+	it("counts a single entry in the singular", () => {
+		expect(renderToStaticMarkup(<Pager {...pagerProps({ total: 1 })} />)).toContain("1 item");
+	});
+
+	it("offers load more instead of page numbers in the growing mode", () => {
+		const html = renderToStaticMarkup(<Pager {...pagerProps({ mode: "load_more", page: 2 })} />);
+		expect(html).toContain("Showing 200 of 342");
+		expect(html).toContain("Show more");
+		expect(html).not.toContain('aria-current="page"');
+	});
+
+	it("hides load more once everything has arrived", () => {
+		const html = renderToStaticMarkup(<Pager {...pagerProps({ mode: "load_more", page: 4 })} />);
+		expect(html).toContain("Showing 342 of 342");
+		expect(html).not.toContain("Show more");
+	});
+
+	it("offers no paging at all when the page size is 'all'", () => {
+		const html = renderToStaticMarkup(<Pager {...pagerProps({ pageSize: 0 })} />);
+		expect(html).toContain("342 items");
+		expect(html).not.toContain('aria-label="Next page"');
+		expect(html).not.toContain("Show more");
+	});
+
+	it("shows the chosen page size in the selector", () => {
+		expect(renderToStaticMarkup(<Pager {...pagerProps({ pageSize: 50 })} />)).toContain('<option value="50" selected');
 	});
 });
