@@ -1,4 +1,4 @@
-import { clearAuthToken, getAuthToken } from "./hooks/useAuth";
+import { clearAuthToken, getAuthToken } from "../hooks/useAuth";
 
 type ApiEnvelope<T> = { code?: number; message?: string; data?: T };
 

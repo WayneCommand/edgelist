@@ -1,170 +1,20 @@
-import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
-import { Button as HeroButton, Card as HeroCard, Skeleton, Switch as HeroSwitch, Toast } from "@heroui/react";
-import { ROUTES, filesPathFor, routeFor } from "./routes";
+import { Button as HeroButton, Toast } from "@heroui/react";
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from "react-router";
-import { api } from "./api";
-import { Modal } from "./components/common/Modal";
-import { ConfirmProvider } from "./components/common/ConfirmDialog";
-import { useConfirm } from "./hooks/useConfirm";
-import { useNotify } from "./hooks/useNotify";
+import { ROUTES, routeFor } from "./routes";
 import { useAuth } from "./hooks/useAuth";
-import { MonacoTextEditor } from "./MonacoTextEditor";
+import { ConfirmProvider } from "./components/common/ConfirmDialog";
+import { BackupPage } from "./pages/BackupPage";
+import { FilesPage } from "./pages/FilesPage";
+import { LoginPage } from "./pages/LoginPage";
+import { MetadataPage } from "./pages/MetadataPage";
+import { StoragesPage } from "./pages/StoragesPage";
 
-type LoginResponse = { code: number; message: string; data?: { token: string } };
-type FileItem = { name: string; size: number; is_dir: boolean; modified: string; path: string };
-type Storage = { id: number; mount_path: string; driver: "openlist" | "object" | "webdav"; addition: string; remark: string; disabled?: boolean; order?: number; status?: string; order_by?: string; order_direction?: string; extract_folder?: string; [key: string]: unknown };
-type Meta = { id: number; path: string; password?: string; write?: boolean; hide?: string; readme?: string };
-
-function formatSize(size: number) { if (size < 1024) return `${size} B`; if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`; return `${(size / 1024 / 1024).toFixed(1)} MB`; }
-
-function languageForFile(name: string) {
-	const extension = name.toLowerCase().split(".").pop() ?? "";
-	const languages: Record<string, string> = { txt: "plaintext", md: "markdown", markdown: "markdown", yaml: "yaml", yml: "yaml", json: "json", js: "javascript", jsx: "javascript", ts: "typescript", tsx: "typescript", css: "css", html: "html", htm: "html", xml: "xml", toml: "ini", ini: "ini", conf: "ini", env: "ini", sh: "shell", bash: "shell", sql: "sql" };
-	return languages[extension] ?? null;
-}
-
-function FileListSkeleton() {
-	return <div className="divide-y divide-separator">{Array.from({ length: 7 }, (_, index) => <div key={index} className="flex items-center gap-4 px-5 py-4"><Skeleton className="h-8 w-8 rounded-lg" /><div className="flex min-w-0 flex-1 flex-col gap-2"><Skeleton className="h-4 w-2/5 rounded-md" /><Skeleton className="h-3 w-1/4 rounded-md" /></div><Skeleton className="hidden h-3 w-24 rounded-md sm:block" /><Skeleton className="hidden h-3 w-28 rounded-md md:block" /></div>)}</div>;
-}
-
-function FilesView() {
-	const notify = useNotify();
-	const confirm = useConfirm();
-	const { token } = useAuth();
-	const navigate = useNavigate();
-	const initialPath = filesPathFor(useLocation().pathname);
-	function openDirectory(next: string) {
-		navigate({ pathname: ROUTES.files(next) });
-	}
-	const [path, setPath] = useState(initialPath);
-	const [items, setItems] = useState<FileItem[]>([]);
-	const [selected, setSelected] = useState<FileItem | null>(null);
-	const [preview, setPreview] = useState<{ item: FileItem; content: string } | null>(null);
-	const [previewContent, setPreviewContent] = useState("");
-	const [previewDirty, setPreviewDirty] = useState(false);
-	const [previewSaving, setPreviewSaving] = useState(false);
-	const [previewLoading, setPreviewLoading] = useState(false);
-	const [query, setQuery] = useState("");
-	const [searching, setSearching] = useState(false);
-	const [loading, setLoading] = useState(false);
-	const [modal, setModal] = useState<"mkdir" | "rename" | null>(null);
-	const [value, setValue] = useState("");
-	const [error, setError] = useState("");
-	const inputRef = useRef<HTMLInputElement>(null);
-
-	async function load(nextPath = path) {
-		setLoading(true); setError(""); setSelected(null);
-		try { const data = await api<{ content: FileItem[] }>("/api/fs/list", { method: "POST", body: JSON.stringify({ path: nextPath, page: 1, per_page: 200 }) }); setPath(nextPath); setItems(data.content ?? []); }
-		catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to load files"); }
-		finally { setLoading(false); }
-	}
-	// The URL is the source of truth for the current file directory.
-	// eslint-disable-next-line react-hooks/exhaustive-deps
-	useEffect(() => { setSearching(false); setQuery(""); void load(initialPath); }, [initialPath]);
-	async function search(event?: FormEvent) {
-		event?.preventDefault(); if (!query.trim()) return load(path); setSearching(true); setLoading(true); setError("");
-		try { const data = await api<{ content: FileItem[] }>("/api/fs/search", { method: "POST", body: JSON.stringify({ parent: path, keywords: query, scope: 0, page: 1, per_page: 200 }) }); setItems(data.content ?? []); }
-		catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to search files"); } finally { setLoading(false); }
-	}
-	async function createFolder(event: FormEvent) { event.preventDefault(); try { await api("/api/fs/mkdir", { method: "POST", body: JSON.stringify({ path: `${path.replace(/\/$/, "")}/${value}` }) }); notify("Folder created"); setModal(null); setValue(""); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to create folder", true); } }
-	async function rename(event: FormEvent) { event.preventDefault(); if (!selected) return; try { await api("/api/fs/rename", { method: "POST", body: JSON.stringify({ path: selected.path, name: value, overwrite: false }) }); notify("Renamed"); setModal(null); setSelected(null); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to rename", true); } }
-	async function remove() {
-		if (!selected) return;
-		if (!(await confirm({ title: "Delete", message: `Delete ${selected.name}?` }))) return;
-		try { await api("/api/fs/remove", { method: "POST", body: JSON.stringify({ dir: path, names: [selected.name] }) }); notify("Deleted"); setSelected(null); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to delete", true); } }
-	async function upload(file: File) { try { await api("/api/fs/put", { method: "PUT", headers: { "File-Path": encodeURIComponent(`${path.replace(/\/$/, "")}/${file.name}`), "Content-Type": file.type || "application/octet-stream" }, body: file }); notify("Uploaded"); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to upload", true); } }
-	async function download(item: FileItem) { try { const response = await fetch(`/d${item.path}`, { headers: { Authorization: token } }); if (!response.ok) throw new Error("Download failed"); const blob = await response.blob(); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = item.name; link.click(); URL.revokeObjectURL(link.href); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to download", true); } }
-	function isPreviewable(name: string) { return languageForFile(name) !== null; }
-	async function previewFile(item: FileItem) { setPreviewLoading(true); try { const response = await fetch(`/d${item.path}`, { headers: { Authorization: token } }); if (!response.ok) throw new Error("Unable to preview file"); const content = await response.text(); setPreview({ item, content }); setPreviewContent(content); setPreviewDirty(false); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to preview file", true); } finally { setPreviewLoading(false); } }
-	async function savePreview() { if (!preview) return; setPreviewSaving(true); try { await api("/api/fs/put", { method: "PUT", headers: { "File-Path": encodeURIComponent(preview.item.path), "Content-Type": "text/plain; charset=utf-8" }, body: new Blob([previewContent], { type: "text/plain; charset=utf-8" }) }); setPreview({ ...preview, content: previewContent }); setPreviewDirty(false); notify("Saved"); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to save file", true); } finally { setPreviewSaving(false); } }
-	async function closePreview() {
-		if (previewDirty && !(await confirm({ title: "Discard changes", message: "Discard unsaved changes?", confirmLabel: "Discard" }))) return;
-		setPreview(null); setPreviewContent(""); setPreviewDirty(false); }
-	async function openFile(item: FileItem) { if (item.is_dir) { navigate(item.path); return; } if (isPreviewable(item.name)) { await previewFile(item); return; } await download(item); }
-	const crumbs = path.split("/").filter(Boolean);
-	return <section><div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm text-slate-400">Files</p><h1 className="mt-1 text-2xl font-semibold">{searching ? `Search: ${query}` : path === "/" ? "All files" : crumbs[crumbs.length - 1]}</h1></div><div className="flex gap-2"><HeroButton size="sm" variant="secondary" onPress={() => void load()}>Refresh</HeroButton><HeroButton size="sm" onPress={() => inputRef.current?.click()}>Upload</HeroButton><input ref={inputRef} hidden type="file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} /></div></div><form className="mb-4 flex gap-2" onSubmit={search}><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search files…" className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500" /><HeroButton type="submit" size="sm" variant="secondary">Search</HeroButton>{searching && <HeroButton type="button" size="sm" variant="ghost" onPress={() => { setQuery(""); setSearching(false); void load(path); }}>Clear</HeroButton>}</form><div className="mb-4 flex items-center gap-2 text-sm text-slate-500"><button onClick={() => { setSearching(false); openDirectory("/"); }} className="hover:text-blue-600">Root</button>{!searching && crumbs.map((part, index) => { const crumb = `/${crumbs.slice(0, index + 1).join("/")}`; return <span key={crumb}>/ <button onClick={() => openDirectory(crumb)} className="hover:text-blue-600">{part}</button></span>; })}</div><div className="mb-3 flex min-h-9 items-center gap-2">{selected && <><span className="text-sm text-slate-500">Selected: {selected.name}</span>{!selected.is_dir && (isPreviewable(selected.name) ? <HeroButton size="sm" variant="outline" onPress={() => void previewFile(selected)}>Preview/Edit</HeroButton> : <HeroButton size="sm" variant="outline" onPress={() => void download(selected)}>Download</HeroButton>)}<HeroButton size="sm" variant="outline" onPress={() => { setValue(selected.name); setModal("rename"); }}>Rename</HeroButton><HeroButton size="sm" variant="danger" onPress={() => void remove()}>Delete</HeroButton></>}<HeroButton className="ml-auto" size="sm" variant="outline" onPress={() => { setValue(""); setModal("mkdir"); }}>New folder</HeroButton></div><section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">{error && <p className="border-b border-red-100 bg-red-50 px-5 py-3 text-sm text-red-600">{error}</p>}{loading ? <FileListSkeleton /> : !items.length ? <div className="p-16 text-center text-sm text-slate-400">No files found</div> : <div>{items.map((item) => <button key={item.path} className={`flex w-full items-center gap-4 border-b border-slate-100 px-5 py-4 text-left last:border-0 hover:bg-slate-50 ${selected?.path === item.path ? "bg-blue-50" : ""}`} onClick={() => setSelected(item)} onDoubleClick={() => !searching && void openFile(item)}><span className="text-2xl">{item.is_dir ? "📁" : "📄"}</span><span className="min-w-0 flex-1 truncate text-sm font-medium">{item.name}</span><span className="hidden w-32 text-right text-xs text-slate-400 sm:block">{item.is_dir ? "Folder" : formatSize(item.size)}</span><span className="hidden w-36 text-right text-xs text-slate-400 md:block">{item.modified ? new Date(item.modified).toLocaleDateString() : "—"}</span></button>)}</div>}</section>{modal === "mkdir" && <Modal title="New folder" onClose={() => setModal(null)}><form className="space-y-4" onSubmit={createFolder}><input autoFocus required value={value} onChange={(event) => setValue(event.target.value)} placeholder="Folder name" className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-blue-500" /><HeroButton type="submit" fullWidth>Create</HeroButton></form></Modal>}{modal === "rename" && <Modal title="Rename" onClose={() => setModal(null)}><form className="space-y-4" onSubmit={rename}><input autoFocus required value={value} onChange={(event) => setValue(event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-blue-500" /><HeroButton type="submit" fullWidth>Save</HeroButton></form></Modal>}{previewLoading && <Modal title="Preview" onClose={() => setPreviewLoading(false)}><Skeleton className="h-48 w-full rounded-lg" /></Modal>}{preview && <Modal wide title={`${preview.item.name}${previewDirty ? " *" : ""}`} onClose={closePreview}><div className="space-y-3"><div className="flex items-center justify-between gap-3"><p className="text-xs text-muted">{languageForFile(preview.item.name)?.toUpperCase()} · 在线编辑</p><HeroButton size="sm" isDisabled={!previewDirty || previewSaving} onPress={() => void savePreview()}>{previewSaving ? "Saving…" : "Save"}</HeroButton></div><MonacoTextEditor key={preview.item.path} value={previewContent} language={languageForFile(preview.item.name) ?? "plaintext"} path={preview.item.path} onChange={(content) => { setPreviewContent(content); setPreviewDirty(content !== preview.content); }} /></div></Modal>}</section>;
-}
-
-type S3Form = Record<string, string | number | boolean>;
-
-function readS3Form(addition: string): S3Form {
-	try { return JSON.parse(addition) as S3Form; } catch { return {}; }
-}
-
-function newStorage(): Storage {
-	return { id: 0, mount_path: "/", driver: "object", addition: JSON.stringify({ root_folder_path: "/", force_path_style: false, list_object_version: "v2", sign_url_expire: 4 }), remark: "", order: 0, status: "work", order_by: "name", order_direction: "asc", extract_folder: "front", disabled: false };
-}
-
-function storageForEditor(storage: Storage): Storage {
-	return { ...storage, driver: String(storage.driver).toLowerCase() === "s3" ? "object" : storage.driver };
-}
-
-function StorageField({ label, required = false, children }: { label: string; required?: boolean; children: ReactNode }) {
-	return <label className="block text-sm font-medium text-slate-700"><span className="mb-1.5 block">{label}{required && <span className="ml-1 text-red-500">*</span>}</span>{children}</label>;
-}
-
-function StorageToggle({ label, checked, onChange, disabled = false }: { label: string; checked: boolean; onChange: (value: boolean) => void; disabled?: boolean }) {
-	return <HeroSwitch isSelected={checked} isDisabled={disabled} onChange={onChange} className={`flex items-center justify-between rounded-lg border border-border px-3 py-2.5 text-sm ${disabled ? "cursor-not-allowed bg-surface-secondary text-muted" : ""}`}><span>{label}</span></HeroSwitch>;
-}
-
-function WebdavFields({ addition, update, input }: { addition: S3Form; update: (field: string, value: string | number | boolean) => void; input: (field: string, fallback?: string) => string }) {
-	return <section><h3 className="mb-3 text-base font-semibold">WebDAV 连接凭证</h3><div className="grid gap-3 sm:grid-cols-2"><StorageField label="供应商"><select value={input("provider", "other")} onChange={(event) => update("provider", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2"><option value="other">其他</option><option value="jianguoyun">坚果云</option><option value="nextcloud">Nextcloud</option><option value="owncloud">ownCloud</option></select></StorageField><StorageField label="地址" required><input required value={input("url", input("address"))} onChange={(event) => update("url", event.target.value)} placeholder="https://dav.example.com/dav/" className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="用户名" required><input required value={input("username")} onChange={(event) => update("username", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="密码" required><input required type="password" value={input("password")} onChange={(event) => update("password", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="根文件夹路径" required><input required value={input("root_folder_path", "/")} onChange={(event) => update("root_folder_path", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageToggle disabled label="跳过 SSL 证书验证" checked={Boolean(addition.skip_tls_verify)} onChange={(value) => update("skip_tls_verify", value)} /></div></section>;
-}
-
-function StorageEditor({ editing, setEditing, onSave, onClose, error }: { editing: Storage; setEditing: (storage: Storage) => void; onSave: (event: FormEvent<HTMLFormElement>) => void; onClose: () => void; error: string }) {
-	const s3 = editing.driver === "object" || String(editing.driver).toLowerCase() === "s3";
-	const addition = readS3Form(editing.addition);
-	function update(field: string, value: string | number | boolean) { setEditing({ ...editing, addition: JSON.stringify({ ...readS3Form(editing.addition), [field]: value }) }); }
-	function input(field: string, fallback = "") { return String(addition[field] ?? fallback); }
-	function numberInput(field: string, fallback = 0) { return Number(addition[field] ?? fallback); }
-	return <Modal wide title={editing.id ? "Edit storage" : "Add storage"} onClose={onClose}><form className="max-h-[78vh] space-y-6 overflow-y-auto pr-1" onSubmit={onSave}>
-		<section><h3 className="mb-3 text-base font-semibold">通用配置</h3><div className="grid gap-3 sm:grid-cols-2"><StorageField label="驱动" required><select value={editing.driver} onChange={(event) => setEditing({ ...editing, driver: event.target.value as Storage["driver"] })} className="w-full rounded-lg border border-slate-200 px-3 py-2"><option value="object">对象存储</option><option value="openlist">OpenList</option><option value="webdav">WebDAV</option></select></StorageField><StorageField label="挂载路径" required><input required value={editing.mount_path} onChange={(event) => setEditing({ ...editing, mount_path: event.target.value })} placeholder="/ibm" className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="序号"><input type="number" value={editing.order ?? 0} onChange={(event) => setEditing({ ...editing, order: Number(event.target.value) })} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="备注"><input value={editing.remark} onChange={(event) => setEditing({ ...editing, remark: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField></div></section>
-		<section><h3 className="mb-3 text-base font-semibold">排序</h3><div className="grid gap-3 sm:grid-cols-2"><StorageField label="排序依据"><select value={String(editing.order_by ?? "name")} onChange={(event) => setEditing({ ...editing, order_by: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2"><option value="name">名称</option><option value="size">大小</option><option value="modified">修改时间</option></select></StorageField><StorageField label="排序方式"><select value={String(editing.order_direction ?? "asc")} onChange={(event) => setEditing({ ...editing, order_direction: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2"><option value="asc">升序</option><option value="desc">降序</option></select></StorageField><StorageField label="文件夹顺序"><select value={String(editing.extract_folder ?? "front")} onChange={(event) => setEditing({ ...editing, extract_folder: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2"><option value="front">文件夹在前</option><option value="back">文件夹在后</option></select></StorageField></div></section>
-		{ s3 ? <section><h3 className="mb-3 text-base font-semibold">S3 对象存储凭证</h3><div className="grid gap-3 sm:grid-cols-2"><StorageField label="根文件夹路径" required><input required value={input("root_folder_path", "/")} onChange={(event) => update("root_folder_path", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="存储桶" required><input required value={input("bucket")} onChange={(event) => update("bucket", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="端点" required><input required value={input("endpoint")} onChange={(event) => update("endpoint", event.target.value)} placeholder="https://s3.example.com" className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="地区"><input value={input("region")} onChange={(event) => update("region", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="访问密钥 ID" required><input required value={input("access_key_id")} onChange={(event) => update("access_key_id", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="访问密钥" required><input required type="password" value={input("secret_access_key")} onChange={(event) => update("secret_access_key", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="会话令牌"><input value={input("session_token")} onChange={(event) => update("session_token", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField></div></section> : editing.driver === "webdav" ? <WebdavFields addition={addition} update={update} input={input} /> : <section><h3 className="mb-3 text-base font-semibold">驱动配置</h3><textarea required value={editing.addition} onChange={(event) => setEditing({ ...editing, addition: event.target.value })} rows={7} placeholder="Driver JSON configuration" className="w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs" /></section> }
-		{ s3 && <section><h3 className="mb-3 text-base font-semibold">高级选项</h3><div className="grid gap-3 sm:grid-cols-2"><StorageField label="自定义主机"><input value={input("custom_host")} onChange={(event) => update("custom_host", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="签名链接有效期"><input type="number" min="1" value={numberInput("sign_url_expire", 4)} onChange={(event) => update("sign_url_expire", Number(event.target.value))} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="占位文件名"><input value={input("placeholder")} onChange={(event) => update("placeholder", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField><StorageField label="列出对象版本"><select value={input("list_object_version", "v2")} onChange={(event) => update("list_object_version", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2"><option value="v1">V1</option><option value="v2">V2</option></select></StorageField><StorageToggle label="启用自定义主机预签名" checked={Boolean(addition.enable_custom_host_presign)} onChange={(value) => update("enable_custom_host_presign", value)} /><StorageToggle label="强制路径样式" checked={Boolean(addition.force_path_style)} onChange={(value) => update("force_path_style", value)} /><StorageToggle disabled label="移除存储桶" checked={Boolean(addition.remove_bucket)} onChange={(value) => update("remove_bucket", value)} /><StorageToggle label="添加 Filename 到 Disposition" checked={Boolean(addition.add_filename_to_disposition)} onChange={(value) => update("add_filename_to_disposition", value)} /><StorageToggle label="启用前端直传" checked={Boolean(addition.enable_direct_upload)} onChange={(value) => update("enable_direct_upload", value)} /><StorageField label="直传主机"><input value={input("direct_upload_host")} onChange={(event) => update("direct_upload_host", event.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2" /></StorageField></div></section>}
-		{error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}<button className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white">保存存储</button>
-	</form></Modal>;
-}
-
-function StoragesView() {
-	const notify = useNotify();
-	const confirm = useConfirm();
-	const navigate = useNavigate();
-	const [items, setItems] = useState<Storage[]>([]); const [editing, setEditing] = useState<Storage | null>(null); const [loading, setLoading] = useState(true); const [formError, setFormError] = useState("");
-	async function load() { try { const data = await api<{ content: Storage[] }>("/api/admin/storage/list"); setItems((data.content ?? []).map(storageForEditor)); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to load storages", true); } finally { setLoading(false); } }
-	// The storage list is loaded once when the management view opens.
-	// eslint-disable-next-line react-hooks/exhaustive-deps
-	useEffect(() => { void load(); }, []);
-	function edit(item: Storage) { setFormError(""); setEditing(item); }
-	async function save(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!editing) return; const trimmed = editing.mount_path.replace(/^\/+/, "").replace(/\/+$/, "");
-		const mountPath = trimmed ? `/${trimmed}` : "/"; if (items.some((item) => item.id !== editing.id && item.mount_path.replace(/\/+$/, "") === mountPath.replace(/\/+$/, ""))) { setFormError("挂载路径必须唯一"); return; } const payload = { ...editing, mount_path: mountPath, order_by: editing.order_by ?? "name", order_direction: editing.order_direction ?? "asc", extract_folder: editing.extract_folder ?? "front" }; try { await api("/api/admin/storage/create", { method: "POST", body: JSON.stringify(payload) }); notify("Storage saved"); setEditing(null); await load(); } catch (reason) { setFormError(reason instanceof Error ? reason.message : "Unable to save storage"); } }
-	async function remove(item: Storage) {
-		if (!(await confirm({ title: "Delete storage", message: `Delete ${item.mount_path}?` }))) return;
-		try { await api("/api/admin/storage/delete", { method: "POST", body: JSON.stringify({ id: item.id, mount_path: item.mount_path }) }); notify("Storage deleted"); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to delete storage", true); } }
-	return <section><div className="mb-5 flex items-center justify-between"><div><p className="text-sm text-slate-400">Manage</p><h1 className="mt-1 text-2xl font-semibold">Storages</h1></div><HeroButton onPress={() => edit(newStorage())}>Add storage</HeroButton></div><HeroCard className="overflow-hidden p-0" variant="default"><div>{loading ? <p className="p-8 text-sm text-slate-400">Loading…</p> : !items.length ? <p className="p-8 text-sm text-slate-400">No storage configured.</p> : items.map((item) => <div key={item.id} className="flex items-center gap-4 border-b border-slate-100 px-5 py-4 last:border-0"><span className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold uppercase text-blue-700">{String(item.driver).toLowerCase() === "object" || String(item.driver).toLowerCase() === "s3" ? "S3" : item.driver}</span><div className="min-w-0 flex-1"><button className="font-medium hover:text-blue-600" onClick={() => navigate(item.mount_path)}>{item.mount_path}</button><p className="truncate text-xs text-slate-400">{item.remark || "No description"}</p></div><HeroButton size="sm" variant="ghost" onPress={() => edit(item)}>Edit</HeroButton><HeroButton size="sm" variant="danger-soft" onPress={() => void remove(item)}>Delete</HeroButton></div>)}</div></HeroCard>{editing && <StorageEditor editing={editing} setEditing={setEditing} onSave={save} onClose={() => setEditing(null)} error={formError} />}</section>;
-}
-
-function MetadataView() {
-	const notify = useNotify();
-	const confirm = useConfirm();
-	const [items, setItems] = useState<Meta[]>([]); const [editing, setEditing] = useState<Meta | null>(null); const [loading, setLoading] = useState(true);
-	async function load() { try { const data = await api<{ content: Meta[] }>("/api/admin/meta/list"); setItems(data.content ?? []); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to load metadata", true); } finally { setLoading(false); } }
-	useEffect(() => { void load(); }, []);
-	async function save(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!editing) return; try { await api("/api/admin/meta/create", { method: "POST", body: JSON.stringify(editing) }); notify("Metadata saved"); setEditing(null); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to save metadata", true); } }
-	async function remove(item: Meta) {
-		if (!(await confirm({ title: "Delete rule", message: `Delete rule ${item.path}?` }))) return;
-		try { await api("/api/admin/meta/delete", { method: "POST", body: JSON.stringify({ id: item.id, path: item.path }) }); notify("Metadata deleted"); await load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "Unable to delete metadata", true); } }
-	return <section><div className="mb-5 flex items-center justify-between"><div><p className="text-sm text-muted">Manage</p><h1 className="mt-1 text-2xl font-semibold">Metadata rules</h1></div><HeroButton onPress={() => setEditing({ id: 0, path: "/", write: false, hide: "", readme: "" })}>Add rule</HeroButton></div><HeroCard className="overflow-hidden p-0" variant="default"><div>{loading ? <p className="p-8 text-sm text-muted">Loading…</p> : !items.length ? <p className="p-8 text-sm text-muted">No metadata rules configured.</p> : items.map((item) => <div key={item.id} className="flex items-center gap-4 border-b border-separator px-5 py-4 last:border-0"><div className="min-w-0 flex-1"><p className="font-medium">{item.path}</p><p className="truncate text-xs text-muted">{item.write ? "Writable" : "Read only"}{item.hide ? ` · Hidden: ${item.hide}` : ""}</p></div><HeroButton size="sm" variant="ghost" onPress={() => setEditing(item)}>Edit</HeroButton><HeroButton size="sm" variant="danger-soft" onPress={() => void remove(item)}>Delete</HeroButton></div>)}</div></HeroCard>{editing && <Modal title={editing.id ? "Edit metadata rule" : "Add metadata rule"} onClose={() => setEditing(null)}><form className="space-y-3" onSubmit={save}><input required value={editing.path} onChange={(event) => setEditing({ ...editing, path: event.target.value })} placeholder="Path, e.g. /private" className="w-full rounded-lg border border-border bg-field-background px-3 py-2" /><HeroSwitch isSelected={Boolean(editing.write)} onChange={(value) => setEditing({ ...editing, write: value })}>Allow writes</HeroSwitch><input value={editing.password ?? ""} onChange={(event) => setEditing({ ...editing, password: event.target.value })} type="password" placeholder="Folder password" className="w-full rounded-lg border border-border bg-field-background px-3 py-2" /><input value={editing.hide ?? ""} onChange={(event) => setEditing({ ...editing, hide: event.target.value })} placeholder="Hidden names, comma separated" className="w-full rounded-lg border border-border bg-field-background px-3 py-2" /><textarea value={editing.readme ?? ""} onChange={(event) => setEditing({ ...editing, readme: event.target.value })} rows={4} placeholder="Readme / description" className="w-full rounded-lg border border-border bg-field-background px-3 py-2" /><HeroButton type="submit" fullWidth>Save metadata</HeroButton></form></Modal>}</section>;
-}
-
-function BackupView() {
-	const notify = useNotify();
-	const { token } = useAuth();
-	const [password, setPassword] = useState(""); const [override, setOverride] = useState(false); const [loading, setLoading] = useState(false);
-	async function backup() { setLoading(true); try { const response = await fetch("/api/admin/backup/export", { method: "POST", headers: { Authorization: token, "content-type": "application/json" }, body: JSON.stringify({ password }) }); if (!response.ok) throw new Error("Backup failed"); const blob = await response.blob(); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = "openlist_backup.json"; link.click(); URL.revokeObjectURL(link.href); notify("Backup downloaded"); } catch (reason) { notify(reason instanceof Error ? reason.message : "Backup failed", true); } finally { setLoading(false); } }
-	async function restore(file: File) { setLoading(true); try { const data = JSON.parse(await file.text()); await api("/api/admin/backup/restore", { method: "POST", body: JSON.stringify({ data, password, override }) }); notify("Backup restored"); } catch (reason) { notify(reason instanceof Error ? reason.message : "Restore failed", true); } finally { setLoading(false); } }
-	return <section><div className="mb-5"><p className="text-sm text-muted">Manage</p><h1 className="mt-1 text-2xl font-semibold">Backup & restore</h1></div><HeroCard className="max-w-xl" variant="default"><p className="text-sm text-muted">Export an OpenList-compatible JSON backup or restore one previously created by OpenList/EdgeList.</p><label className="mt-5 block text-sm font-medium">Encryption password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Optional" className="mt-2 w-full rounded-lg border border-border bg-field-background px-3 py-2 font-normal" /></label><HeroSwitch className="mt-4" isSelected={override} onChange={setOverride}>Override matching storages and metadata</HeroSwitch><div className="mt-6 flex flex-wrap gap-3"><HeroButton isDisabled={loading} onPress={() => void backup()}>Download backup</HeroButton><label className="inline-flex cursor-pointer items-center rounded-lg border border-border px-4 py-2.5 text-sm font-medium hover:bg-surface-secondary">Choose backup<input hidden type="file" accept="application/json" onChange={(event) => { const file = event.target.files?.[0]; if (file) void restore(file); event.target.value = ""; }} /></label></div></HeroCard></section>;
-}
+const NAV_ITEMS = [
+	{ kind: "files", label: "Files", path: ROUTES.files() },
+	{ kind: "storages", label: "Storages", path: ROUTES.storages },
+	{ kind: "metadata", label: "Metadata", path: ROUTES.metadata },
+	{ kind: "backup", label: "Backup & restore", path: ROUTES.backup },
+] as const;
 
 function RequireAuth({ signedIn }: { signedIn: boolean }) {
 	const location = useLocation();
@@ -176,37 +26,7 @@ function Shell() {
 	const { signOut } = useAuth();
 	const route = routeFor(useLocation().pathname);
 	const navigate = useNavigate();
-	return <main className="min-h-screen bg-background text-foreground"><Toast.Provider placement="bottom end" /><header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-separator/80 bg-surface/95 px-6 backdrop-blur"><div className="flex items-center gap-3"><button className="flex items-center gap-3" onClick={() => navigate("/")}><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent font-bold text-accent-foreground">E</div><span className="font-semibold">EdgeList</span></button></div><nav className="hidden gap-1 sm:flex">{([["files", "Files", "/"], ["storages", "Storages", "/@manage/storages"], ["metadata", "Metadata", "/@manage/metadata"], ["backup", "Backup & restore", "/@manage/backup-restore"]] as const).map(([key, label, path]) => <button key={key} className={`rounded-lg px-3 py-2 text-sm ${route.kind === key ? "bg-accent-soft font-medium text-accent-soft-foreground" : "text-muted hover:bg-surface-secondary"}`} onClick={() => navigate(path)}>{label}</button>)}</nav><HeroButton size="sm" variant="ghost" onPress={signOut}>Sign out</HeroButton></header><div className="mx-auto max-w-6xl p-6"><Outlet /></div></main>;
-}
-
-function LoginView({ onSignedIn }: { onSignedIn: (token: string) => void }) {
-	const navigate = useNavigate();
-	const from = (useLocation().state as { from?: string } | null)?.from ?? ROUTES.files();
-	const [accessKey, setAccessKey] = useState("");
-	const [secretKey, setSecretKey] = useState("");
-	const [error, setError] = useState("");
-	const [loading, setLoading] = useState(false);
-	async function submit(event: FormEvent) {
-		event.preventDefault();
-		setLoading(true);
-		setError("");
-		try {
-			const response = await fetch("/api/auth/login", {
-				method: "POST",
-				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ access_key: accessKey, secret_key: secretKey }),
-			});
-			const result = (await response.json()) as LoginResponse;
-			if (!response.ok || result.code !== 200 || !result.data?.token) throw new Error(result.message || "Login failed");
-			onSignedIn(result.data.token);
-			navigate(from, { replace: true });
-		} catch (reason) {
-			setError(reason instanceof Error ? reason.message : "Login failed");
-		} finally {
-			setLoading(false);
-		}
-	}
-	return <main className="flex min-h-screen items-center justify-center bg-background p-6 text-foreground"><HeroCard className="w-full max-w-md" variant="default"><div className="mb-8 text-center"><div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-2xl font-bold text-accent-foreground">E</div><h1 className="text-2xl font-semibold tracking-tight">Sign in to EdgeList</h1><p className="mt-2 text-sm text-muted">OpenList-compatible file management</p></div><form className="space-y-5" onSubmit={submit}><label className="block"><span className="mb-2 block text-sm font-medium text-foreground">Access Key</span><input required value={accessKey} onChange={(event) => setAccessKey(event.target.value)} className="w-full rounded-lg border border-border bg-field-background px-3.5 py-3 outline-none transition focus:border-focus focus:ring-4 focus:ring-accent/15" autoComplete="username" /></label><label className="block"><span className="mb-2 block text-sm font-medium text-foreground">Secret Key</span><input required type="password" value={secretKey} onChange={(event) => setSecretKey(event.target.value)} className="w-full rounded-lg border border-border bg-field-background px-3.5 py-3 outline-none transition focus:border-focus focus:ring-4 focus:ring-accent/15" autoComplete="current-password" /></label>{error && <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger-soft-foreground">{error}</p>}<HeroButton type="submit" fullWidth isPending={loading}>{loading ? "Signing in…" : "Sign in"}</HeroButton></form><p className="mt-8 text-center text-xs text-muted">Credentials are verified securely by the Worker.</p></HeroCard></main>;
+	return <main className="min-h-screen bg-background text-foreground"><Toast.Provider placement="bottom end" /><header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-separator/80 bg-surface/95 px-6 backdrop-blur"><div className="flex items-center gap-3"><button className="flex items-center gap-3" onClick={() => navigate(ROUTES.files())}><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent font-bold text-accent-foreground">E</div><span className="font-semibold">EdgeList</span></button></div><nav className="hidden gap-1 sm:flex">{NAV_ITEMS.map(({ kind, label, path }) => <button key={kind} className={`rounded-lg px-3 py-2 text-sm ${route.kind === kind ? "bg-accent-soft font-medium text-accent-soft-foreground" : "text-muted hover:bg-surface-secondary"}`} onClick={() => navigate(path)}>{label}</button>)}</nav><HeroButton size="sm" variant="ghost" onPress={signOut}>Sign out</HeroButton></header><div className="mx-auto max-w-6xl p-6"><Outlet /></div></main>;
 }
 
 export default function App() {
@@ -216,15 +36,15 @@ export default function App() {
 			<Routes>
 				<Route element={<RequireAuth signedIn={signedIn} />}>
 					<Route element={<Shell />}>
-						<Route path={ROUTES.storages} element={<StoragesView />} />
-						<Route path={ROUTES.metadata} element={<MetadataView />} />
-						<Route path={ROUTES.backup} element={<BackupView />} />
-						<Route path="*" element={<FilesView />} />
+						<Route path={ROUTES.storages} element={<StoragesPage />} />
+						<Route path={ROUTES.metadata} element={<MetadataPage />} />
+						<Route path={ROUTES.backup} element={<BackupPage />} />
+						<Route path="*" element={<FilesPage />} />
 					</Route>
 				</Route>
 				<Route
 					path={ROUTES.login}
-					element={signedIn ? <Navigate to={ROUTES.files()} replace /> : <LoginView onSignedIn={signIn} />}
+					element={signedIn ? <Navigate to={ROUTES.files()} replace /> : <LoginPage onSignedIn={signIn} />}
 				/>
 			</Routes>
 		</ConfirmProvider>
