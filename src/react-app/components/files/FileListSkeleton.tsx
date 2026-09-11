@@ -5,6 +5,7 @@ export function FileListSkeleton() {
 		<div className="divide-y divide-separator">
 			{Array.from({ length: 7 }, (_, index) => (
 				<div key={index} className="flex items-center gap-4 px-5 py-4">
+					<Skeleton className="h-4 w-4 shrink-0 rounded" />
 					<Skeleton className="h-8 w-8 rounded-lg" />
 					<div className="flex min-w-0 flex-1 flex-col gap-2">
 						<Skeleton className="h-4 w-2/5 rounded-md" />

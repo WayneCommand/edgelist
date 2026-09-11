@@ -2,15 +2,20 @@ import { type FormEvent, useCallback, useEffect, useRef, useState } from "react"
 import { Button as HeroButton, Skeleton } from "@heroui/react";
 import { useLocation, useNavigate } from "react-router";
 import { api } from "../lib/api";
-import { formatSize, languageForFile } from "../lib/format";
-import type { FileItem } from "../lib/types";
+import { collectRemovals, groupByParent, summarizeBatch, type RemoveOutcome } from "../lib/batch";
+import { languageForFile } from "../lib/format";
+import type { FileItem, FileListResponse } from "../lib/types";
 import { ROUTES, filesPathFor } from "../routes";
 import { useAuth } from "../hooks/useAuth";
 import { useConfirm } from "../hooks/useConfirm";
 import { useNotify } from "../hooks/useNotify";
-import { MonacoTextEditor } from "../components/common/MonacoTextEditor";
+import { useSelection } from "../hooks/useSelection";
 import { Modal } from "../components/common/Modal";
 import { FileListSkeleton } from "../components/files/FileListSkeleton";
+import { FilePreviewModal } from "../components/files/FilePreviewModal";
+import { FileTable } from "../components/files/FileTable";
+
+const PAGE_SIZE = 200;
 
 export function FilesPage() {
 	const notify = useNotify();
@@ -18,59 +23,74 @@ export function FilesPage() {
 	const { token } = useAuth();
 	const navigate = useNavigate();
 	const initialPath = filesPathFor(useLocation().pathname);
-	function openDirectory(next: string) {
-		navigate({ pathname: ROUTES.files(next) });
-	}
+
 	const [path, setPath] = useState(initialPath);
 	const [items, setItems] = useState<FileItem[]>([]);
-	const [selected, setSelected] = useState<FileItem | null>(null);
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState("");
+	const [query, setQuery] = useState("");
+	const [searching, setSearching] = useState(false);
+	const [folderName, setFolderName] = useState<string | null>(null);
+	const [renameTarget, setRenameTarget] = useState<FileItem | null>(null);
+	const [renameName, setRenameName] = useState("");
 	const [preview, setPreview] = useState<{ item: FileItem; content: string } | null>(null);
 	const [previewContent, setPreviewContent] = useState("");
 	const [previewDirty, setPreviewDirty] = useState(false);
 	const [previewSaving, setPreviewSaving] = useState(false);
 	const [previewLoading, setPreviewLoading] = useState(false);
-	const [query, setQuery] = useState("");
-	const [searching, setSearching] = useState(false);
-	const [loading, setLoading] = useState(false);
-	const [modal, setModal] = useState<"mkdir" | "rename" | null>(null);
-	const [value, setValue] = useState("");
-	const [error, setError] = useState("");
-	const inputRef = useRef<HTMLInputElement>(null);
+	const uploadRef = useRef<HTMLInputElement>(null);
+
+	const selection = useSelection(items);
+	const clearSelection = selection.clear;
+	const single = selection.count === 1 ? selection.items[0] : null;
+
+	function openDirectory(next: string) {
+		navigate({ pathname: ROUTES.files(next) });
+	}
 
 	// The directory is always passed in, so this callback never changes identity.
-	const load = useCallback(async (nextPath: string) => {
-		setLoading(true);
-		setError("");
-		setSelected(null);
-		try {
-			const data = await api<{ content: FileItem[] }>("/api/fs/list", {
-				method: "POST",
-				body: JSON.stringify({ path: nextPath, page: 1, per_page: 200 }),
-			});
-			setPath(nextPath);
-			setItems(data.content ?? []);
-		} catch (reason) {
-			setError(reason instanceof Error ? reason.message : "Unable to load files");
-		} finally {
-			setLoading(false);
-		}
-	}, []);
+	const load = useCallback(
+		async (nextPath: string) => {
+			setLoading(true);
+			setError("");
+			clearSelection();
+			try {
+				const data = await api<FileListResponse>("/api/fs/list", {
+					method: "POST",
+					body: JSON.stringify({ path: nextPath, page: 1, per_page: PAGE_SIZE }),
+				});
+				setPath(nextPath);
+				setItems(data.content ?? []);
+			} catch (reason) {
+				setError(reason instanceof Error ? reason.message : "Unable to load files");
+			} finally {
+				setLoading(false);
+			}
+		},
+		[clearSelection],
+	);
+
 	// The URL is the source of truth for the current file directory.
 	useEffect(() => {
 		setSearching(false);
 		setQuery("");
 		void load(initialPath);
 	}, [initialPath, load]);
+
 	async function search(event?: FormEvent) {
 		event?.preventDefault();
-		if (!query.trim()) return load(path);
+		if (!query.trim()) {
+			await load(path);
+			return;
+		}
 		setSearching(true);
 		setLoading(true);
 		setError("");
+		clearSelection();
 		try {
-			const data = await api<{ content: FileItem[] }>("/api/fs/search", {
+			const data = await api<FileListResponse>("/api/fs/search", {
 				method: "POST",
-				body: JSON.stringify({ parent: path, keywords: query, scope: 0, page: 1, per_page: 200 }),
+				body: JSON.stringify({ parent: path, keywords: query, scope: 0, page: 1, per_page: PAGE_SIZE }),
 			});
 			setItems(data.content ?? []);
 		} catch (reason) {
@@ -79,65 +99,82 @@ export function FilesPage() {
 			setLoading(false);
 		}
 	}
+
 	async function createFolder(event: FormEvent) {
 		event.preventDefault();
+		if (folderName === null) return;
 		try {
 			await api("/api/fs/mkdir", {
 				method: "POST",
-				body: JSON.stringify({ path: `${path.replace(/\/$/, "")}/${value}` }),
+				body: JSON.stringify({ path: `${path.replace(/\/$/, "")}/${folderName}` }),
 			});
 			notify("Folder created");
-			setModal(null);
-			setValue("");
+			setFolderName(null);
 			await load(path);
 		} catch (reason) {
 			notify(reason instanceof Error ? reason.message : "Unable to create folder", true);
 		}
 	}
+
 	async function rename(event: FormEvent) {
 		event.preventDefault();
-		if (!selected) return;
+		if (!renameTarget) return;
 		try {
 			await api("/api/fs/rename", {
 				method: "POST",
-				body: JSON.stringify({ path: selected.path, name: value, overwrite: false }),
+				body: JSON.stringify({ path: renameTarget.path, name: renameName, overwrite: false }),
 			});
 			notify("Renamed");
-			setModal(null);
-			setSelected(null);
+			setRenameTarget(null);
 			await load(path);
 		} catch (reason) {
 			notify(reason instanceof Error ? reason.message : "Unable to rename", true);
 		}
 	}
-	async function remove() {
-		if (!selected) return;
-		if (!(await confirm({ title: "Delete", message: `Delete ${selected.name}?` }))) return;
+
+	async function removeSelected() {
+		const targets = selection.items;
+		if (!targets.length) return;
+		const question = targets.length === 1 ? `Delete ${targets[0].name}?` : `Delete ${targets.length} items?`;
+		if (!(await confirm({ title: "Delete", message: question }))) return;
 		try {
-			await api("/api/fs/remove", { method: "POST", body: JSON.stringify({ dir: path, names: [selected.name] }) });
-			notify("Deleted");
-			setSelected(null);
+			// Search results can span directories, so one request per directory.
+			const settled = await Promise.allSettled(
+				[...groupByParent(targets)].map(([dir, names]) =>
+					api<RemoveOutcome>("/api/fs/remove", { method: "POST", body: JSON.stringify({ dir, names }) }),
+				),
+			);
+			const summary = summarizeBatch(collectRemovals(settled), "item");
+			notify(summary.message, summary.error);
 			await load(path);
 		} catch (reason) {
 			notify(reason instanceof Error ? reason.message : "Unable to delete", true);
 		}
 	}
-	async function upload(file: File) {
-		try {
-			await api("/api/fs/put", {
-				method: "PUT",
-				headers: {
-					"File-Path": encodeURIComponent(`${path.replace(/\/$/, "")}/${file.name}`),
-					"Content-Type": file.type || "application/octet-stream",
-				},
-				body: file,
-			});
-			notify("Uploaded");
+
+	async function upload(files: FileList) {
+		let uploaded = 0;
+		for (const file of files) {
+			try {
+				await api("/api/fs/put", {
+					method: "PUT",
+					headers: {
+						"File-Path": encodeURIComponent(`${path.replace(/\/$/, "")}/${file.name}`),
+						"Content-Type": file.type || "application/octet-stream",
+					},
+					body: file,
+				});
+				uploaded += 1;
+			} catch (reason) {
+				notify(reason instanceof Error ? reason.message : `Unable to upload ${file.name}`, true);
+			}
+		}
+		if (uploaded) {
+			notify(uploaded === 1 ? "Uploaded" : `Uploaded ${uploaded} files`);
 			await load(path);
-		} catch (reason) {
-			notify(reason instanceof Error ? reason.message : "Unable to upload", true);
 		}
 	}
+
 	async function download(item: FileItem) {
 		try {
 			const response = await fetch(`/d${item.path}`, { headers: { Authorization: token } });
@@ -152,9 +189,11 @@ export function FilesPage() {
 			notify(reason instanceof Error ? reason.message : "Unable to download", true);
 		}
 	}
+
 	function isPreviewable(name: string) {
 		return languageForFile(name) !== null;
 	}
+
 	async function previewFile(item: FileItem) {
 		setPreviewLoading(true);
 		try {
@@ -170,6 +209,7 @@ export function FilesPage() {
 			setPreviewLoading(false);
 		}
 	}
+
 	async function savePreview() {
 		if (!preview) return;
 		setPreviewSaving(true);
@@ -188,6 +228,7 @@ export function FilesPage() {
 			setPreviewSaving(false);
 		}
 	}
+
 	async function closePreview() {
 		if (
 			previewDirty &&
@@ -198,6 +239,7 @@ export function FilesPage() {
 		setPreviewContent("");
 		setPreviewDirty(false);
 	}
+
 	async function openFile(item: FileItem) {
 		if (item.is_dir) {
 			openDirectory(item.path);
@@ -209,12 +251,13 @@ export function FilesPage() {
 		}
 		await download(item);
 	}
+
 	const crumbs = path.split("/").filter(Boolean);
 	return (
 		<section>
 			<div className="mb-5 flex flex-wrap items-center justify-between gap-3">
 				<div>
-					<p className="text-sm text-slate-400">Files</p>
+					<p className="text-sm text-muted">Files</p>
 					<h1 className="mt-1 text-2xl font-semibold">
 						{searching ? `Search: ${query}` : path === "/" ? "All files" : crumbs[crumbs.length - 1]}
 					</h1>
@@ -223,16 +266,17 @@ export function FilesPage() {
 					<HeroButton size="sm" variant="secondary" onPress={() => void load(path)}>
 						Refresh
 					</HeroButton>
-					<HeroButton size="sm" onPress={() => inputRef.current?.click()}>
+					<HeroButton size="sm" onPress={() => uploadRef.current?.click()}>
 						Upload
 					</HeroButton>
 					<input
-						ref={inputRef}
+						ref={uploadRef}
 						hidden
 						type="file"
+						multiple
 						onChange={(event) => {
-							const file = event.target.files?.[0];
-							if (file) void upload(file);
+							const files = event.target.files;
+							if (files?.length) void upload(files);
 							event.target.value = "";
 						}}
 					/>
@@ -243,7 +287,7 @@ export function FilesPage() {
 					value={query}
 					onChange={(event) => setQuery(event.target.value)}
 					placeholder="Search files…"
-					className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
+					className="min-w-0 flex-1 rounded-lg border border-border bg-field-background px-3 py-2 text-sm outline-none focus:border-focus"
 				/>
 				<HeroButton type="submit" size="sm" variant="secondary">
 					Search
@@ -263,13 +307,13 @@ export function FilesPage() {
 					</HeroButton>
 				)}
 			</form>
-			<div className="mb-4 flex items-center gap-2 text-sm text-slate-500">
+			<div className="mb-4 flex items-center gap-2 text-sm text-muted">
 				<button
 					onClick={() => {
 						setSearching(false);
 						openDirectory("/");
 					}}
-					className="hover:text-blue-600"
+					className="hover:text-accent"
 				>
 					Root
 				</button>
@@ -279,38 +323,41 @@ export function FilesPage() {
 						return (
 							<span key={crumb}>
 								/{" "}
-								<button onClick={() => openDirectory(crumb)} className="hover:text-blue-600">
+								<button onClick={() => openDirectory(crumb)} className="hover:text-accent">
 									{part}
 								</button>
 							</span>
 						);
 					})}
 			</div>
-			<div className="mb-3 flex min-h-9 items-center gap-2">
-				{selected && (
+			<div className="mb-3 flex min-h-9 flex-wrap items-center gap-2">
+				{selection.count > 0 && (
 					<>
-						<span className="text-sm text-slate-500">Selected: {selected.name}</span>
-						{!selected.is_dir &&
-							(isPreviewable(selected.name) ? (
-								<HeroButton size="sm" variant="outline" onPress={() => void previewFile(selected)}>
-									Preview/Edit
-								</HeroButton>
-							) : (
-								<HeroButton size="sm" variant="outline" onPress={() => void download(selected)}>
-									Download
-								</HeroButton>
-							))}
-						<HeroButton
-							size="sm"
-							variant="outline"
-							onPress={() => {
-								setValue(selected.name);
-								setModal("rename");
-							}}
-						>
-							Rename
-						</HeroButton>
-						<HeroButton size="sm" variant="danger" onPress={() => void remove()}>
+						<span className="text-sm text-muted">
+							{selection.count === 1 ? selection.items[0].name : `${selection.count} selected`}
+						</span>
+						{single && !single.is_dir && (
+							<HeroButton
+								size="sm"
+								variant="outline"
+								onPress={() => (isPreviewable(single.name) ? void previewFile(single) : void download(single))}
+							>
+								{isPreviewable(single.name) ? "Preview/Edit" : "Download"}
+							</HeroButton>
+						)}
+						{single && (
+							<HeroButton
+								size="sm"
+								variant="outline"
+								onPress={() => {
+									setRenameName(single.name);
+									setRenameTarget(single);
+								}}
+							>
+								Rename
+							</HeroButton>
+						)}
+						<HeroButton size="sm" variant="danger" onPress={() => void removeSelected()}>
 							Delete
 						</HeroButton>
 					</>
@@ -320,51 +367,36 @@ export function FilesPage() {
 					size="sm"
 					variant="outline"
 					onPress={() => {
-						setValue("");
-						setModal("mkdir");
+						setFolderName("");
 					}}
 				>
 					New folder
 				</HeroButton>
 			</div>
-			<section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-				{error && <p className="border-b border-red-100 bg-red-50 px-5 py-3 text-sm text-red-600">{error}</p>}
+			<section className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+				{error && (
+					<p className="border-b border-danger/20 bg-danger-soft px-5 py-3 text-sm text-danger-soft-foreground">
+						{error}
+					</p>
+				)}
 				{loading ? (
 					<FileListSkeleton />
 				) : !items.length ? (
-					<div className="p-16 text-center text-sm text-slate-400">No files found</div>
+					<div className="p-16 text-center text-sm text-muted">No files found</div>
 				) : (
-					<div>
-						{items.map((item) => (
-							<button
-								key={item.path}
-								className={`flex w-full items-center gap-4 border-b border-slate-100 px-5 py-4 text-left last:border-0 hover:bg-slate-50 ${selected?.path === item.path ? "bg-blue-50" : ""}`}
-								onClick={() => setSelected(item)}
-								onDoubleClick={() => !searching && void openFile(item)}
-							>
-								<span className="text-2xl">{item.is_dir ? "📁" : "📄"}</span>
-								<span className="min-w-0 flex-1 truncate text-sm font-medium">{item.name}</span>
-								<span className="hidden w-32 text-right text-xs text-slate-400 sm:block">
-									{item.is_dir ? "Folder" : formatSize(item.size)}
-								</span>
-								<span className="hidden w-36 text-right text-xs text-slate-400 md:block">
-									{item.modified ? new Date(item.modified).toLocaleDateString() : "—"}
-								</span>
-							</button>
-						))}
-					</div>
+					<FileTable items={items} selection={selection} onOpen={(item) => void openFile(item)} />
 				)}
 			</section>
-			{modal === "mkdir" && (
-				<Modal title="New folder" onClose={() => setModal(null)}>
+			{folderName !== null && (
+				<Modal title="New folder" onClose={() => setFolderName(null)}>
 					<form className="space-y-4" onSubmit={createFolder}>
 						<input
 							autoFocus
 							required
-							value={value}
-							onChange={(event) => setValue(event.target.value)}
+							value={folderName}
+							onChange={(event) => setFolderName(event.target.value)}
 							placeholder="Folder name"
-							className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-blue-500"
+							className="w-full rounded-lg border border-border bg-field-background px-3 py-2 outline-none focus:border-focus"
 						/>
 						<HeroButton type="submit" fullWidth>
 							Create
@@ -372,15 +404,15 @@ export function FilesPage() {
 					</form>
 				</Modal>
 			)}
-			{modal === "rename" && (
-				<Modal title="Rename" onClose={() => setModal(null)}>
+			{renameTarget && (
+				<Modal title="Rename" onClose={() => setRenameTarget(null)}>
 					<form className="space-y-4" onSubmit={rename}>
 						<input
 							autoFocus
 							required
-							value={value}
-							onChange={(event) => setValue(event.target.value)}
-							className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-blue-500"
+							value={renameName}
+							onChange={(event) => setRenameName(event.target.value)}
+							className="w-full rounded-lg border border-border bg-field-background px-3 py-2 outline-none focus:border-focus"
 						/>
 						<HeroButton type="submit" fullWidth>
 							Save
@@ -394,26 +426,18 @@ export function FilesPage() {
 				</Modal>
 			)}
 			{preview && (
-				<Modal wide title={`${preview.item.name}${previewDirty ? " *" : ""}`} onClose={closePreview}>
-					<div className="space-y-3">
-						<div className="flex items-center justify-between gap-3">
-							<p className="text-xs text-muted">{languageForFile(preview.item.name)?.toUpperCase()} · 在线编辑</p>
-							<HeroButton size="sm" isDisabled={!previewDirty || previewSaving} onPress={() => void savePreview()}>
-								{previewSaving ? "Saving…" : "Save"}
-							</HeroButton>
-						</div>
-						<MonacoTextEditor
-							key={preview.item.path}
-							value={previewContent}
-							language={languageForFile(preview.item.name) ?? "plaintext"}
-							path={preview.item.path}
-							onChange={(content) => {
-								setPreviewContent(content);
-								setPreviewDirty(content !== preview.content);
-							}}
-						/>
-					</div>
-				</Modal>
+				<FilePreviewModal
+					item={preview.item}
+					content={previewContent}
+					dirty={previewDirty}
+					saving={previewSaving}
+					onChange={(content) => {
+						setPreviewContent(content);
+						setPreviewDirty(content !== preview.content);
+					}}
+					onSave={() => void savePreview()}
+					onClose={() => void closePreview()}
+				/>
 			)}
 		</section>
 	);
