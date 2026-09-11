@@ -2,7 +2,28 @@ import { useSyncExternalStore } from "react";
 
 const TOKEN_KEY = "edgelist-token";
 
-let token = sessionStorage.getItem(TOKEN_KEY) ?? "";
+// `sessionStorage` is missing outside a browser (tests, SSR) and throws when it
+// is present but blocked (private mode, storage disabled), so every access goes
+// through here rather than being read once at module load. The in-memory mirror
+// below keeps the session working either way.
+function readStoredToken(): string {
+	try {
+		return sessionStorage.getItem(TOKEN_KEY) ?? "";
+	} catch {
+		return "";
+	}
+}
+
+function writeStoredToken(value: string | null) {
+	try {
+		if (value === null) sessionStorage.removeItem(TOKEN_KEY);
+		else sessionStorage.setItem(TOKEN_KEY, value);
+	} catch {
+		// Nothing to do: the token still lives in memory for this session.
+	}
+}
+
+let token = readStoredToken();
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -22,13 +43,13 @@ export function getAuthToken() {
 
 export function setAuthToken(next: string) {
 	token = next;
-	sessionStorage.setItem(TOKEN_KEY, next);
+	writeStoredToken(next);
 	emit();
 }
 
 export function clearAuthToken() {
 	token = "";
-	sessionStorage.removeItem(TOKEN_KEY);
+	writeStoredToken(null);
 	emit();
 }
 

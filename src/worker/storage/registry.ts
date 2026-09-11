@@ -19,6 +19,13 @@ export interface DriverItem {
 	options?: string;
 	required?: boolean;
 	help?: string;
+	/**
+	 * Render as a password field. EdgeList-specific: OpenList's `Item` has no
+	 * such flag, but a driver form that shows a secret in clear text is a
+	 * mistake, and guessing from the field name would be a second source of
+	 * truth for something the registry already knows.
+	 */
+	secret?: boolean;
 }
 
 // Mirrors OpenList's `driver.Config` (`internal/driver/config.go:3-29`). Flags
@@ -86,6 +93,11 @@ function buildCommonItems(config: DriverConfig): DriverItem[] {
 
 export function getDriverInfo(driver: DriverDefinition) {
 	return {
+		// `key` is what a storage stores in `StorageConfig.driver`; `name` is the
+		// OpenList-facing label. The admin UI needs both: the key to match a
+		// storage to its definition, the name to show a badge and to talk to an
+		// upstream OpenList.
+		key: driver.key,
 		name: driver.name,
 		config: driver.config,
 		common: buildCommonItems(driver.config),
@@ -111,9 +123,9 @@ const S3_ITEMS: DriverItem[] = [
 	},
 	{ name: "bucket", type: "string", default: "", required: true },
 	{ name: "access_key_id", type: "string", default: "", required: true },
-	{ name: "secret_access_key", type: "string", default: "", required: true },
+	{ name: "secret_access_key", type: "string", default: "", required: true, secret: true },
 	{ name: "region", type: "string", default: "" },
-	{ name: "session_token", type: "string", default: "" },
+	{ name: "session_token", type: "string", default: "", secret: true },
 	{ name: "custom_host", type: "string", default: "" },
 	{ name: "enable_custom_host_presign", type: "bool", default: "false" },
 	{ name: "sign_url_expire", type: "number", default: "4" },
@@ -145,7 +157,7 @@ const WEBDAV_ITEMS: DriverItem[] = [
 		help: "WebDAV address; `address` is accepted as an alias",
 	},
 	{ name: "username", type: "string", default: "" },
-	{ name: "password", type: "string", default: "" },
+	{ name: "password", type: "string", default: "", secret: true },
 	{ name: "root_folder_path", type: "string", default: "/" },
 ];
 
@@ -157,9 +169,9 @@ const OPENLIST_ITEMS: DriverItem[] = [
 		required: true,
 		help: "Upstream OpenList address; `url` is accepted as an alias",
 	},
-	{ name: "token", type: "string", default: "" },
+	{ name: "token", type: "string", default: "", secret: true },
 	{ name: "username", type: "string", default: "" },
-	{ name: "password", type: "string", default: "" },
+	{ name: "password", type: "string", default: "", secret: true },
 ];
 
 export const DRIVERS: readonly DriverDefinition[] = [

@@ -70,6 +70,25 @@ describe("getDriverInfo", () => {
 		expect(Array.isArray(info.common)).toBe(true);
 		expect(Array.isArray(info.additional)).toBe(true);
 	});
+
+	it("carries the storage key so the UI can match a storage to its driver", () => {
+		// A storage stores `object`/`webdav`/`openlist`, not the display name, so
+		// the name alone cannot be used to look a definition back up.
+		for (const driver of DRIVERS) {
+			expect(getDriverInfo(driver).key).toBe(driver.key);
+		}
+		expect(getDriverInfo(findDriver("object")!).key).toBe("object");
+	});
+
+	it("marks every credential as secret so the form can mask it", () => {
+		const secrets = (driver: string) =>
+			findDriver(driver)!
+				.additionalItems.filter((item) => item.secret)
+				.map((item) => item.name);
+		expect(secrets("object")).toEqual(["secret_access_key", "session_token"]);
+		expect(secrets("webdav")).toEqual(["password"]);
+		expect(secrets("openlist")).toEqual(["token", "password"]);
+	});
 });
 
 describe("adapter capabilities match registry", () => {
