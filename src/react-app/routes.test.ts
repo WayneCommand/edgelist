@@ -22,4 +22,14 @@ describe("frontend routes", () => {
 		expect(filesPathFor(ROUTES.storages)).toBe("/");
 		expect(filesPathFor("/ibm/backup/")).toBe("/ibm/backup");
 	});
+
+	it("decodes percent escapes that the browser keeps in the URL", () => {
+		// Cloudflare answers `/@manage/storages` with a 307 to the encoded form.
+		expect(routeFor("/%40manage/storages")).toEqual({ kind: "storages" });
+		expect(filesPathFor("/my%20folder/%E4%B8%AD%E6%96%87")).toBe("/my folder/中文");
+	});
+
+	it("survives a path that is not valid percent-encoding", () => {
+		expect(filesPathFor("/100%")).toBe("/100%");
+	});
 });

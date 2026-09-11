@@ -5,7 +5,7 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-	{ ignores: ["dist"] },
+	{ ignores: ["dist", "worker-configuration.d.ts"] },
 	{
 		extends: [js.configs.recommended, ...tseslint.configs.recommended],
 		files: ["**/*.{ts,tsx}"],
@@ -19,9 +19,16 @@ export default tseslint.config(
 		},
 		rules: {
 			...reactHooks.configs.recommended.rules,
-			"react-refresh/only-export-components": [
-				"warn",
-				{ allowConstantExport: true },
+			"react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
+			// Adapter methods must keep the parameters their interface declares
+			// even when a driver ignores one, so `_name` marks intent to drop it.
+			"@typescript-eslint/no-unused-vars": [
+				"error",
+				{
+					argsIgnorePattern: "^_",
+					varsIgnorePattern: "^_",
+					caughtErrorsIgnorePattern: "^_",
+				},
 			],
 		},
 	},

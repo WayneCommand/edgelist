@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { MonacoEditorReactComp } from "@typefox/monaco-editor-react";
 import { configureDefaultWorkerFactory } from "monaco-languageclient/workerFactory";
 import type { EditorAppConfig, TextContents } from "monaco-languageclient/editorApp";
@@ -30,11 +30,14 @@ function editorLanguage(language: string) {
 }
 
 export function MonacoTextEditor({ value, language, path, onChange }: MonacoTextEditorProps) {
+	// Once mounted the editor owns its buffer, so the config only needs the
+	// seed text. Callers key the component by path, which remounts it per file.
+	const [initialValue] = useState(value);
 	const editorAppConfig = useMemo<EditorAppConfig>(
 		() => ({
 			codeResources: {
 				modified: {
-					text: value,
+					text: initialValue,
 					uri: `file://${path}`,
 					enforceLanguageId: editorLanguage(language),
 				},
@@ -51,7 +54,7 @@ export function MonacoTextEditor({ value, language, path, onChange }: MonacoText
 				minimap: { enabled: false },
 			},
 		}),
-		[language, path],
+		[initialValue, language, path],
 	);
 
 	function handleTextChanged(changes: TextContents) {

@@ -426,7 +426,10 @@ async function buildDirTree(c: FsContext, parentPath: string, depth: number, max
 			if (children.length) node.children = children;
 			nodes.push(node);
 		}
-	} catch {}
+	} catch {
+		// A driver that cannot list a sub-directory still contributes the node
+		// itself; the tree is best-effort by design.
+	}
 	return nodes;
 }
 
@@ -473,7 +476,9 @@ export async function fsRemoveEmptyDirectory(c: FsContext) {
 					await childResolved.adapter.remove(childResolved.path);
 					removed.push(childPath);
 				}
-			} catch {}
+			} catch {
+				// One unreadable child must not abort the sweep of its siblings.
+			}
 		}
 		return respond(c, { removed });
 	} catch (error) {

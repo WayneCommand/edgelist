@@ -24,8 +24,22 @@ export function filesPathFor(pathname: string): string {
 	return route.kind === "files" ? route.path : "/";
 }
 
+/**
+ * `location.pathname` keeps percent escapes, so `/@login` arrives as
+ * `/%40login` and a folder called `my folder` as `/my%20folder`. The file API
+ * wants decoded names, so decode once here.
+ */
+function decodePathname(pathname: string) {
+	try {
+		return decodeURIComponent(pathname);
+	} catch {
+		// A stray `%` is a legal file name; leave it untouched.
+		return pathname;
+	}
+}
+
 export function routeFor(pathname: string): Route {
-	const path = normalizeRoutePath(pathname);
+	const path = normalizeRoutePath(decodePathname(pathname));
 	if (path === ROUTES.login) return { kind: "login" };
 	if (path === ROUTES.storages) return { kind: "storages" };
 	if (path === ROUTES.metadata) return { kind: "metadata" };
