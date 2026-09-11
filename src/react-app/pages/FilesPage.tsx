@@ -3,7 +3,11 @@ import { Button as HeroButton, Skeleton } from "@heroui/react";
 import { useLocation, useNavigate } from "react-router";
 import { api } from "../lib/api";
 import { collectRemovals, groupByParent, summarizeBatch, type RemoveOutcome } from "../lib/batch";
+import { fileActions } from "../lib/fileActions";
 import { languageForFile } from "../lib/format";
+import { permissionsFor } from "../lib/mask";
+import type { MenuPosition } from "../lib/menu";
+import { crumbsOf } from "../lib/paths";
 import {
 	DEFAULT_SORT_STATE,
 	DEFAULT_VIEW_MODE,
@@ -22,6 +26,7 @@ import { useNotify } from "../hooks/useNotify";
 import { useSelection } from "../hooks/useSelection";
 import { useStoredState } from "../hooks/useStoredState";
 import { Modal } from "../components/common/Modal";
+import { ContextMenu } from "../components/files/ContextMenu";
 import { FileGrid } from "../components/files/FileGrid";
 import { FileListSkeleton } from "../components/files/FileListSkeleton";
 import { FilePreviewModal } from "../components/files/FilePreviewModal";
@@ -54,6 +59,7 @@ export function FilesPage() {
 	const [previewSaving, setPreviewSaving] = useState(false);
 	const [previewLoading, setPreviewLoading] = useState(false);
 	const [transfer, setTransfer] = useState<{ mode: TransferMode; dir: string; names: string[] } | null>(null);
+	const [menu, setMenu] = useState<MenuPosition | null>(null);
 	const [storedView, setStoredView] = useStoredState(VIEW_MODE_KEY, DEFAULT_VIEW_MODE);
 	const view = parseViewMode(storedView);
 	// The sort order is remembered per directory, keyed off the URL rather than
@@ -66,6 +72,8 @@ export function FilesPage() {
 	const selection = useSelection(items);
 	const clearSelection = selection.clear;
 	const single = selection.count === 1 ? selection.items[0] : null;
+	// One source of truth for what is possible, shared by the bar and the menu.
+	const permissions = permissionsFor(selection.items);
 
 	function openDirectory(next: string) {
 		navigate({ pathname: ROUTES.files(next) });
@@ -326,7 +334,15 @@ export function FilesPage() {
 		await download([item]);
 	}
 
-	const crumbs = path.split("/").filter(Boolean);
+	// Right clicking an entry that is not part of the selection makes it the
+	// selection first, the way a file manager does, so the menu always describes
+	// what the user pointed at.
+	function openMenu(item: FileItem, index: number, position: MenuPosition) {
+		if (!selection.isSelected(item.path)) selection.selectOnly(item, index);
+		setMenu(position);
+	}
+
+	const crumbs = crumbsOf(path);
 	// Search results arrive ranked by the server, so the headers only re-sort a
 	// real directory listing.
 	const sortable = searching ? undefined : { state: sort, change: changeSort };
@@ -338,7 +354,7 @@ export function FilesPage() {
 				<div>
 					<p className="text-sm text-muted">Files</p>
 					<h1 className="mt-1 text-2xl font-semibold">
-						{searching ? `Search: ${query}` : path === "/" ? "All files" : crumbs[crumbs.length - 1]}
+						{searching ? `Search: ${query}` : path === "/" ? "All files" : crumbs[crumbs.length - 1]?.name}
 					</h1>
 				</div>
 			</div>
@@ -378,17 +394,14 @@ export function FilesPage() {
 					Root
 				</button>
 				{!searching &&
-					crumbs.map((part, index) => {
-						const crumb = `/${crumbs.slice(0, index + 1).join("/")}`;
-						return (
-							<span key={crumb}>
-								/{" "}
-								<button onClick={() => openDirectory(crumb)} className="hover:text-accent">
-									{part}
-								</button>
-							</span>
-						);
-					})}
+					crumbs.map((crumb) => (
+						<span key={crumb.path}>
+							/{" "}
+							<button onClick={() => openDirectory(crumb.path)} className="hover:text-accent">
+								{crumb.name}
+							</button>
+						</span>
+					))}
 			</div>
 			<FileToolbar
 				selection={selection}
@@ -400,6 +413,7 @@ export function FilesPage() {
 			/>
 			<SelectionBar
 				selection={selection}
+				permissions={permissions}
 				onRename={() => single && startRename(single)}
 				onCopy={() => startTransfer("copy")}
 				onMove={() => startTransfer("move")}
@@ -418,7 +432,12 @@ export function FilesPage() {
 				) : !items.length ? (
 					<div className="p-16 text-center text-sm text-muted">No files found</div>
 				) : view === "grid" ? (
-					<FileGrid items={items} selection={selection} onOpen={(item) => void openFile(item)} />
+					<FileGrid
+						items={items}
+						selection={selection}
+						onOpen={(item) => void openFile(item)}
+						onContextMenu={openMenu}
+					/>
 				) : (
 					<FileTable
 						items={items}
@@ -426,6 +445,7 @@ export function FilesPage() {
 						sort={sortable?.state}
 						onSort={sortable?.change}
 						onOpen={(item) => void openFile(item)}
+						onContextMenu={openMenu}
 					/>
 				)}
 			</section>
@@ -490,6 +510,21 @@ export function FilesPage() {
 					// A transfer changes the listing and may move the selection out of
 					// it, so reload rather than patching state in place.
 					onTransferred={() => void load(path)}
+				/>
+			)}
+			{menu && (
+				<ContextMenu
+					position={menu}
+					items={fileActions(permissions, {
+						open: () => single && void openFile(single),
+						rename: () => single && startRename(single),
+						copy: () => startTransfer("copy"),
+						move: () => startTransfer("move"),
+						remove: () => void removeSelected(),
+						download: () => void download(selection.items),
+						link: () => single && void copyLink(single),
+					})}
+					onClose={() => setMenu(null)}
 				/>
 			)}
 		</section>

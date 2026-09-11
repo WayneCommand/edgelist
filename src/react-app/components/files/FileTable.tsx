@@ -1,4 +1,5 @@
 import { formatSize } from "../../lib/format";
+import type { MenuPosition } from "../../lib/menu";
 import { DEFAULT_SORT_STATE } from "../../lib/preferences";
 import type { FileItem, SortField, SortState } from "../../lib/types";
 import type { Selection } from "../../hooks/useSelection";
@@ -10,6 +11,7 @@ type FileTableProps = {
 	sort?: SortState;
 	onSort?: (field: SortField) => void;
 	onOpen: (item: FileItem) => void;
+	onContextMenu: (item: FileItem, index: number, position: MenuPosition) => void;
 };
 
 /**
@@ -18,7 +20,7 @@ type FileTableProps = {
  * header cells re-sort, which the server applies — the client never reorders a
  * page it only partially received.
  */
-export function FileTable({ items, selection, sort, onSort, onOpen }: FileTableProps) {
+export function FileTable({ items, selection, sort, onSort, onOpen, onContextMenu }: FileTableProps) {
 	return (
 		<div role="grid">
 			<div
@@ -46,7 +48,14 @@ export function FileTable({ items, selection, sort, onSort, onOpen }: FileTableP
 				/>
 			</div>
 			{items.map((item, index) => (
-				<FileRow key={item.path} item={item} index={index} selection={selection} onOpen={onOpen} />
+				<FileRow
+					key={item.path}
+					item={item}
+					index={index}
+					selection={selection}
+					onOpen={onOpen}
+					onContextMenu={onContextMenu}
+				/>
 			))}
 		</div>
 	);
@@ -93,9 +102,10 @@ type FileRowProps = {
 	index: number;
 	selection: Selection;
 	onOpen: (item: FileItem) => void;
+	onContextMenu: (item: FileItem, index: number, position: MenuPosition) => void;
 };
 
-function FileRow({ item, index, selection, onOpen }: FileRowProps) {
+function FileRow({ item, index, selection, onOpen, onContextMenu }: FileRowProps) {
 	const selected = selection.isSelected(item.path);
 	return (
 		<div
@@ -107,6 +117,10 @@ function FileRow({ item, index, selection, onOpen }: FileRowProps) {
 			}`}
 			onClick={() => selection.selectOnly(item, index)}
 			onDoubleClick={() => onOpen(item)}
+			onContextMenu={(event) => {
+				event.preventDefault();
+				onContextMenu(item, index, { x: event.clientX, y: event.clientY });
+			}}
 			onKeyDown={(event) => {
 				if (event.key === "Enter") onOpen(item);
 				if (event.key === " ") {

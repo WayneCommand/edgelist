@@ -1,19 +1,28 @@
 import { formatSize } from "../../lib/format";
 import type { FileItem } from "../../lib/types";
 import type { Selection } from "../../hooks/useSelection";
+import type { MenuPosition } from "../../lib/menu";
 
 type FileGridProps = {
 	items: FileItem[];
 	selection: Selection;
 	onOpen: (item: FileItem) => void;
+	onContextMenu: (item: FileItem, index: number, position: MenuPosition) => void;
 };
 
 /** Tile layout for the same entries the table shows, for image-heavy folders. */
-export function FileGrid({ items, selection, onOpen }: FileGridProps) {
+export function FileGrid({ items, selection, onOpen, onContextMenu }: FileGridProps) {
 	return (
 		<div role="grid" className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 lg:grid-cols-5">
 			{items.map((item, index) => (
-				<FileTile key={item.path} item={item} index={index} selection={selection} onOpen={onOpen} />
+				<FileTile
+					key={item.path}
+					item={item}
+					index={index}
+					selection={selection}
+					onOpen={onOpen}
+					onContextMenu={onContextMenu}
+				/>
 			))}
 		</div>
 	);
@@ -24,9 +33,10 @@ type FileTileProps = {
 	index: number;
 	selection: Selection;
 	onOpen: (item: FileItem) => void;
+	onContextMenu: (item: FileItem, index: number, position: MenuPosition) => void;
 };
 
-function FileTile({ item, index, selection, onOpen }: FileTileProps) {
+function FileTile({ item, index, selection, onOpen, onContextMenu }: FileTileProps) {
 	const selected = selection.isSelected(item.path);
 	return (
 		<div
@@ -38,6 +48,10 @@ function FileTile({ item, index, selection, onOpen }: FileTileProps) {
 			}`}
 			onClick={() => selection.selectOnly(item, index)}
 			onDoubleClick={() => onOpen(item)}
+			onContextMenu={(event) => {
+				event.preventDefault();
+				onContextMenu(item, index, { x: event.clientX, y: event.clientY });
+			}}
 			onKeyDown={(event) => {
 				if (event.key === "Enter") onOpen(item);
 				if (event.key === " ") {

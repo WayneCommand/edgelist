@@ -196,7 +196,17 @@
   - **发现并修掉一个真 bug**：`GET /api/admin/storage/list` 返回的是 `{ content: [...] }` 而不是裸数组，我原先按裸数组写，`(storages ?? []).map` 会直接抛。是起本地 dev server 打真实接口时对出来的。
   - **端到端验收（真浏览器 + 真数据）**：起 `vite dev`，用本地 KV 里的凭据登录，对 IBM COS 上的 `/waynecos` 跑通 28 项检查——登录、14 行列表、表头三列、视图切换与 `localStorage` 持久化、刷新后仍是网格、按 Size 排序（同时校验 `localStorage` 键值、`aria-sort="descending"` 和请求体里真的带了 `order_by=size&order_direction=asc`）、多选出现操作条、目录禁用下载/复制链接、打开复制对话框、展开树拿到 `/waynecos` `/jianguoyun` `/jianguoyun-backup`、切到 `/jianguoyun` 后出现中文提示且提交按钮禁用。截图见 `/tmp/edgelist-grid.png` 与 `/tmp/edgelist-transfer.png`（顺带验证了中文目录名 `临时存储`/`文档`/`软件` 正常渲染）。
   - **没有写任何云端数据**：验收只走读取和被拒绝的路径（跨存储复制在写之前就返回），没往用户的 IBM COS / 坚果云里放过东西。
-- [ ] 6.7 右键菜单 `components/files/ContextMenu.tsx`，按 `mask`（1.1）禁用不可用项。
+- [x] 6.7 右键菜单 `components/files/ContextMenu.tsx`，按 `mask`（1.1）禁用不可用项。
+  - 先补了 1.1 掩码的前端镜像 `lib/mask.ts`：`ObjMask` / `OBJ_LOCKED` / `OBJ_READ_ONLY` 常量照抄 `worker/storage/types.ts`，再加一个 **`permissionsFor(items)`** —— 它是这一步真正的核心。
+  - `permissionsFor` 返回 `Record<ActionName, { allowed, reason }>`，把"这个选区能不能做这件事、不能的话为什么"收成一个地方。**操作条、右键菜单、表格共用它**，所以同一个动作不可能在一处可用、在另一处变灰。`reason` 直接当 `title` 用：灰掉却不解释等于死路。
+  - 掩码位由服务端给（rename→`NoRename`、remove→`NoRemove`、copy→`NoCopy`、move→`NoMove`），但有 **三条规则是前端自己的**：① 挂载点不带 `NoCopy`（`OBJ_LOCKED` 只有 NoRename|NoRemove|NoMove），可 transfer planner 又会以 `VIRTUAL_MOUNT` 拒绝，所以必须显式看 `Virtual`；② move 会删原件，因此 `NoRemove` 也拦 move；③ 重命名只允许单选。
+  - 顺带把 `parentOf` 抽到 `lib/paths.ts`（`groupByParent` 原先内联了同样的逻辑），并加 `crumbsOf` 供 6.10 用。
+  - `ContextMenu` 是**通用组件**（只吃 `MenuItem[]` + 坐标），文件语义的菜单内容在 `lib/fileActions.ts` 的 `fileActions(permissions, handlers)` 里，纯函数、可单测。菜单几何（`menuPosition`）也在 `lib/menu.ts`：宽度固定 + 高度封顶，所以不用测量就能夹在视口内；`MenuItem` 类型也只留一份（顺手删掉了 `FileTable` 里重复的 `MenuRequest`）。
+  - 关闭方式：全屏透明 backdrop 吃掉下一次点击（右键也算，所以连点右键是"移动菜单"而不是叠菜单），`Escape` 走 document 监听。
+  - 右键一个**不在**当前选区里的条目时，先把它变成选区再弹菜单——文件管理器的惯例，菜单描述的永远是用户点的那个东西。
+  - 新增 `lib/mask.test.ts`（17 例，含挂载点/中间层/`NoCopy` 与 `NoMove` 相互独立/`NoRemove` 单独拦 move/跨目录选区/`isMountLayer`）与 `ContextMenu.test.tsx`（8 例，含 `menuPosition` 夹取与 disabled+title 落到 DOM）。
+  - **端到端验收**：根目录三个挂载点 `mask=15`（`Virtual|NoRename|NoRemove|NoMove`），真浏览器 24 项检查全绿——右键弹出菜单、七项齐全、挂载点上只有 Open 可用且每一项都带正确的 `title`、操作条与菜单结论一致、`Escape` 与点击外部都能关闭、普通目录的重命名/复制/删除仍可用、从菜单点 Copy 能打开传输对话框。截图 `/tmp/edgelist-menu-mount.png`。
+  - 注意一个 **`Move` 的提示语**：挂载点上显示的是 `Mounted storages cannot be transferred` 而不是 `This item cannot be moved`，因为 `Virtual` 检查排在 `NoMove` 之前。两条都成立，前者对挂载点更准确，是有意如此。
 - [ ] 6.8 拖放上传（含目录递归），替换单文件 `<input type="file">`。
 - [ ] 6.9 分页/加载更多 `components/files/Pager.tsx`（替换硬编码 `per_page: 200`）。
 - [ ] 6.10 面包屑支持路径直接编辑跳转。

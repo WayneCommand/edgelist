@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { Selection } from "../../hooks/useSelection";
+import { permissionsFor } from "../../lib/mask";
 import type { FileItem } from "../../lib/types";
 import { FileGrid } from "./FileGrid";
 import { FileTable } from "./FileTable";
@@ -36,9 +37,11 @@ function fakeSelection(overrides: Partial<Selection> = {}): Selection {
 
 const noop = () => {};
 
+const viewProps = { selection: fakeSelection(), onOpen: noop, onContextMenu: noop };
+
 describe("file views", () => {
 	it("renders one table row per entry", () => {
-		const html = renderToStaticMarkup(<FileTable items={items} selection={fakeSelection()} onOpen={noop} />);
+		const html = renderToStaticMarkup(<FileTable items={items} {...viewProps} />);
 		expect(html).toContain("docs");
 		expect(html).toContain("readme.md");
 		expect(html).toContain("2.0 KB");
@@ -46,26 +49,20 @@ describe("file views", () => {
 
 	it("exposes the active sort on the header", () => {
 		const html = renderToStaticMarkup(
-			<FileTable
-				items={items}
-				selection={fakeSelection()}
-				sort={{ field: "size", direction: "desc" }}
-				onSort={noop}
-				onOpen={noop}
-			/>,
+			<FileTable items={items} {...viewProps} sort={{ field: "size", direction: "desc" }} onSort={noop} />,
 		);
 		expect(html).toContain('aria-sort="descending"');
 		expect(html).toContain("↓");
 	});
 
 	it("renders plain header labels when sorting is off", () => {
-		const html = renderToStaticMarkup(<FileTable items={items} selection={fakeSelection()} onOpen={noop} />);
+		const html = renderToStaticMarkup(<FileTable items={items} {...viewProps} />);
 		expect(html).toContain('aria-sort="none"');
 		expect(html).not.toContain("<button");
 	});
 
 	it("renders one tile per entry in grid view", () => {
-		const html = renderToStaticMarkup(<FileGrid items={items} selection={fakeSelection()} onOpen={noop} />);
+		const html = renderToStaticMarkup(<FileGrid items={items} {...viewProps} />);
 		expect(html).toContain("docs");
 		expect(html).toContain("Folder");
 		expect(html).toContain("2.0 KB");
@@ -73,11 +70,7 @@ describe("file views", () => {
 
 	it("marks the selected entries", () => {
 		const html = renderToStaticMarkup(
-			<FileGrid
-				items={items}
-				selection={fakeSelection({ isSelected: (path) => path === "/docs", count: 1 })}
-				onOpen={noop}
-			/>,
+			<FileGrid items={items} {...viewProps} selection={fakeSelection({ isSelected: () => true, count: 2 })} />,
 		);
 		expect(html).toContain('aria-selected="true"');
 	});
@@ -115,36 +108,38 @@ describe("file views", () => {
 
 const barHandlers = { onRename: noop, onCopy: noop, onMove: noop, onDelete: noop, onDownload: noop, onCopyLink: noop };
 
+/** The bar reads its permissions from the same helper the page does. */
+function barProps(selected: FileItem[]) {
+	return {
+		selection: fakeSelection({ items: selected, count: selected.length }),
+		permissions: permissionsFor(selected),
+		...barHandlers,
+	};
+}
+
 describe("selection bar", () => {
 	it("stays hidden with nothing selected", () => {
-		expect(renderToStaticMarkup(<SelectionBar selection={fakeSelection()} {...barHandlers} />)).toBe("");
+		expect(renderToStaticMarkup(<SelectionBar {...barProps([])} />)).toBe("");
 	});
 
 	it("names a single selection", () => {
-		const html = renderToStaticMarkup(
-			<SelectionBar selection={fakeSelection({ items: [items[1]], count: 1 })} {...barHandlers} />,
-		);
-		expect(html).toContain("readme.md");
+		expect(renderToStaticMarkup(<SelectionBar {...barProps([items[1]])} />)).toContain("readme.md");
 	});
 
 	it("keeps single-target actions for a multi-selection", () => {
-		const html = renderToStaticMarkup(<SelectionBar selection={fakeSelection({ items, count: 2 })} {...barHandlers} />);
+		const html = renderToStaticMarkup(<SelectionBar {...barProps(items)} />);
 		expect(html).toContain("2 selected");
 		expect(html).toContain('title="Rename works on one entry at a time"');
 	});
 
 	it("refuses to download a selection holding a folder", () => {
-		const html = renderToStaticMarkup(
-			<SelectionBar selection={fakeSelection({ items: [items[0]], count: 1 })} {...barHandlers} />,
-		);
+		const html = renderToStaticMarkup(<SelectionBar {...barProps([items[0]])} />);
 		expect(html).toContain('title="Archives are not supported yet"');
 		expect(html).toContain('title="Folders have no link"');
 	});
 
 	it("leaves every action available for a single file", () => {
-		const html = renderToStaticMarkup(
-			<SelectionBar selection={fakeSelection({ items: [items[1]], count: 1 })} {...barHandlers} />,
-		);
+		const html = renderToStaticMarkup(<SelectionBar {...barProps([items[1]])} />);
 		// The shared class list mentions `disabled:` variants, so match the attribute.
 		expect(html).not.toContain('disabled=""');
 		expect(html).toContain("Copy link");
@@ -156,9 +151,7 @@ describe("selection bar", () => {
 			{ name: "a.txt", size: 1, is_dir: false, modified: "", path: "/one/a.txt" },
 			{ name: "b.txt", size: 1, is_dir: false, modified: "", path: "/two/b.txt" },
 		];
-		const html = renderToStaticMarkup(
-			<SelectionBar selection={fakeSelection({ items: spread, count: 2 })} {...barHandlers} />,
-		);
+		const html = renderToStaticMarkup(<SelectionBar {...barProps(spread)} />);
 		expect(html).toContain('title="Copy needs entries from a single folder"');
 		expect(html).toContain('title="Move needs entries from a single folder"');
 	});

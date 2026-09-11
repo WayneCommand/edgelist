@@ -1,3 +1,5 @@
+import { parentOf } from "./paths";
+
 export type BatchFailure = { name: string; error: string };
 export type BatchResult = { done: number; failed: BatchFailure[] };
 
@@ -42,8 +44,7 @@ export function summarizeBatch(
 export function groupByParent<T extends { name: string; path: string }>(items: T[]): Map<string, string[]> {
 	const groups = new Map<string, string[]>();
 	for (const item of items) {
-		const cut = item.path.lastIndexOf("/");
-		const dir = cut <= 0 ? "/" : item.path.slice(0, cut);
+		const dir = parentOf(item.path);
 		groups.set(dir, [...(groups.get(dir) ?? []), item.name]);
 	}
 	return groups;
