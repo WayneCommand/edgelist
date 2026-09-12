@@ -14,6 +14,14 @@ export interface StorageConfig {
 	/** Set on every save; virtual directories report it as their modified time. */
 	modified?: string;
 	extract_folder?: string;
+	/**
+	 * Minutes a cached directory listing stays fresh. Mirrors OpenList's
+	 * `Storage.CacheExpiration` (`internal/model/storage.go:13`), which is a
+	 * required number defaulting to 30.
+	 */
+	cache_expiration?: number;
+	/** Newline separated `pattern:minutes` rules, matched with doublestar globs. */
+	custom_cache_policies?: string;
 	[key: string]: unknown;
 }
 
@@ -58,6 +66,13 @@ export interface ListOptions {
 	refresh: boolean;
 }
 
+/**
+ * OpenList's default for `cache_expiration`, in minutes
+ * (`internal/op/driver.go:76-82`). It is the value both the registry offers in
+ * the form and the cache layer falls back to when a record does not say.
+ */
+export const CACHE_EXPIRATION_DEFAULT_MINUTES = 30;
+
 export interface TransferOptions {
 	overwrite: boolean;
 	merge: boolean;
@@ -93,4 +108,16 @@ export function normalizePath(path: string): string {
 
 export function joinPath(parent: string, child: string): string {
 	return normalizePath(`${parent}/${child}`);
+}
+
+/**
+ * The directory holding `path`. The root is its own parent, so walking up
+ * terminates there instead of escaping to an empty path.
+ */
+export function parentOf(path: string): string {
+	const normalized = normalizePath(path);
+	if (normalized === "/") return "/";
+	const segments = normalized.split("/").filter(Boolean);
+	segments.pop();
+	return normalizePath(`/${segments.join("/")}`);
 }

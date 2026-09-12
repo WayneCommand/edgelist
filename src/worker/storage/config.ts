@@ -1,5 +1,6 @@
 import { CONFIG_KEYS, readConfig, type EdgeListBindings } from "../env";
 import {
+	CACHE_EXPIRATION_DEFAULT_MINUTES,
 	normalizePath,
 	ObjMask,
 	OBJ_LOCKED,
@@ -168,6 +169,18 @@ function selectValue(candidate: unknown, rule: SelectRule): string | undefined {
 	return rule.allowed.includes(mapped) ? mapped : rule.fallback;
 }
 
+// OpenList's `cache_expiration` is a required number defaulting to 30 minutes
+// (`internal/op/driver.go:76-82`). A backup or an imported record can carry it
+// as the string `"30"`, and the cache layer does arithmetic on it, so a
+// readable value becomes a number. A value that cannot be read at all falls
+// back to the default OpenList would show rather than to `NaN`, and a negative
+// one clamps to zero, which the cache layer reads as "do not cache".
+function cacheExpiration(candidate: unknown): number | undefined {
+	if (candidate === undefined || candidate === null || candidate === "") return undefined;
+	const parsed = Number(candidate);
+	return Number.isFinite(parsed) ? Math.max(0, Math.trunc(parsed)) : CACHE_EXPIRATION_DEFAULT_MINUTES;
+}
+
 export function normalizeStorageConfig(value: StorageConfig): StorageConfig {
 	const rawDriver = String(value.driver);
 	const normalizedDriver = rawDriver.toLowerCase();
@@ -194,6 +207,8 @@ export function normalizeStorageConfig(value: StorageConfig): StorageConfig {
 	if (orderBy !== undefined) result.order_by = orderBy;
 	const webdavPolicy = selectValue(result.webdav_policy, WEBDAV_POLICY);
 	if (webdavPolicy !== undefined) result.webdav_policy = webdavPolicy;
+	const cacheExpiry = cacheExpiration(result.cache_expiration);
+	if (cacheExpiry !== undefined) result.cache_expiration = cacheExpiry;
 	return result;
 }
 

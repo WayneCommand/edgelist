@@ -2,6 +2,7 @@ import type { Context } from "hono";
 import type { EdgeListBindings } from "./env";
 import { planTransfers, type TransferInput, type TransferKind, type TransferPlannerDependencies } from "./fs-transfer";
 import { canAccess, canWrite, getNearestMeta, metaHeader, metaReadme } from "./meta";
+import { invalidateDirectory, listDirectory } from "./storage/cache";
 import {
 	getStorageConfig,
 	isVirtualMount,
@@ -10,7 +11,7 @@ import {
 	paginateFileObjects,
 } from "./storage/config";
 import { resolveStorage } from "./storage/factory";
-import { normalizePath, ObjMask, type FileObject, type StorageConfig } from "./storage/types";
+import { normalizePath, ObjMask, parentOf, type FileObject, type StorageConfig } from "./storage/types";
 import { applySort, resolveSort } from "./sort";
 import { failure, respond } from "./response";
 
@@ -44,6 +45,20 @@ function transferDependencies(c: FsContext): TransferPlannerDependencies {
 	};
 }
 
+/**
+ * Drop the cached listings a write has just made wrong.
+ *
+ * The affected directory is always the one *holding* the changed entry, never
+ * the entry itself: a cached listing describes a directory's children, so
+ * creating, renaming or deleting a child changes its parent's entry. The edge
+ * cache cannot be enumerated, so nothing below a changed path is reachable
+ * here — those entries expire on their own TTL. `storage/cache.ts` explains
+ * why that bound is the honest one.
+ */
+async function invalidateListings(...paths: string[]): Promise<void> {
+	await Promise.all(paths.map((path) => invalidateDirectory(path)));
+}
+
 async function transfer(c: FsContext, kind: TransferKind) {
 	try {
 		const input = await body<TransferInput>(c);
@@ -56,7 +71,12 @@ async function transfer(c: FsContext, kind: TransferKind) {
 		if (!canWrite(user, srcMeta, srcDir) || !canWrite(user, dstMeta, dstDir)) {
 			return failure("Access denied", 403);
 		}
-		return respond(c, await planTransfers(kind, input, transferDependencies(c)));
+		const result = await planTransfers(kind, input, transferDependencies(c));
+		// Both ends change: the source loses entries and the destination gains
+		// them. A move whose destination is inside the source is refused by the
+		// planner, so the two paths never overlap in a way that matters here.
+		await invalidateListings(srcDir, dstDir);
+		return respond(c, result);
 	} catch (error) {
 		return failure(error instanceof Error ? error.message : `Unable to ${kind} paths`, 400);
 	}
@@ -103,12 +123,13 @@ export async function fsList(c: FsContext) {
 		try {
 			const resolved = await resolveStorage(c.env, input.path ?? "/");
 			storage = resolved.config;
-			const result = await resolved.adapter.list(resolved.path, {
-				page: 1,
-				per_page: 0,
-				refresh: input.refresh ?? false,
-			});
-			physicalItems = result.content.map((item) => ({ ...item, path: publicFilePath(requestedPath, item.name) }));
+			// The listing is read through the per-mount directory cache, so
+			// browsing is not one upstream round trip per click. `refresh` is what
+			// makes the Refresh button honest: it skips the read and replaces the
+			// entry. The virtual path is the cache key, so nested mounts cannot
+			// share an entry.
+			const content = await listDirectory(resolved, requestedPath, { refresh: input.refresh ?? false });
+			physicalItems = content.map((item) => ({ ...item, path: publicFilePath(requestedPath, item.name) }));
 		} catch (error) {
 			if (!virtualMounts.length) throw error;
 		}
@@ -194,10 +215,14 @@ export async function fsMkdir(c: FsContext) {
 					if (error instanceof Error && !error.message.includes("already exists")) throw error;
 				}
 			}
+			// Every level created shows up in the listing above it, so each new
+			// directory's parent is dropped — not just the deepest one.
+			await invalidateListings(...parts.map((_, index) => parentOf(`/${parts.slice(0, index + 1).join("/")}`)));
 			return respond(c, null);
 		}
 		const resolved = await resolveStorage(c.env, targetPath);
 		await resolved.adapter.mkdir(resolved.path);
+		await invalidateListings(parentOf(targetPath));
 		return respond(c, null);
 	} catch (error) {
 		return failure(error instanceof Error ? error.message : "Unable to create directory", 400);
@@ -218,6 +243,8 @@ export async function fsRename(c: FsContext) {
 		if (maskError) return maskError;
 		const resolved = await resolveStorage(c.env, input.path);
 		await resolved.adapter.rename(resolved.path, input.name, input.overwrite ?? false);
+		// Renaming keeps the entry in the same directory, so one listing changes.
+		await invalidateListings(parentOf(targetPath));
 		return respond(c, null);
 	} catch (error) {
 		return failure(error instanceof Error ? error.message : "Unable to rename path", 400);
@@ -257,6 +284,9 @@ export async function fsRemove(c: FsContext) {
 				failed.push({ name, error: result.reason instanceof Error ? result.reason.message : "Unknown error" });
 			}
 		}
+		// Even a batch that partly failed changed `dirPath`'s listing, so the
+		// entry is dropped whenever anything was actually removed.
+		if (removed.length) await invalidateListings(dirPath);
 		return respond(c, { removed, failed });
 	} catch (error) {
 		return failure(error instanceof Error ? error.message : "Unable to remove path", 400);
@@ -278,6 +308,7 @@ export async function fsPut(c: FsContext) {
 		if (maskError) return maskError;
 		const resolved = await resolveStorage(c.env, targetPath);
 		await resolved.adapter.write(resolved.path, c.req.raw);
+		await invalidateListings(parentOf(targetPath));
 		return respond(c, null);
 	} catch (error) {
 		return failure(error instanceof Error ? error.message : "Unable to upload file", 400);
@@ -305,6 +336,7 @@ export async function fsFormUpload(c: FsContext) {
 		headers.set("content-type", file.type || "application/octet-stream");
 		const request = new Request("https://dummy", { method: "PUT", headers, body: file.stream() });
 		await resolved.adapter.write(resolved.path, request);
+		await invalidateListings(parentOf(targetPath));
 		return respond(c, null);
 	} catch (error) {
 		return failure(error instanceof Error ? error.message : "Unable to upload file", 400);
@@ -490,6 +522,9 @@ export async function fsRemoveEmptyDirectory(c: FsContext) {
 				// One unreadable child must not abort the sweep of its siblings.
 			}
 		}
+		// The empty children that were swept are this directory's own entries, so
+		// its listing is the one that changed.
+		if (removed.length) await invalidateListings(targetPath);
 		return respond(c, { removed });
 	} catch (error) {
 		return failure(error instanceof Error ? error.message : "Unable to remove empty directories", 400);

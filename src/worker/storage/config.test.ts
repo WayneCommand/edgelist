@@ -121,6 +121,34 @@ describe("storage normalization", () => {
 	it("leaves a missing webdav_policy untouched", () => {
 		expect(normalizeStorageConfig(storage("/a")).webdav_policy).toBeUndefined();
 	});
+
+	// The cache fields came back in Phase 8 with the directory cache that reads
+	// them. A backup may carry `cache_expiration` as a string, and the cache
+	// layer does arithmetic on it, so it is coerced here — the one place every
+	// record passes through.
+	// `untyped` stands in for the fact that a record arrives from KV, where the
+	// declared type has not been enforced yet.
+	const untyped = (value: unknown) => value as number;
+
+	it("reads cache_expiration as a number, including from a backup's string", () => {
+		expect(normalizeStorageConfig({ ...storage("/a"), cache_expiration: 5 }).cache_expiration).toBe(5);
+		expect(normalizeStorageConfig({ ...storage("/a"), cache_expiration: untyped("5") }).cache_expiration).toBe(5);
+		expect(normalizeStorageConfig({ ...storage("/a"), cache_expiration: 5.9 }).cache_expiration).toBe(5);
+	});
+
+	it("clamps a negative cache_expiration to zero, which means do not cache", () => {
+		expect(normalizeStorageConfig({ ...storage("/a"), cache_expiration: -1 }).cache_expiration).toBe(0);
+	});
+
+	it("falls back to OpenList's default when cache_expiration cannot be read", () => {
+		expect(normalizeStorageConfig({ ...storage("/a"), cache_expiration: untyped("later") }).cache_expiration).toBe(30);
+	});
+
+	it("leaves a missing cache_expiration untouched", () => {
+		// Absent stays absent: the cache layer then applies the same 30 minute
+		// default, and the backup does not grow a field the record never had.
+		expect(normalizeStorageConfig(storage("/a")).cache_expiration).toBeUndefined();
+	});
 });
 
 describe("virtual mount masks", () => {

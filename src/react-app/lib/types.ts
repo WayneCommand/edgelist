@@ -37,6 +37,10 @@ export type Storage = {
 	order_by?: string;
 	order_direction?: string;
 	extract_folder?: string;
+	/** Minutes a cached directory listing stays fresh; OpenList defaults to 30. */
+	cache_expiration?: number;
+	/** Newline separated `pattern:minutes` rules that override the value above. */
+	custom_cache_policies?: string;
 	[key: string]: unknown;
 };
 

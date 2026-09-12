@@ -127,8 +127,14 @@ export function FilesPage() {
 
 	// The directory is passed in, so this callback only changes when the query
 	// does — a new sort order or page size re-runs the effect below.
+	//
+	// `refresh` asks the worker to read past its directory cache. The worker
+	// also drops the entry when it serves a write, but that invalidation only
+	// reaches the datacentre that handled the write, so a caller that has just
+	// changed the directory cannot rely on it — it asks for a fresh listing
+	// instead. See `worker/storage/cache.ts`.
 	const load = useCallback(
-		async (nextPath: string, nextPage = 1, append = false) => {
+		async (nextPath: string, nextPage = 1, append = false, refresh = false) => {
 			if (append) setLoadingMore(true);
 			else setLoading(true);
 			setError("");
@@ -143,6 +149,7 @@ export function FilesPage() {
 						per_page: perPageFor(pageSize, "list"),
 						order_by: sort.field,
 						order_direction: sort.direction,
+						refresh,
 					}),
 				});
 				setTotal(data.total ?? 0);
@@ -172,6 +179,14 @@ export function FilesPage() {
 		},
 		[clearSelection, pageSize, sort],
 	);
+
+	// Every reload that follows a write goes through here. The listing the write
+	// changed has to come back fresh: the worker drops the cached entry when it
+	// serves a write, but that drop only reaches the datacentre that handled the
+	// write, so a client that has just changed the directory cannot rely on it.
+	async function reloadAfterWrite(nextPage = page) {
+		await load(path, nextPage, false, true);
+	}
 
 	// Search results belong to the directory they were run in, so leaving it — by
 	// link or by the back button — drops the search. This is separate from the
@@ -258,7 +273,7 @@ export function FilesPage() {
 			});
 			notify("Folder created");
 			setFolderName(null);
-			await load(path, page);
+			await reloadAfterWrite();
 		} catch (reason) {
 			notify(reason instanceof Error ? reason.message : "Unable to create folder", true);
 		}
@@ -274,7 +289,7 @@ export function FilesPage() {
 			});
 			notify("Renamed");
 			setRenameTarget(null);
-			await load(path, page);
+			await reloadAfterWrite();
 		} catch (reason) {
 			notify(reason instanceof Error ? reason.message : "Unable to rename", true);
 		}
@@ -296,7 +311,7 @@ export function FilesPage() {
 			notify(summary.message, summary.error);
 			// Deleting the last entry of the last page would otherwise leave an empty
 			// page behind, so land on one that still has entries.
-			await load(path, clampPage(page, total - targets.length, pageSize));
+			await reloadAfterWrite(clampPage(page, total - targets.length, pageSize));
 		} catch (reason) {
 			notify(reason instanceof Error ? reason.message : "Unable to delete", true);
 		}
@@ -348,7 +363,7 @@ export function FilesPage() {
 				// so fall back to a plain view of the directory that was written to.
 				setSearching(false);
 				setQuery("");
-				await load(path, page);
+				await reloadAfterWrite();
 			}
 		} finally {
 			setUploading(null);
@@ -573,7 +588,7 @@ export function FilesPage() {
 					uploading={uploading}
 					writeHint={writeHint}
 					onViewChange={setStoredView}
-					onRefresh={() => void load(path, page)}
+					onRefresh={() => void load(path, page, false, true)}
 					onNewFolder={() => setFolderName("")}
 					onUpload={(tree) => void upload(tree)}
 				/>
@@ -689,7 +704,7 @@ export function FilesPage() {
 						onClose={() => setTransfer(null)}
 						// A transfer changes the listing and may move the selection out of
 						// it, so reload rather than patching state in place.
-						onTransferred={() => void load(path, page)}
+						onTransferred={() => void reloadAfterWrite()}
 					/>
 				)}
 				{menu && (

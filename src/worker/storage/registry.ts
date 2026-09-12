@@ -56,19 +56,42 @@ export interface DriverDefinition {
 	create: (config: StorageConfig) => StorageAdapter;
 }
 
-// Common items shared by every storage mount. Conditionally includes sort
-// fields based on the driver's `localSort` flag. Fields that were removed
-// during the Phase 0 cleanup (cache_expiration, custom_cache_policies,
-// disable_index, enable_sign, web_proxy, down_proxy_url, disable_proxy_sign,
-// webdav_policy) are intentionally absent: they were never implemented or
-// their UI presence was a lie. They may reappear in Phase 8 when caching is
-// added back.
+// Common items shared by every storage mount, mirroring the order OpenList
+// builds them in (`internal/op/driver.go:61-170`): the identity fields, then
+// the cache fields, then the sort fields.
+//
+// Fields the Phase 0 cleanup removed stay removed, because nothing reads them:
+// `disable_index`, `enable_sign`, `web_proxy`, `down_proxy_url`,
+// `disable_proxy_sign` and `webdav_policy` are all absent for the same reason
+// the S3 extras are — a form control that changes nothing is a lie.
+//
+// `cache_expiration` and `custom_cache_policies` came back in Phase 8 together
+// with the directory cache that reads them, which is what makes them honest.
 function buildCommonItems(config: DriverConfig): DriverItem[] {
 	const items: DriverItem[] = [
 		{ name: "mount_path", type: "string", default: "", required: true, help: "Unique mount path for this storage" },
 		{ name: "order", type: "number", default: "0", help: "Sort order when listing storages" },
 		{ name: "remark", type: "text", default: "" },
 	];
+	// A driver that declares `noCache` never has its listings cached, so the
+	// fields would do nothing — the same rule OpenList applies.
+	if (!config.noCache) {
+		items.push(
+			{
+				name: "cache_expiration",
+				type: "number",
+				default: "30",
+				required: true,
+				help: "How long a cached directory listing stays fresh, in minutes",
+			},
+			{
+				name: "custom_cache_policies",
+				type: "text",
+				default: "",
+				help: "One `pattern:minutes` rule per line; the first match wins over the value above",
+			},
+		);
+	}
 	if (config.localSort) {
 		items.push(
 			{

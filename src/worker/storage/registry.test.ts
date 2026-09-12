@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 // an API the Workers runtime does not have.
 import openlistSource from "./openlist.ts?raw";
 import { hasValidStorageAddition } from "./config";
+import cacheSource from "./cache.ts?raw";
 import { DRIVERS, DRIVER_ITEM_TYPES, findDriver, getDriverInfo } from "./registry";
 import s3Source from "./s3.ts?raw";
 import webdavSource from "./webdav.ts?raw";
@@ -69,6 +70,22 @@ describe("every declared field is a field something reads", () => {
 			}
 		}
 	});
+
+	/**
+	 * The common items are shared, so they are not covered by the per-adapter
+	 * guard above — a common field is read by a module, not by a driver. The
+	 * cache pair is read by `storage/cache.ts`; the same check applies to it,
+	 * because the Phase 0 rule ("a control that changes nothing is a lie") is
+	 * what allowed these two back into the form.
+	 */
+	it("reads the cache fields in the module that implements them", () => {
+		// The form has to offer them first, or the check below passes vacuously.
+		const offered = getDriverInfo(findDriver("object")!).common.map((item) => item.name);
+		for (const name of ["cache_expiration", "custom_cache_policies"]) {
+			expect(offered, `the form no longer offers "${name}"`).toContain(name);
+			expect(cacheSource.includes(name), `the form offers "${name}" but storage/cache.ts never reads it`).toBe(true);
+		}
+	});
 });
 
 describe("getDriverInfo", () => {
@@ -79,12 +96,25 @@ describe("getDriverInfo", () => {
 		expect(info.common.map((item) => item.name)).toContain("mount_path");
 	});
 
-	it("excludes cache/index/sign fields", () => {
+	it("declares the cache fields exactly when the driver caches", () => {
+		for (const driver of DRIVERS) {
+			const names = getDriverInfo(driver).common.map((item) => item.name);
+			// A driver that declares `noCache` must not offer a control that
+			// cannot change anything, which is the same rule as everywhere else.
+			if (driver.config.noCache) {
+				expect(names, `${driver.key} declares noCache`).not.toContain("cache_expiration");
+				expect(names, `${driver.key} declares noCache`).not.toContain("custom_cache_policies");
+			} else {
+				expect(names, `${driver.key} caches`).toContain("cache_expiration");
+				expect(names, `${driver.key} caches`).toContain("custom_cache_policies");
+			}
+		}
+	});
+
+	it("keeps the fields nothing reads out of the form", () => {
 		for (const driver of DRIVERS) {
 			const info = getDriverInfo(driver);
 			const allNames = [...info.common, ...info.additional].map((item) => item.name);
-			expect(allNames).not.toContain("cache_expiration");
-			expect(allNames).not.toContain("custom_cache_policies");
 			expect(allNames).not.toContain("disable_index");
 			expect(allNames).not.toContain("enable_sign");
 			expect(allNames).not.toContain("web_proxy");
@@ -92,6 +122,11 @@ describe("getDriverInfo", () => {
 			expect(allNames).not.toContain("disable_proxy_sign");
 			expect(allNames).not.toContain("webdav_policy");
 		}
+	});
+
+	it("gives cache_expiration OpenList's required default of 30 minutes", () => {
+		const item = getDriverInfo(findDriver("object")!).common.find((entry) => entry.name === "cache_expiration");
+		expect(item).toMatchObject({ type: "number", default: "30", required: true });
 	});
 
 	it("returns correct structure", () => {

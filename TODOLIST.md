@@ -345,12 +345,23 @@
   - 元数据表单补上 `header` 与两个 `_sub` 开关——否则这两个字段永远无法从界面设置，功能等于不存在。
   - 顺带修掉一个**真 bug**：`metaCoversPath("/", "/a/b", true)` 返回 `false`，因为前缀被拼成 `"//"`。OpenList 的 `PathAddSeparatorSuffix` 会让 `"/"` 保持 `"/"`，所以**根规则在 `_sub` 打开时应当覆盖所有路径**。这个 bug 让根规则的 `hide`、`password`、`read_users`/`write_users` 全部静默失效。
   - 还修掉一个**更严重的真 bug**：`getNearestMeta` 读的是裸键 `"metas"`，而 admin 端点与备份层写的是 `CONFIG_KEYS.metas`（`"config:metas"`）。于是它**永远返回 null，全应用的元数据规则一直不生效**——hide 不隐藏、password 不拦截、`write:false` 不拦写、readme/header 不显示。旧的 `getNearestMeta` 测试用的假 KV 对任何键都返回数据，所以完全测不出来；现在假 KV 只在规范键上应答，并加了一条"必须读规范键"的断言。
-- [ ] 8.5 目录缓存实现（决策 1 闭环）：用 `caches.default` 按 `mount_path + path` 缓存列表，TTL 取 `cache_expiration`，`refresh` 绕过；**恢复 0.2 移除的字段**。
+- [x] 8.5 目录缓存实现（决策 1 闭环）：用 `caches.default` 按 `mount_path + path` 缓存列表，TTL 取 `cache_expiration`，`refresh` 绕过；**恢复 0.2 移除的字段**。
+  - 新增 `src/worker/storage/cache.ts`。**缓存键就是虚拟路径**：OpenList 的 `Key(storage, path)` 是 `GetFullPath(mount_path, path)`（`internal/op/cache.go:36`），而"挂载点 + 存储内相对路径"拼起来正好是客户端请求的那个路径，所以一个键覆盖两半。反过来若按适配器拿到的相对路径做键，挂载在 `/` 的 `/docs` 与挂载在 `/waynecos` 的 `/docs` 会**撞进同一条目**、互相顶掉——`fs-cache.test.ts` 专门用这个场景做断言。
+  - 键在 URL 里做百分号编码而不是直接插值：目录名可以合法地含 `?`、`#`、空格，不编码就会被读成 query 或 fragment，两个不同目录共用一个键。
+  - `custom_cache_policies` 是 `pattern:minutes` 一行一条、**首条命中即生效**，glob 用 doublestar 方言（`*`/`?`/`[...]` 不跨 `/`，`**` 跨）。自己写了个 DP 匹配器而不是把 glob 翻成正则——转义 bug 就出在翻译那一步，而这是一行配置、不是热循环。**匹配的是存储内相对路径且带前导斜杠**（`/docs/a`），与 OpenList 传给 `doublestar.Match` 的路径一致；所以模式要写成 `/docs/**` 才覆盖 `/docs/sub`，而 `/docs/**` **不匹配 `/docs` 本身**（shell 语义，第一版断言就是错在这里）。
+  - 一条读不出分钟数的规则被跳过而不是夹取：`"60s"` 说明作者想表达这个字段表达不了的东西，猜成 60 会比他要求的缓存更久。
+  - **空列表不入缓存，并把已有条目删掉**。OpenList 对空结果走 `deleteDirectoryTree`（`internal/op/fs.go:109-112`）；只"不写"不够——刷新后发现目录已空时旧条目还在，接下来整个 TTL 都会把删掉的内容又端出来，比不缓存更糟。
+  - `noCache` 驱动的列表恒不缓存（对应字段也照旧不出现）。今天三个驱动都没声明 `noCache`，所以这条分支暂时**没有测试覆盖**，留着是为了下一个驱动。
+  - 接入点只有 `fsList`：搜索与目录树（`fsSearch` / `fsDirs`）仍直连适配器——它们一次要走很多目录，把用户从没打开过的目录灌进边缘缓存不划算。
+  - 写路径逐个失效：`fsMkdir`（含 `create_parent`，逐层失效各自的父目录）、`fsRename`、`fsRemove`、`fsPut`、`fsFormUpload`、`fsCopy` / `fsMove`（两端都失效）、`fsRemoveEmptyDirectory`。失效的永远是**持有该条目的那个目录**，不是条目自己——缓存条目描述的是某目录的子项。为此把 `parentOf` 补进 `worker/storage/types.ts`（前端 `lib/paths.ts` 早有同名函数，两边各一份，因为 worker 不引前端代码）。
+  - **失效只在处理这次写请求的那个数据中心生效**（`caches.default` 不跨 DC、也无法枚举，见 `cache.ts` 顶部注释）。所以前端写之后的重载一律带 `refresh: true`（`FilesPage.reloadAfterWrite`），工具栏 Refresh 按钮同样带；否则"上传成功但列表里没有"会是个真 bug。**TTL 才是陈旧度的真实上界，失效不是。**
+  - 顺带确认了一个边界：`refresh` 同时跳过读**并重写**条目，这正是 Refresh 按钮值得存在的理由；`load()` 以前从不发 `refresh`（6.4 的遗留），现在补上。
+  - 字段回归：`registry.ts` 的公共项重新声明 `cache_expiration`（`number`、默认 `"30"`、`required`）与 `custom_cache_policies`，`noCache` 驱动不声明；`normalizeStorageConfig` 把 `cache_expiration` 收敛成非负整数（备份里的 `"30"` 字符串要能读，读不出回落 30，负数夹到 0＝不缓存）；`registry.test.ts` 新增"表单提供的缓存字段必须被 `storage/cache.ts` 真的读到"的守卫。
 - [ ] 8.6 前端分片上传接入 `/api/fs/multipart/*`；非 S3 驱动时降级并提示上限。
 - [ ] 8.7 前端上传体积上限提示与失败重试。
 - [ ] 8.8 i18n 骨架（中/英），与 OpenList 文案风格对齐。
 
-> 🚧 **阶段八进行中**：8.1–8.4 已完成（预览分派器 + 各预览器 + 目录 readme/header），8.5–8.8 未开始。
+> 🚧 **阶段八进行中**：8.1–8.5 已完成（预览分派器 + 各预览器 + 目录 readme/header + 目录缓存），8.6–8.8 未开始。
 >
 > **验证**：新增 `lib/preview.test.ts`（21 例）、`lib/markdown.test.ts`（23 例）、
 > `components/files/preview/preview-views.test.tsx`（11 例）、`worker/download-route.test.ts`（3 例）。
@@ -393,6 +404,21 @@
 > **构建注记（8.1–8.3）**：`vite build` 在那个回合被沙箱的批量删除守卫拦下（Vite 清空自己 gitignored 的 `dist/` 时超阈值），
 > 于是临时用 `emptyOutDir: false` 跑了一次（跑完已还原），产物正常：入口 **467.59 kB**、Monaco 隔离在
 > `TextViewer-DKm8sPs3.js`（7.6 MB）。
+>
+> **8.5 验证**：新增 `storage/cache.test.ts`（37 例：glob 的字面量 / `*` / `**` / `?` / 字符类 / 转义 / 未闭合括号，
+> TTL 的默认值与策略优先级，键的编码与归一化，`listDirectory` 的命中 / 未命中 / `refresh` / TTL 0 / 空列表 /
+> 无缓存 / 坏条目 / 缓存抛错，`invalidateDirectory`）与 `fs-cache.test.ts`（5 例：真 `S3Adapter` + 打桩 `fetch` +
+> 打桩 `caches`，走完整 `app.request`，证明 `fsList` 会读缓存、`refresh` 会绕过、写会失效、键按虚拟路径分）。
+> 合计 **463 例 / 30 文件**；`eslint .` 与 `prettier --check src` 全绿。
+> **反向验证过守卫会咬人**：临时删掉 `fsMkdir` 的失效调用，`fs-cache.test.ts` 里"写之后列表必须重新取"那条立即失败，
+> 改回即通过。
+>
+> **两处环境注记**：① `tsc -b` 在沙箱里会被 SIGTERM 杀掉（连空输出都没有），改成分别跑 `-p tsconfig.{app,node,worker}.json`，
+> 三个都 exit 0；② 同理 `vitest` 要放后台跑，前台会被杀。
+>
+> **未做**：`caches.default` 只在真实 Workers（自定义域或 `*.workers.dev`）可用，且不跨数据中心、无法枚举，
+> 所以这一条**没有跑真浏览器 + 真数据的端到端验收**——它比前面各步更依赖部署环境，本机 dev server 里
+> `caches` 是否存在取决于 miniflare 的实现。部署后可用同一组凭据验一次"连点两次列表只打一次上游、点 Refresh 会再打一次"。
 
 ---
 
