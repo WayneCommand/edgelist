@@ -337,13 +337,20 @@
   - **markdown 自带渲染器**（`lib/markdown.ts`，零依赖）：先转义再加标签，所以 `dangerouslySetInnerHTML` 拿到的永远是自己写的标记；链接走允许名单（`/`、`#`、`http(s):`、`mailto:`）。打开是**渲染态**，可切到 Source 复用 Monaco（模式开关放进编辑器工具栏的 `leading` 槽位，避免出现两个 Save）。
   - 渲染器踩到一个真坑：`inline()` 递归时共用一个全局正则，内层调用重置了 `lastIndex`，外层从同一个匹配重新开始，输出无限增长 → `RangeError: Invalid string length`。改成递归前先把匹配物化到 `new RegExp(source, "g")` 的副本上。
   - 另一个：`[click](javascript:alert(1))` 只渲染出 `click)`，因为 href 停在第一个 `)`。改成允许一层配对括号 `((?:[^()\s]|\([^()]*\))+)`，顺带也修好了维基那种带括号的真实链接。
-- [ ] 8.4 README 渲染（header/readme/footer 三个 md）。
+- [x] 8.4 README 渲染（header/readme/footer 三个 md）。
+  - **对齐的是 OpenList 的真实行为，不是清单原文**：OpenList 的 Meta 只有 `readme`/`r_sub` 与 `header`/`header_sub` 两对字段，**没有 `footer`**（`internal/model/meta.go` 与 `FsListResp` 都只有这两个）。清单里的"三个 md"指的是**每个槽位有三个候选文件名**：`header.md`/`top.md`/`index.md` 在列表**上方**，`readme.md`/`footer.md`/`bottom.md` 在列表**下方**。所以 `footer.md` 不需要自己的字段。
+  - 优先级照搬 OpenList：**目录里的文件优先于 Meta 规则**；规则的值可以是 markdown 原文，也可以是 `http(s)` 链接（是链接就抓取，不渲染）。
+  - worker 侧 `metaReadme()` / `metaHeader()` 复刻 `getReadme()` / `getHeader()`，两个槽位各用自己的 `_sub` 开关——一条挂在 `/docs` 的规则可以让 readme 只作用于 `/docs`，同时让 header 覆盖整棵子树。`fs/list` 现在带上 `readme`/`header` 两个字段（OpenList 的 `FsListResp` 本来就有）。
+  - 读不到就不显示：目录本身是好的，readme 只是装饰，所以抓取失败渲染成空，而不是弹错误提示。
+  - 元数据表单补上 `header` 与两个 `_sub` 开关——否则这两个字段永远无法从界面设置，功能等于不存在。
+  - 顺带修掉一个**真 bug**：`metaCoversPath("/", "/a/b", true)` 返回 `false`，因为前缀被拼成 `"//"`。OpenList 的 `PathAddSeparatorSuffix` 会让 `"/"` 保持 `"/"`，所以**根规则在 `_sub` 打开时应当覆盖所有路径**。这个 bug 让根规则的 `hide`、`password`、`read_users`/`write_users` 全部静默失效。
+  - 还修掉一个**更严重的真 bug**：`getNearestMeta` 读的是裸键 `"metas"`，而 admin 端点与备份层写的是 `CONFIG_KEYS.metas`（`"config:metas"`）。于是它**永远返回 null，全应用的元数据规则一直不生效**——hide 不隐藏、password 不拦截、`write:false` 不拦写、readme/header 不显示。旧的 `getNearestMeta` 测试用的假 KV 对任何键都返回数据，所以完全测不出来；现在假 KV 只在规范键上应答，并加了一条"必须读规范键"的断言。
 - [ ] 8.5 目录缓存实现（决策 1 闭环）：用 `caches.default` 按 `mount_path + path` 缓存列表，TTL 取 `cache_expiration`，`refresh` 绕过；**恢复 0.2 移除的字段**。
 - [ ] 8.6 前端分片上传接入 `/api/fs/multipart/*`；非 S3 驱动时降级并提示上限。
 - [ ] 8.7 前端上传体积上限提示与失败重试。
 - [ ] 8.8 i18n 骨架（中/英），与 OpenList 文案风格对齐。
 
-> 🚧 **阶段八进行中**：8.1–8.3 已完成（预览分派器 + 各预览器），8.4–8.8 未开始。
+> 🚧 **阶段八进行中**：8.1–8.4 已完成（预览分派器 + 各预览器 + 目录 readme/header），8.5–8.8 未开始。
 >
 > **验证**：新增 `lib/preview.test.ts`（21 例）、`lib/markdown.test.ts`（23 例）、
 > `components/files/preview/preview-views.test.tsx`（11 例）、`worker/download-route.test.ts`（3 例）。
@@ -366,7 +373,24 @@
 > 脚本改用 `domcontentloaded` + 显式等行；② 媒体字节用本地生成的 WAV 代替、列表里 `.m4a` 的大小被改写成 1.5 MB，
 > 因为真实文件 51 MB / 128 MB 超过缓冲上限、走的就是 `toolarge` 分支——那正是要测的行为之一。
 >
-> **构建注记**：`vite build` 在本回合被沙箱的批量删除守卫拦下（Vite 清空自己 gitignored 的 `dist/` 时超阈值），
+> **8.4 端到端验收 19 项全绿**（真浏览器 + 真数据）：规则表单出现 header 与 readme 两个 textarea、以及两个 `_sub` 开关 →
+> 用表单本身保存一条挂在 `/waynecos/logo` 的规则 → 打开该目录**两张卡片**，header 在列表**上方**、readme 在**下方**
+> （用 `compareDocumentPosition` 判的，不是靠肉眼）→ 标题渲染成真 `<h1>`、强调渲染成 `<strong>`、正文里没有残留的 `#`
+> → 打开兄弟目录 `/waynecos` 时**一张都不显示**（`_sub` 关着）→ 往列表里注入一个 `readme.md` 并本地供应内容，
+> 卡片改为显示**文件**的内容、规则原文不再出现，而 header 仍然来自规则 → 把该文件改成 500，卡片静默消失且**没有错误提示**
+> → 删掉规则后目录恢复原样。截图 `/tmp/edgelist-readme-{inline,file}.png`。
+>
+> **没有写任何云端数据**：整个跑动只有两个写请求——`meta/create` 与 `meta/delete`，都指向**本地 dev KV**，跑完已删净
+> （`meta/list` 读回为空）。文件字节全部走 `page.route` 本地应答。
+>
+> **验证**：新增 `lib/readme.test.ts`（12 例）、`components/files/readme-views.test.tsx`（5 例），
+> `worker/meta.test.ts` 从 14 例扩到 44 例（readme/header 的 `_sub` 语义 + 根规则 + 规范键断言）。
+> 合计 **414 例 / 28 文件**；`tsc -b` / `eslint .` / `prettier --check src` 全绿。
+>
+> **验收期间的两次自我纠错**：① 第一版脚本直接失败——查下去发现 `getNearestMeta` 读错键（见 8.4 条），
+> 修好后才通过；② 那次失败的跑动在 dev KV 里**留下了一条规则**，后续探针发现并清掉了，最终读回为空。
+>
+> **构建注记（8.1–8.3）**：`vite build` 在那个回合被沙箱的批量删除守卫拦下（Vite 清空自己 gitignored 的 `dist/` 时超阈值），
 > 于是临时用 `emptyOutDir: false` 跑了一次（跑完已还原），产物正常：入口 **467.59 kB**、Monaco 隔离在
 > `TextViewer-DKm8sPs3.js`（7.6 MB）。
 

@@ -13,7 +13,17 @@ export type FileItem = {
 	provider?: string;
 };
 
-export type FileListResponse = { content: FileItem[]; total: number };
+export type FileListResponse = {
+	content: FileItem[];
+	total: number;
+	/**
+	 * Markdown (or a URL to fetch) contributed by the directory's metadata rule.
+	 * Both are resolved server-side and are absent on a search response, which
+	 * carries entries only.
+	 */
+	readme?: string;
+	header?: string;
+};
 
 export type Storage = {
 	id: number;
@@ -32,7 +42,19 @@ export type Storage = {
 
 export type StorageListResponse = { content: Storage[] };
 
-export type Meta = { id: number; path: string; password?: string; write?: boolean; hide?: string; readme?: string };
+export type Meta = {
+	id: number;
+	path: string;
+	password?: string;
+	write?: boolean;
+	hide?: string;
+	readme?: string;
+	/** Whether the readme also applies to paths beneath `path`. */
+	r_sub?: boolean;
+	header?: string;
+	/** Whether the header also applies to paths beneath `path`. */
+	header_sub?: boolean;
+};
 
 export type SortField = "name" | "size" | "modified";
 export type SortDirection = "asc" | "desc";

@@ -37,6 +37,7 @@ import { useSelection } from "../hooks/useSelection";
 import { useStoredState } from "../hooks/useStoredState";
 import { Modal } from "../components/common/Modal";
 import { ContextMenu } from "../components/files/ContextMenu";
+import { DirectoryReadme } from "../components/files/DirectoryReadme";
 import { DropZone } from "../components/files/DropZone";
 import { FileGrid } from "../components/files/FileGrid";
 import { FileListSkeleton } from "../components/files/FileListSkeleton";
@@ -63,6 +64,10 @@ export function FilesPage() {
 	const [page, setPage] = useState(1);
 	// What the server says the directory holds, not how much of it we hold.
 	const [total, setTotal] = useState(0);
+	// The directory's own readme and header, from its metadata rule. They belong
+	// to the directory rather than to a listing, so a search leaves them alone.
+	const [readme, setReadme] = useState("");
+	const [header, setHeader] = useState("");
 	const [loadingMore, setLoadingMore] = useState(false);
 	const [folderName, setFolderName] = useState<string | null>(null);
 	const [renameTarget, setRenameTarget] = useState<FileItem | null>(null);
@@ -142,6 +147,8 @@ export function FilesPage() {
 				});
 				setTotal(data.total ?? 0);
 				setItems((previous) => (append ? [...previous, ...(data.content ?? [])] : (data.content ?? [])));
+				setReadme(data.readme ?? "");
+				setHeader(data.header ?? "");
 			} catch (reason) {
 				setError(reason instanceof Error ? reason.message : "Unable to load files");
 				// A typed path can point somewhere that does not exist. Leaving the
@@ -151,6 +158,8 @@ export function FilesPage() {
 				if (!append) {
 					setItems([]);
 					setTotal(0);
+					setReadme("");
+					setHeader("");
 				}
 			} finally {
 				if (append) setLoadingMore(false);
@@ -578,6 +587,7 @@ export function FilesPage() {
 					onDownload={() => void download(selection.items)}
 					onCopyLink={() => single && void copyLink(single)}
 				/>
+				<DirectoryReadme slot="header" items={items} metaValue={header} />
 				<section className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
 					{error && (
 						<p className="border-b border-danger/20 bg-danger-soft px-5 py-3 text-sm text-danger-soft-foreground">
@@ -617,6 +627,7 @@ export function FilesPage() {
 					onMode={changePageMode}
 					onLoadMore={loadMore}
 				/>
+				<DirectoryReadme slot="readme" items={items} metaValue={readme} />
 				{folderName !== null && (
 					<Modal title="New folder" onClose={() => setFolderName(null)}>
 						<form className="space-y-4" onSubmit={createFolder}>

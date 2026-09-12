@@ -130,9 +130,9 @@ input[type="checkbox"] {
 }
 
 /* Rendered Markdown. Tailwind's preflight strips heading sizes and list markers,
-   so the handful of elements the previewer emits get their own rules rather than
-   a utility class per tag. Scoped to `.markdown-body`, which only the previewer
-   sets. */
+   so the handful of elements `renderMarkdown` emits get their own rules rather
+   than a utility class per tag. Scoped to `.markdown-body`, which the previewer
+   and the directory readme both set — one renderer, one set of styles. */
 .markdown-body > * + * {
 	margin-top: 0.75rem;
 }

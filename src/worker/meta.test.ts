@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { canAccess, canWrite, getNearestMeta, type MetaConfig } from "./meta";
+import { canAccess, canWrite, getNearestMeta, metaHeader, metaReadme, type MetaConfig } from "./meta";
+import { CONFIG_KEYS } from "./env";
 import { ObjMask } from "./storage/types";
 
 function createMeta(overrides: Partial<MetaConfig> = {}): MetaConfig {
@@ -140,11 +141,102 @@ describe("canWrite", () => {
 		const meta = createMeta({ write: false, w_sub: true, write_users: [1, 2], write_users_sub: true });
 		expect(canWrite({ id: 3, permission: 3 }, meta, "/test/file.txt")).toBe(false);
 	});
+
+	// A rule on "/" is the one case where "the rule's path plus a separator" is
+	// not a usable prefix, and getting it wrong is invisible: every `_sub` flag on
+	// a root rule quietly stops applying.
+	it("should deny write under a root rule with w_sub", () => {
+		expect(canWrite({ id: 1, permission: 3 }, createMeta({ path: "/", write: false, w_sub: true }), "/a/b")).toBe(
+			false,
+		);
+	});
+});
+
+// Mirrors OpenList's own `TestGetReadme` / `TestGetHeader` in
+// `server/handles/fsread_test.go`, including the root-path case.
+describe("metaReadme", () => {
+	it("should return nothing without a rule", () => {
+		expect(metaReadme(null, "/docs")).toBe("");
+	});
+
+	it("should return the readme on an exact match even when r_sub is false", () => {
+		expect(metaReadme(createMeta({ path: "/docs", readme: "Welcome" }), "/docs")).toBe("Welcome");
+	});
+
+	it("should carry the readme into a subfolder when r_sub is true", () => {
+		expect(metaReadme(createMeta({ path: "/docs", readme: "Welcome", r_sub: true }), "/docs/deep")).toBe("Welcome");
+	});
+
+	it("should not carry the readme into a subfolder when r_sub is false", () => {
+		expect(metaReadme(createMeta({ path: "/docs", readme: "Welcome", r_sub: false }), "/docs/deep")).toBe("");
+	});
+
+	it("should not leak the readme onto a sibling path even with r_sub true", () => {
+		expect(metaReadme(createMeta({ path: "/docs", readme: "Welcome", r_sub: true }), "/other")).toBe("");
+	});
+
+	it("should let a root readme cover every path with r_sub true", () => {
+		expect(metaReadme(createMeta({ path: "/", readme: "Global", r_sub: true }), "/any/path")).toBe("Global");
+	});
+
+	it("should treat an empty readme as nothing", () => {
+		expect(metaReadme(createMeta({ path: "/docs", readme: "", r_sub: true }), "/docs")).toBe("");
+	});
+});
+
+describe("metaHeader", () => {
+	it("should return nothing without a rule", () => {
+		expect(metaHeader(null, "/docs")).toBe("");
+	});
+
+	it("should return the header on an exact match with header_sub false", () => {
+		expect(metaHeader(createMeta({ path: "/docs", header: "Custom" }), "/docs")).toBe("Custom");
+	});
+
+	it("should carry the header into a subfolder when header_sub is true", () => {
+		expect(metaHeader(createMeta({ path: "/docs", header: "Custom", header_sub: true }), "/docs/deep")).toBe("Custom");
+	});
+
+	it("should not carry the header into a subfolder when header_sub is false", () => {
+		expect(metaHeader(createMeta({ path: "/docs", header: "Custom", header_sub: false }), "/docs/deep")).toBe("");
+	});
+
+	it("should resolve the two slots independently", () => {
+		const meta = createMeta({ path: "/docs", readme: "R", r_sub: true, header: "H", header_sub: false });
+		expect(metaReadme(meta, "/docs/deep")).toBe("R");
+		expect(metaHeader(meta, "/docs/deep")).toBe("");
+	});
 });
 
 describe("getNearestMeta", () => {
+	// A KV that only answers on the key the rest of the worker actually writes to.
+	// A fake that answers on any key hides a wrong key entirely — which is how
+	// `getNearestMeta` came to read `"metas"` while everything else wrote
+	// `"config:metas"`, leaving every rule in the app inert.
+	function kvWith(metas: MetaConfig[]): KVNamespace {
+		return {
+			get: async (key: string) => (key === CONFIG_KEYS.metas ? metas : null),
+		} as unknown as KVNamespace;
+	}
+
+	it("should read the metas from the canonical config key", async () => {
+		const requested: string[] = [];
+		const kv = {
+			get: async (key: string) => {
+				requested.push(key);
+				return [];
+			},
+		} as unknown as KVNamespace;
+		await getNearestMeta(kv, "/docs");
+		// It walks upwards, so it reads more than once — every read has to use the
+		// same key the admin endpoints and the backup layer write to.
+		expect(requested.length).toBeGreaterThan(0);
+		expect(requested.every((key) => key === CONFIG_KEYS.metas)).toBe(true);
+		expect(requested).not.toContain("metas");
+	});
+
 	it("should return null when no metas config exists", async () => {
-		const kv = { get: async () => null } as unknown as KVNamespace;
+		const kv = kvWith([]);
 		expect(await getNearestMeta(kv, "/test")).toBeNull();
 	});
 
@@ -153,20 +245,17 @@ describe("getNearestMeta", () => {
 			{ id: 1, path: "/docs" },
 			{ id: 2, path: "/docs/secret" },
 		];
-		const kv = { get: async () => metas } as unknown as KVNamespace;
-		const result = await getNearestMeta(kv, "/docs/secret");
+		const result = await getNearestMeta(kvWith(metas), "/docs/secret");
 		expect(result?.id).toBe(2);
 	});
 
 	it("should find nearest parent", async () => {
-		const kv = { get: async () => [{ id: 1, path: "/docs" }] } as unknown as KVNamespace;
-		const result = await getNearestMeta(kv, "/docs/deep/file.txt");
+		const result = await getNearestMeta(kvWith([{ id: 1, path: "/docs" }]), "/docs/deep/file.txt");
 		expect(result?.id).toBe(1);
 	});
 
 	it("should return null for root path when no root meta", async () => {
-		const kv = { get: async () => [{ id: 1, path: "/docs" }] } as unknown as KVNamespace;
-		expect(await getNearestMeta(kv, "/")).toBeNull();
+		expect(await getNearestMeta(kvWith([{ id: 1, path: "/docs" }]), "/")).toBeNull();
 	});
 });
 

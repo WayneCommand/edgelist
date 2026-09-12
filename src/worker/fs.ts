@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import type { EdgeListBindings } from "./env";
 import { planTransfers, type TransferInput, type TransferKind, type TransferPlannerDependencies } from "./fs-transfer";
-import { canAccess, canWrite, getNearestMeta } from "./meta";
+import { canAccess, canWrite, getNearestMeta, metaHeader, metaReadme } from "./meta";
 import {
 	getStorageConfig,
 	isVirtualMount,
@@ -121,7 +121,15 @@ export async function fsList(c: FsContext) {
 			allItems = allItems.filter((item) => !patterns.some((re) => re.test(item.name)));
 		}
 		const sorted = applySort(allItems, resolveSort(input, storage));
-		return respond(c, paginateFileObjects(sorted, input.page ?? 1, input.per_page ?? 0));
+		// OpenList's `FsListResp` carries these alongside the entries, and the
+		// client renders them around the list. They are resolved here rather than
+		// in the browser because the rule that owns a path lives in KV.
+		const page = paginateFileObjects(sorted, input.page ?? 1, input.per_page ?? 0);
+		return respond(c, {
+			...page,
+			readme: metaReadme(meta, requestedPath),
+			header: metaHeader(meta, requestedPath),
+		});
 	} catch (error) {
 		return failure(error instanceof Error ? error.message : "Unable to list path", 400);
 	}

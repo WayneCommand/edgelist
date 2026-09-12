@@ -1,4 +1,4 @@
-import { readConfig } from "./env";
+import { CONFIG_KEYS, readConfig } from "./env";
 import { normalizePath } from "./storage/types";
 
 export interface MetaConfig {
@@ -25,7 +25,13 @@ function metaCoversPath(metaPath: string, reqPath: string, applyToSubFolder: boo
 	const normalizedMeta = normalizePath(metaPath);
 	const normalizedReq = normalizePath(reqPath);
 	if (normalizedMeta === normalizedReq) return true;
-	return applyToSubFolder && normalizedReq.startsWith(`${normalizedMeta}/`);
+	// The separator is added to the rule's own path, so the root rule's prefix is
+	// "/" rather than "//" — otherwise a rule on "/" with any `_sub` flag covers
+	// nothing at all, and its hide patterns, password and read/write lists
+	// silently stop applying to the paths they were meant to govern. OpenList
+	// gets this from `PathAddSeparatorSuffix`, which leaves "/" alone.
+	const prefix = normalizedMeta === "/" ? "/" : `${normalizedMeta}/`;
+	return applyToSubFolder && normalizedReq.startsWith(prefix);
 }
 
 function pathDir(path: string): string {
@@ -38,7 +44,10 @@ function pathDir(path: string): string {
 
 export async function getNearestMeta(kv: KVNamespace, path: string): Promise<MetaConfig | null> {
 	const normalized = normalizePath(path);
-	const metas = (await readConfig(kv, "metas")) as MetaConfig[];
+	// The canonical key, not the bare word: the admin endpoints and the backup
+	// layer both store metas under `CONFIG_KEYS.metas`, so reading anything else
+	// silently returns null and makes every rule in the app inert.
+	const metas = (await readConfig(kv, CONFIG_KEYS.metas)) as MetaConfig[];
 	if (!Array.isArray(metas)) return null;
 	const exact = metas.find((meta) => normalizePath(meta.path) === normalized);
 	if (exact) return exact;
@@ -104,4 +113,23 @@ export function canAccess(
 	if (!meta.password) return true;
 	if (!metaCoversPath(meta.path, reqPath, meta.p_sub ?? false)) return true;
 	return meta.password === password;
+}
+
+/**
+ * The readme and header a directory inherits from its nearest meta rule.
+ *
+ * Each field is paired with its own `_sub` flag rather than sharing one, which is
+ * how OpenList resolves them: a rule on `/docs` can put a readme on `/docs` alone
+ * (`r_sub` false) while its header applies to everything underneath
+ * (`header_sub` true). The value is whatever the rule holds — markdown text, or a
+ * URL the client fetches — so the worker only decides *whether* it applies.
+ */
+export function metaReadme(meta: MetaConfig | null, path: string): string {
+	if (meta && metaCoversPath(meta.path, path, meta.r_sub ?? false)) return meta.readme ?? "";
+	return "";
+}
+
+export function metaHeader(meta: MetaConfig | null, path: string): string {
+	if (meta && metaCoversPath(meta.path, path, meta.header_sub ?? false)) return meta.header ?? "";
+	return "";
 }

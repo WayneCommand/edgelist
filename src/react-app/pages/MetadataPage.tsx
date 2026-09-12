@@ -54,7 +54,7 @@ export function MetadataPage() {
 					<p className="text-sm text-muted">Manage</p>
 					<h1 className="mt-1 text-2xl font-semibold">Metadata rules</h1>
 				</div>
-				<HeroButton onPress={() => setEditing({ id: 0, path: "/", write: false, hide: "", readme: "" })}>
+				<HeroButton onPress={() => setEditing({ id: 0, path: "/", write: false, hide: "", readme: "", header: "" })}>
 					Add rule
 				</HeroButton>
 			</div>
@@ -115,12 +115,31 @@ export function MetadataPage() {
 							className="w-full rounded-lg border border-border bg-field-background px-3 py-2"
 						/>
 						<textarea
-							value={editing.readme ?? ""}
-							onChange={(event) => setEditing({ ...editing, readme: event.target.value })}
-							rows={4}
-							placeholder="Readme / description"
+							value={editing.header ?? ""}
+							onChange={(event) => setEditing({ ...editing, header: event.target.value })}
+							rows={3}
+							placeholder="Header — markdown, or a URL to fetch"
 							className="w-full rounded-lg border border-border bg-field-background px-3 py-2"
 						/>
+						<HeroSwitch
+							isSelected={Boolean(editing.header_sub)}
+							onChange={(value) => setEditing({ ...editing, header_sub: value })}
+						>
+							Header applies to subfolders
+						</HeroSwitch>
+						<textarea
+							value={editing.readme ?? ""}
+							onChange={(event) => setEditing({ ...editing, readme: event.target.value })}
+							rows={3}
+							placeholder="Readme — markdown, or a URL to fetch"
+							className="w-full rounded-lg border border-border bg-field-background px-3 py-2"
+						/>
+						<HeroSwitch
+							isSelected={Boolean(editing.r_sub)}
+							onChange={(value) => setEditing({ ...editing, r_sub: value })}
+						>
+							Readme applies to subfolders
+						</HeroSwitch>
 						<HeroButton type="submit" fullWidth>
 							Save metadata
 						</HeroButton>
