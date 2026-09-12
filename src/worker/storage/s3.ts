@@ -1,4 +1,4 @@
-import type { FileObject, ListOptions, StorageAdapter, StorageConfig, TransferOptions } from "./types";
+import type { FileObject, ListOptions, MultipartPart, StorageAdapter, StorageConfig, TransferOptions } from "./types";
 import { findDriver } from "./registry";
 
 interface S3Addition {
@@ -61,6 +61,16 @@ function xmlValue(xml: string, tag: string): string {
 
 function xmlItems(xml: string, tag: string): string[] {
 	return [...xml.matchAll(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, "gi"))].map((match) => match[1]);
+}
+
+/** XML has only five entities, and an ETag can legitimately carry none of them. */
+function escapeXml(value: string): string {
+	return value
+		.replaceAll("&", "&amp;")
+		.replaceAll("<", "&lt;")
+		.replaceAll(">", "&gt;")
+		.replaceAll('"', "&quot;")
+		.replaceAll("'", "&apos;");
 }
 
 // Only a plain 32-hex ETag is the MD5 of the object. Multipart uploads report
@@ -335,5 +345,55 @@ export class S3Adapter implements StorageAdapter {
 	async move(source: string, destination: string, _options: TransferOptions) {
 		await this.transfer(source, destination);
 		await this.remove(source);
+	}
+
+	/**
+	 * Begin a split upload. `POST ?uploads` answers with an XML document whose
+	 * `<UploadId>` has to be quoted back on every later part, so it is returned
+	 * here and treated as opaque by everything above this class.
+	 */
+	async multipartInit(path: string): Promise<string> {
+		const response = await this.request("POST", objectPath(path, this.rootPath), { query: { uploads: "" } });
+		if (!response.ok) throw new Error(`S3 initiate multipart failed with ${response.status}`);
+		const uploadId = xmlValue(await response.text(), "UploadId");
+		if (!uploadId) throw new Error("S3 initiate multipart returned no UploadId");
+		return uploadId;
+	}
+
+	/**
+	 * Upload one part. The ETag arrives in a header rather than the body, and it
+	 * has to be echoed verbatim — quotes included — in the completion document,
+	 * or S3 refuses to assemble the object.
+	 */
+	async multipartUploadPart(path: string, uploadId: string, partNumber: number, body: ArrayBuffer): Promise<string> {
+		const response = await this.request("PUT", objectPath(path, this.rootPath), {
+			query: { partNumber: String(partNumber), uploadId },
+			body,
+		});
+		if (!response.ok) throw new Error(`S3 upload part ${partNumber} failed with ${response.status}`);
+		const etag = response.headers.get("etag");
+		if (!etag) throw new Error(`S3 upload part ${partNumber} returned no ETag`);
+		return etag;
+	}
+
+	/** Assemble the parts. S3 wants them in ascending part order. */
+	async multipartComplete(path: string, uploadId: string, parts: MultipartPart[]): Promise<void> {
+		const body = [
+			"<CompleteMultipartUpload>",
+			...[...parts]
+				.sort((left, right) => left.part_number - right.part_number)
+				.map((part) => `<Part><PartNumber>${part.part_number}</PartNumber><ETag>${escapeXml(part.etag)}</ETag></Part>`),
+			"</CompleteMultipartUpload>",
+		].join("");
+		const response = await this.request("POST", objectPath(path, this.rootPath), { query: { uploadId }, body });
+		if (!response.ok) throw new Error(`S3 complete multipart failed with ${response.status}`);
+	}
+
+	async multipartAbort(path: string, uploadId: string): Promise<void> {
+		const response = await this.request("DELETE", objectPath(path, this.rootPath), { query: { uploadId } });
+		// Aborting an upload the provider has already forgotten is not a failure
+		// worth raising: the caller is cleaning up, and the goal is that nothing
+		// is left behind.
+		if (!response.ok && response.status !== 404) throw new Error(`S3 abort multipart failed with ${response.status}`);
 	}
 }

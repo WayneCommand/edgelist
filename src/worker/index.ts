@@ -11,11 +11,6 @@ import {
 	fsLink,
 	fsList,
 	fsMkdir,
-	fsMultipartAbort,
-	fsMultipartChunk,
-	fsMultipartComplete,
-	fsMultipartInit,
-	fsMultipartStatus,
 	fsMove,
 	fsPut,
 	fsRemove,
@@ -23,6 +18,13 @@ import {
 	fsRename,
 	fsSearch,
 } from "./fs";
+import {
+	fsMultipartAbort,
+	fsMultipartChunk,
+	fsMultipartComplete,
+	fsMultipartInit,
+	fsMultipartStatus,
+} from "./multipart";
 import {
 	driverInfo,
 	driverList,
@@ -62,7 +64,10 @@ app.post("/api/fs/link", requireAuth, fsLink);
 app.put("/api/fs/put", requireAuth, fsPut);
 app.put("/api/fs/form", requireAuth, fsFormUpload);
 app.post("/api/fs/multipart/init", requireAuth, fsMultipartInit);
-app.post("/api/fs/multipart/chunk", requireAuth, fsMultipartChunk);
+// A chunk is bytes being placed, so it is a PUT, as it is upstream. The other
+// four follow OpenList's shape except `status`, which takes a JSON body here
+// rather than upstream's query lookup — nothing else needs the richer form.
+app.put("/api/fs/multipart/chunk", requireAuth, fsMultipartChunk);
 app.post("/api/fs/multipart/complete", requireAuth, fsMultipartComplete);
 app.post("/api/fs/multipart/status", requireAuth, fsMultipartStatus);
 app.post("/api/fs/multipart/abort", requireAuth, fsMultipartAbort);

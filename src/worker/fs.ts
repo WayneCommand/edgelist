@@ -17,7 +17,7 @@ import { failure, respond } from "./response";
 
 type FsContext = Context<{ Bindings: Env & EdgeListBindings; Variables: { auth: Record<string, unknown> } }>;
 
-async function checkWriteMask(
+export async function checkWriteMask(
 	c: FsContext,
 	path: string,
 	maskBit: number,
@@ -551,31 +551,4 @@ export async function fsLink(c: FsContext) {
 	} catch (error) {
 		return failure(error instanceof Error ? error.message : "Unable to get link", 400);
 	}
-}
-
-// TODO: Multipart upload is a non-functional skeleton.
-// Issues to resolve before production:
-// 1. Session store must use KV/D1 (in-memory Map is not shared across Worker isolates).
-// 2. fsMultipartChunk must read the request body and upload the binary chunk to S3.
-// 3. fsMultipartComplete must call S3 CompleteMultipartUpload API.
-// 4. Add session TTL/cleanup to prevent memory leaks.
-
-export async function fsMultipartInit(_c: FsContext) {
-	return failure("Multipart upload is not yet implemented", 501);
-}
-
-export async function fsMultipartChunk(_c: FsContext) {
-	return failure("Multipart upload is not yet implemented", 501);
-}
-
-export async function fsMultipartComplete(_c: FsContext) {
-	return failure("Multipart upload is not yet implemented", 501);
-}
-
-export async function fsMultipartStatus(_c: FsContext) {
-	return failure("Multipart upload is not yet implemented", 501);
-}
-
-export async function fsMultipartAbort(_c: FsContext) {
-	return failure("Multipart upload is not yet implemented", 501);
 }

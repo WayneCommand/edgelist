@@ -117,6 +117,7 @@
 - [x] 3.8 存储列表接口支持 `page/per_page` 分页。
 - [x] 3.9 新增 `PUT /api/fs/form`（multipart/form-data 上传）。
 - [x] 3.10 新增 `/api/fs/multipart/{init,chunk,complete,status,abort}` 分片上传骨架；**仅 S3 驱动可用**，其他驱动超阈值时直接拒绝并返回明确错误。
+  - ⚠️ **这一步只交付了骨架，五个端点当时全部返回 501**（"Multipart upload is not yet implemented"）。真正的实现是 8.6a。
 - [x] 3.11 分离 create / update 语义：`/api/admin/storage/update` 校验 `id > 0`，新增走 `/create`。
 - [x] 3.12 跨存储复制/移动统一错误码与消息（决策 3），让前端能识别并给出确定性中文提示，而非透传后端英文原文。
 - [x] 3.13 S3 适配器支持 `root_folder_path`（阶段二建 registry 时发现：UI 一直有这个字段且标为必填，但 S3 把路径直接当 key，从未读取，属假字段）。二选一：实现前缀拼接到 `objectPath()`，或从表单彻底移除；目前 registry 已暂不声明它。
@@ -357,11 +358,36 @@
   - **失效只在处理这次写请求的那个数据中心生效**（`caches.default` 不跨 DC、也无法枚举，见 `cache.ts` 顶部注释）。所以前端写之后的重载一律带 `refresh: true`（`FilesPage.reloadAfterWrite`），工具栏 Refresh 按钮同样带；否则"上传成功但列表里没有"会是个真 bug。**TTL 才是陈旧度的真实上界，失效不是。**
   - 顺带确认了一个边界：`refresh` 同时跳过读**并重写**条目，这正是 Refresh 按钮值得存在的理由；`load()` 以前从不发 `refresh`（6.4 的遗留），现在补上。
   - 字段回归：`registry.ts` 的公共项重新声明 `cache_expiration`（`number`、默认 `"30"`、`required`）与 `custom_cache_policies`，`noCache` 驱动不声明；`normalizeStorageConfig` 把 `cache_expiration` 收敛成非负整数（备份里的 `"30"` 字符串要能读，读不出回落 30，负数夹到 0＝不缓存）；`registry.test.ts` 新增"表单提供的缓存字段必须被 `storage/cache.ts` 真的读到"的守卫。
-- [ ] 8.6 前端分片上传接入 `/api/fs/multipart/*`；非 S3 驱动时降级并提示上限。
+- [x] 8.6a 后端分片上传：把 3.10 留下的 501 骨架换成真的 S3 multipart，会话存 KV。
+  - **先纠正 3.10 的说法**：那一步声称"新增分片上传骨架，仅 S3 驱动可用"，但五个端点**全部返回 501**
+    （`fs.ts` 里自己写着 "non-functional skeleton"）。也就是说 8.6 从来不只是前端接线，后端也一直是空的。
+  - `StorageAdapter` 增加**可选**的 `multipartInit / multipartUploadPart / multipartComplete / multipartAbort`
+    四个方法，`StorageCapability` 增加 `multipart`，只有 S3 驱动声明它。可选是诚实的表达：WebDAV 没有
+    服务端拼装能力，代理的 OpenList 也没有，所以"能力"要能被查询，而不是靠驱动内部去猜。
+  - 端点形状对齐上游：`POST /init`、**`PUT /chunk`**（块是"放上去的字节"，上游也是 PUT）、`POST /complete`、
+    `POST /abort`。**`status` 有意保留 POST + JSON body**，不是上游的 GET + query——上游那个还能按
+    path+size 反查，我们只需要按会话 id 查，多出来的语义没有用处（已在 `index.ts` 注明）。
+  - 会话放 KV（`multipart:<id>`，TTL 24 小时）。Worker 既没有常驻内存也没有后台任务，**TTL 就是唯一的清理机制**：
+    没有 GC 能去回收被放弃的上传，被放弃的会话只能等它过期（代价是 provider 侧的分片会一直挂到过期或被 abort）。
+  - 会话 id 是**我们自己发的 32 位十六进制**，provider 的 `UploadId` 留在服务端不下发。id 会从客户端回来并直接
+    变成 KV 键，所以先按形状校验再当键用——形状不对的 id 不是会话，放过去就等于允许写任意键。
+  - **块号 0 基、分片号 1 基**，只在边界翻译一次（客户端数块从 0，S3 数 PartNumber 从 1）。
+  - **重传同一块是替换而不是追加**：provider 按号索引分片，我们也按号索引，所以网络重试不会产生两个分片。
+  - **complete 之前校验分片拼得起来**：S3 会把给它的分片按顺序拼起来并**无论对错都返回成功**，少一块就是
+    "文件短了但没人报错"。所以先查分片号是否恰好是 1..n、总字节数是否等于 init 时声明的 size，不满足就 400
+    并给出 `Upload is incomplete: n of m chunks covering X of Y bytes`。这是唯一挡住静默截断的东西。
+  - 块大小：客户端可以传 `chunk_size`，但**低于 5 MiB 会被忽略**（S3 除最后一块外不接受更小的分片），
+    默认 8 MiB。返回值里带 `chunk_size`，客户端照着切。
+  - 复用 `fsPut` 的同一套写入检查（`canWrite` + `ObjMask.NoWrite` 查父目录），所以分片上传不会绕过 Meta ACL 或掩码；
+    为此把 `checkWriteMask` 从 `fs.ts` 导出。
+  - `complete` 成功后失效父目录列表（对象在分片期间并不存在，所以只有它出现的那一层列表变了）。
+  - `abort` 对"会话已不存在"返回成功：那是调用方在收尾，它想要的结局已经成立。
+- [ ] 8.6b 前端分片上传接入上面五个端点；非 S3 驱动时降级并提示上限。
 - [ ] 8.7 前端上传体积上限提示与失败重试。
 - [ ] 8.8 i18n 骨架（中/英），与 OpenList 文案风格对齐。
 
-> 🚧 **阶段八进行中**：8.1–8.5 已完成（预览分派器 + 各预览器 + 目录 readme/header + 目录缓存），8.6–8.8 未开始。
+> 🚧 **阶段八进行中**：8.1–8.6a 已完成（预览分派器 + 各预览器 + 目录 readme/header + 目录缓存 + 分片上传后端），
+> 8.6b–8.8 未开始（前端分片上传、上传体积上限与重试、i18n 骨架）。
 >
 > **验证**：新增 `lib/preview.test.ts`（21 例）、`lib/markdown.test.ts`（23 例）、
 > `components/files/preview/preview-views.test.tsx`（11 例）、`worker/download-route.test.ts`（3 例）。
@@ -419,6 +445,16 @@
 > **未做**：`caches.default` 只在真实 Workers（自定义域或 `*.workers.dev`）可用，且不跨数据中心、无法枚举，
 > 所以这一条**没有跑真浏览器 + 真数据的端到端验收**——它比前面各步更依赖部署环境，本机 dev server 里
 > `caches` 是否存在取决于 miniflare 的实现。部署后可用同一组凭据验一次"连点两次列表只打一次上游、点 Refresh 会再打一次"。
+>
+> **8.6a 验证**：新增 `worker/multipart.test.ts`（11 例：开上传、按号传块、拼装文档、重传替换、分片不齐拒绝、
+> 断点查询、abort、未知会话 404、非对象存储拒绝、缺 size 拒绝、未登录 401）与 `storage/s3.test.ts` 新增的
+> 4 例适配器级用例（`?uploads`、`PartNumber`/`uploadId`、完成文档的升序与 ETag 转义、abort 容忍 404）。
+> 合计 **478 例 / 31 文件**；`prettier --check src` / `tsc -p tsconfig.worker.json` / `tsc -p tsconfig.app.json` /
+> `eslint .` 全绿。
+> **验收方式**：真 `S3Adapter` + 打桩 `fetch` + 打桩 KV，走完整 `app.request`——断言的是 **S3 实际会收到的
+> query 与 XML**，不是我们自己的记账。**没有真浏览器验收**：分片上传要真的往桶里写数据，而本机的 IBM COS
+> 是用户的生产桶，所以这一步只做了协议级验收；真实上传留到 8.6b 与前端一起验，并且要挑一个可丢弃的前缀。
+> 写这一步时发现 **`PUT /chunk` 才是对的**（原来的骨架把它注册成 POST，而块是"放上去的字节"，上游也是 PUT）。
 
 ---
 

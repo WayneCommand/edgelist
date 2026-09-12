@@ -1,6 +1,21 @@
 export type StorageDriver = "openlist" | "object" | "webdav";
 
-export type StorageCapability = "read" | "write" | "mkdir" | "remove" | "rename" | "copy" | "move" | "merge";
+export type StorageCapability =
+	| "read"
+	| "write"
+	| "mkdir"
+	| "remove"
+	| "rename"
+	| "copy"
+	| "move"
+	| "merge"
+	/**
+	 * The driver can split a large upload into parts it reassembles itself.
+	 * Only an object store can: the parts have to be combined server-side, which
+	 * is what S3's `CompleteMultipartUpload` does and what neither WebDAV nor a
+	 * proxied OpenList can offer.
+	 */
+	| "multipart";
 
 export interface StorageConfig {
 	id: number;
@@ -78,6 +93,13 @@ export interface TransferOptions {
 	merge: boolean;
 }
 
+/** One uploaded part of a split upload, as the provider identified it back. */
+export interface MultipartPart {
+	/** 1-based, because that is what S3's `PartNumber` is. */
+	part_number: number;
+	etag: string;
+}
+
 export interface StorageAdapter {
 	readonly driver: StorageDriver;
 	readonly capabilities: ReadonlySet<StorageCapability>;
@@ -90,6 +112,16 @@ export interface StorageAdapter {
 	rename(path: string, name: string, overwrite: boolean): Promise<void>;
 	copy(source: string, destination: string, options: TransferOptions): Promise<void>;
 	move(source: string, destination: string, options: TransferOptions): Promise<void>;
+	/**
+	 * Split uploads. Optional because only some drivers can reassemble parts;
+	 * the caller must check `capabilities` for `multipart` before calling any of
+	 * these, and every implementation keeps the provider's own upload id opaque.
+	 */
+	multipartInit?(path: string): Promise<string>;
+	/** Uploads one part and returns the provider's identifier for it. */
+	multipartUploadPart?(path: string, uploadId: string, partNumber: number, body: ArrayBuffer): Promise<string>;
+	multipartComplete?(path: string, uploadId: string, parts: MultipartPart[]): Promise<void>;
+	multipartAbort?(path: string, uploadId: string): Promise<void>;
 }
 
 export function normalizePath(path: string): string {

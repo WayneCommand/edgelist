@@ -194,7 +194,20 @@ export const DRIVERS: readonly DriverDefinition[] = [
 		name: "S3",
 		config: { localSort: true, defaultRoot: "/" },
 		additionalItems: S3_ITEMS,
-		capabilities: new Set<StorageCapability>(["read", "write", "mkdir", "remove", "rename", "copy", "move", "merge"]),
+		capabilities: new Set<StorageCapability>([
+			"read",
+			"write",
+			"mkdir",
+			"remove",
+			"rename",
+			"copy",
+			"move",
+			"merge",
+			// The only driver that can reassemble parts: `CompleteMultipartUpload`
+			// is an S3 API, and neither WebDAV nor a proxied OpenList has an
+			// equivalent to fall back on.
+			"multipart",
+		]),
 		create: (config) => new S3Adapter(config),
 	},
 	{
