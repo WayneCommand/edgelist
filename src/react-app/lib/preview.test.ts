@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { translate, type MessageKey, type MessageParams } from "./i18n";
 import {
 	BLOB_SIZE_LIMIT,
 	EDITOR_SIZE_LIMIT,
@@ -11,6 +12,12 @@ import {
 	previewNotice,
 	withMime,
 } from "./preview";
+
+/**
+ * The two functions below take their translator rather than reading the ambient
+ * language, so the assertions pin English here instead of pinning the process.
+ */
+const en = (key: MessageKey, params?: MessageParams) => translate("en", key, params);
 
 describe("previewKindFor", () => {
 	it("routes each media family to its own previewer", () => {
@@ -127,7 +134,7 @@ describe("previewKindFor with a size", () => {
 
 describe("previewNotice", () => {
 	it("names the missing renderer for an Office document", () => {
-		const notice = previewNotice("office", "budget.xlsx");
+		const notice = previewNotice("office", "budget.xlsx", en);
 		expect(notice.title).toBe("No in-browser preview for .xlsx");
 		expect(notice.body).toContain("converter this app does not ship");
 	});
@@ -135,7 +142,7 @@ describe("previewNotice", () => {
 	it("explains the buffering ceiling without offering a download", () => {
 		// Downloading is not a fallback this step relies on, so the copy does not
 		// promise one.
-		const notice = previewNotice("toolarge", "film.mp4");
+		const notice = previewNotice("toolarge", "film.mp4", en);
 		expect(notice.title).toBe("Too large to preview here");
 		expect(notice.body).toContain("holds the whole file in memory");
 		expect(notice.body).not.toContain("Download");
@@ -188,9 +195,22 @@ describe("withMime", () => {
 
 describe("previewCaption", () => {
 	it("names the language for text and the family for everything else", () => {
-		expect(previewCaption("text", "query.sql", 2048)).toBe("SQL · 2.0 KB");
-		expect(previewCaption("markdown", "notes.md", 512)).toBe("Markdown · 512 B");
-		expect(previewCaption("pdf", "paper.pdf", 1024 * 1024)).toBe("PDF · 1.0 MB");
-		expect(previewCaption("office", "budget.xlsx", 0)).toBe("Office document · 0 B");
+		expect(previewCaption("text", "query.sql", 2048, en)).toBe("SQL · 2.0 KB");
+		expect(previewCaption("markdown", "notes.md", 512, en)).toBe("Markdown · 512 B");
+		expect(previewCaption("pdf", "paper.pdf", 1024 * 1024, en)).toBe("PDF · 1.0 MB");
+		expect(previewCaption("office", "budget.xlsx", 0, en)).toBe("Office document · 0 B");
+	});
+
+	it("translates the family it names", () => {
+		// The size is a number and stays as it is; the family word is a label.
+		const zh = (key: MessageKey, params?: MessageParams) => translate("zh", key, params);
+		expect(previewCaption("pdf", "paper.pdf", 1024 * 1024, zh)).toBe("PDF · 1.0 MB");
+		expect(previewCaption("image", "photo.png", 0, zh)).toBe("图片 · 0 B");
+	});
+
+	it("leaves a text file's own language name alone", () => {
+		// `SQL` and `PYTHON` are proper nouns, not words this app translates.
+		const zh = (key: MessageKey, params?: MessageParams) => translate("zh", key, params);
+		expect(previewCaption("text", "query.sql", 2048, zh)).toBe("SQL · 2.0 KB");
 	});
 });

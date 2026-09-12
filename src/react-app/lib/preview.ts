@@ -1,4 +1,5 @@
 import { extensionOf, formatSize, languageForFile } from "./format";
+import type { MessageKey, Translate } from "./i18n";
 
 /**
  * How a file is shown when it is opened.
@@ -68,16 +69,16 @@ const MIME_BY_EXTENSION: Record<string, string> = {
 	pdf: "application/pdf",
 };
 
-const CAPTION_BY_KIND: Record<PreviewKind, string> = {
-	text: "Text",
-	markdown: "Markdown",
-	image: "Image",
-	video: "Video",
-	audio: "Audio",
-	pdf: "PDF",
-	office: "Office document",
-	toolarge: "File",
-	none: "File",
+const CAPTION_KEY_BY_KIND: Record<PreviewKind, MessageKey> = {
+	text: "preview.caption.text",
+	markdown: "preview.caption.markdown",
+	image: "preview.caption.image",
+	video: "preview.caption.video",
+	audio: "preview.caption.audio",
+	pdf: "preview.caption.pdf",
+	office: "preview.caption.office",
+	toolarge: "preview.caption.file",
+	none: "preview.caption.file",
 };
 
 /**
@@ -141,19 +142,26 @@ export function needsText(kind: PreviewKind): boolean {
 
 export type PreviewNotice = { title: string; body: string };
 
-/** What a panel says about a file that has no previewer, and why. */
-export function previewNotice(kind: PreviewKind, name: string): PreviewNotice {
+/**
+ * What a panel says about a file that has no previewer, and why.
+ *
+ * The translator is a parameter rather than the module-level one in
+ * `lib/locale.ts`, and that is the one place in `lib/` where it is: this
+ * function's only caller renders its result directly, so it has a translator to
+ * hand and taking it keeps this module free of state that a test would have to
+ * arrange. `previewCaption` follows the same rule for the same reason.
+ */
+export function previewNotice(kind: PreviewKind, name: string, t: Translate): PreviewNotice {
 	if (kind === "office") {
 		const extension = extensionOf(name);
 		return {
-			title: `No in-browser preview for ${extension ? `.${extension}` : "this format"}`,
-			body: "Word, Excel and PowerPoint files need a converter this app does not ship, and the browser has none of its own. Open the file in a desktop application to read it.",
+			// `office` is only ever reached through a known extension, so the
+			// generic form is a guard rather than a case that happens.
+			title: extension ? t("preview.officeTitle", { extension: `.${extension}` }) : t("preview.officeTitleGeneric"),
+			body: t("preview.officeBody"),
 		};
 	}
-	return {
-		title: "Too large to preview here",
-		body: "A preview holds the whole file in memory before it shows anything, and this one is past that. Open it in an application that can stream it.",
-	};
+	return { title: t("preview.tooLargeTitle"), body: t("preview.tooLargeBody") };
 }
 
 /** Media type for a name, used only when the response did not supply one. */
@@ -175,7 +183,11 @@ export function withMime(blob: Blob, name: string): Blob {
 }
 
 /** One-line description of the file being shown, e.g. `PDF · 1.2 MB`. */
-export function previewCaption(kind: PreviewKind, name: string, size: number): string {
-	const label = kind === "text" ? (languageForFile(name) ?? "text").toUpperCase() : CAPTION_BY_KIND[kind];
+export function previewCaption(kind: PreviewKind, name: string, size: number, t: Translate): string {
+	// A text file is labelled with its own language — `SQL`, `PYTHON` — which is
+	// a proper noun and is never translated; the catalogue's `Text` is only the
+	// answer for a text kind whose language could not be determined.
+	const label =
+		kind === "text" ? (languageForFile(name) ?? t("preview.caption.text")).toUpperCase() : t(CAPTION_KEY_BY_KIND[kind]);
 	return `${label} · ${formatSize(size)}`;
 }

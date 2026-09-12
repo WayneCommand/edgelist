@@ -1,3 +1,4 @@
+import { t, tCount } from "./locale";
 import { parentOf } from "./paths";
 
 export type BatchFailure = { name: string; error: string };
@@ -22,20 +23,19 @@ export function collectRemovals(settled: PromiseSettledResult<RemoveOutcome>[]):
 	return result;
 }
 
-function plural(count: number, noun: string) {
-	return `${count} ${noun}${count === 1 ? "" : "s"}`;
-}
-
-/** A batch can partly succeed, so the toast has to say both halves. */
-export function summarizeBatch(
-	result: BatchResult,
-	noun: string,
-	verb = "deleted",
-): { message: string; error: boolean } {
-	if (!result.failed.length) return { message: `${plural(result.done, noun)} ${verb}`, error: false };
+/**
+ * A batch can partly succeed, so the toast has to say both halves.
+ *
+ * There is no `noun` or `verb` parameter. The noun phrase is composed here from
+ * the catalogue's own two forms and the whole sentence comes from one entry, so
+ * a caller never supplies a word that only makes sense in English word order.
+ */
+export function summarizeBatch(result: BatchResult): { message: string; error: boolean } {
+	const detail = tCount(result.done, "batch.itemsOne", "batch.itemsOther");
+	if (!result.failed.length) return { message: t("batch.done", { detail }), error: false };
 	if (!result.done) return { message: result.failed[0].error, error: true };
 	return {
-		message: `${plural(result.done, noun)} ${verb}, ${result.failed.length} failed: ${result.failed[0].error}`,
+		message: t("batch.partial", { detail, failed: result.failed.length, error: result.failed[0].error }),
 		error: true,
 	};
 }

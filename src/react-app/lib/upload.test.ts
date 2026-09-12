@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "./api";
 import type { DriverInfo } from "./drivers";
+import { setLocale } from "./locale";
 import type { Storage } from "./types";
 import {
 	SINGLE_UPLOAD_LIMIT,
@@ -18,6 +19,11 @@ import {
 const MIB = 1024 * 1024;
 /** A retry policy that does not make a test wait out the backoff. */
 const instantRetry = { delays: [0, 0], sleep: async () => undefined };
+
+/** See the note in `transfer.test.ts`: the wording is English on purpose. */
+beforeEach(() => {
+	setLocale("en");
+});
 
 afterEach(() => {
 	vi.unstubAllGlobals();

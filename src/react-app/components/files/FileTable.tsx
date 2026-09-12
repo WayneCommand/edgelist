@@ -1,3 +1,4 @@
+import { useT } from "../../hooks/useLocale";
 import { formatSize } from "../../lib/format";
 import type { MenuPosition } from "../../lib/menu";
 import { DEFAULT_SORT_STATE } from "../../lib/preferences";
@@ -21,6 +22,7 @@ type FileTableProps = {
  * page it only partially received.
  */
 export function FileTable({ items, selection, sort, onSort, onOpen, onContextMenu }: FileTableProps) {
+	const t = useT();
 	return (
 		<div role="grid">
 			<div
@@ -29,10 +31,10 @@ export function FileTable({ items, selection, sort, onSort, onOpen, onContextMen
 			>
 				<span className="h-4 w-4 shrink-0" />
 				<span className="w-8 shrink-0" aria-hidden="true" />
-				<SortableHeader field="name" label="Name" className="min-w-0 flex-1" sort={sort} onSort={onSort} />
+				<SortableHeader field="name" label={t("table.name")} className="min-w-0 flex-1" sort={sort} onSort={onSort} />
 				<SortableHeader
 					field="size"
-					label="Size"
+					label={t("table.size")}
 					className="hidden w-32 sm:flex"
 					align="end"
 					sort={sort}
@@ -40,7 +42,7 @@ export function FileTable({ items, selection, sort, onSort, onOpen, onContextMen
 				/>
 				<SortableHeader
 					field="modified"
-					label="Modified"
+					label={t("table.modified")}
 					className="hidden w-36 md:flex"
 					align="end"
 					sort={sort}
@@ -106,6 +108,7 @@ type FileRowProps = {
 };
 
 function FileRow({ item, index, selection, onOpen, onContextMenu }: FileRowProps) {
+	const t = useT();
 	const selected = selection.isSelected(item.path);
 	return (
 		<div
@@ -133,7 +136,7 @@ function FileRow({ item, index, selection, onOpen, onContextMenu }: FileRowProps
 				type="checkbox"
 				checked={selected}
 				readOnly
-				aria-label={`Select ${item.name}`}
+				aria-label={t("table.select", { name: item.name })}
 				className="h-4 w-4 shrink-0"
 				onClick={(event) => {
 					event.stopPropagation();
@@ -147,7 +150,7 @@ function FileRow({ item, index, selection, onOpen, onContextMenu }: FileRowProps
 				{item.name}
 			</span>
 			<span role="gridcell" className="hidden w-32 text-right text-xs text-muted sm:block">
-				{item.is_dir ? "Folder" : formatSize(item.size)}
+				{item.is_dir ? t("table.folder") : formatSize(item.size)}
 			</span>
 			<span role="gridcell" className="hidden w-36 text-right text-xs text-muted md:block">
 				{item.modified ? new Date(item.modified).toLocaleDateString() : "—"}

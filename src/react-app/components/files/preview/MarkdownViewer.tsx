@@ -1,5 +1,7 @@
 import { Suspense, useMemo, useState } from "react";
 import { Skeleton } from "@heroui/react";
+import { useT } from "../../../hooks/useLocale";
+import type { MessageKey } from "../../../lib/i18n";
 import { renderMarkdown } from "../../../lib/markdown";
 import { previewCaption } from "../../../lib/preview";
 import type { FileItem } from "../../../lib/types";
@@ -25,6 +27,7 @@ export type MarkdownViewerProps = {
  * only ever one row of controls — and one Save button.
  */
 export function MarkdownViewer({ item, text, dirty, saving, onChange, onSave }: MarkdownViewerProps) {
+	const t = useT();
 	const [mode, setMode] = useState<MarkdownMode>("rendered");
 	const html = useMemo(() => renderMarkdown(text), [text]);
 	const modeSwitch = <ModeSwitch mode={mode} onChange={setMode} />;
@@ -48,7 +51,7 @@ export function MarkdownViewer({ item, text, dirty, saving, onChange, onSave }: 
 	return (
 		<div className="space-y-3">
 			<div className="flex flex-wrap items-center justify-between gap-3">
-				<p className="text-xs text-muted">{previewCaption("markdown", item.name, item.size)}</p>
+				<p className="text-xs text-muted">{previewCaption("markdown", item.name, item.size, t)}</p>
 				{modeSwitch}
 			</div>
 			{text.trim() ? (
@@ -59,22 +62,23 @@ export function MarkdownViewer({ item, text, dirty, saving, onChange, onSave }: 
 					dangerouslySetInnerHTML={{ __html: html }}
 				/>
 			) : (
-				<p className="rounded-lg border border-border bg-surface p-5 text-sm text-muted">This file is empty.</p>
+				<p className="rounded-lg border border-border bg-surface p-5 text-sm text-muted">{t("preview.empty")}</p>
 			)}
 		</div>
 	);
 }
 
-const MODES: ReadonlyArray<{ mode: MarkdownMode; label: string }> = [
-	{ mode: "rendered", label: "Rendered" },
-	{ mode: "source", label: "Source" },
+const MODES: ReadonlyArray<{ mode: MarkdownMode; label: MessageKey }> = [
+	{ mode: "rendered", label: "preview.rendered" },
+	{ mode: "source", label: "preview.source" },
 ];
 
 function ModeSwitch({ mode, onChange }: { mode: MarkdownMode; onChange: (mode: MarkdownMode) => void }) {
+	const t = useT();
 	return (
 		<div
 			role="group"
-			aria-label="Markdown view"
+			aria-label={t("preview.markdownView")}
 			className="flex items-center gap-0.5 rounded-lg border border-border p-0.5"
 		>
 			{MODES.map((option) => (
@@ -87,7 +91,7 @@ function ModeSwitch({ mode, onChange }: { mode: MarkdownMode; onChange: (mode: M
 						mode === option.mode ? "bg-accent-soft text-accent" : "text-muted hover:text-foreground"
 					}`}
 				>
-					{option.label}
+					{t(option.label)}
 				</button>
 			))}
 		</div>

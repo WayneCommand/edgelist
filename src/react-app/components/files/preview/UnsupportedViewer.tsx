@@ -1,3 +1,4 @@
+import { useT } from "../../../hooks/useLocale";
 import { previewNotice, type PreviewKind } from "../../../lib/preview";
 import type { FileItem } from "../../../lib/types";
 
@@ -7,7 +8,8 @@ import type { FileItem } from "../../../lib/types";
  * resolves, or a panel that explains nothing.
  */
 export function UnsupportedViewer({ item, kind }: { item: FileItem; kind: PreviewKind }) {
-	const notice = previewNotice(kind, item.name);
+	const t = useT();
+	const notice = previewNotice(kind, item.name, t);
 	return (
 		<div className="rounded-lg border border-border bg-surface-secondary p-6 text-sm">
 			<p className="font-medium">{notice.title}</p>

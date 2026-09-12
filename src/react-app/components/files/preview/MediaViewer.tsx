@@ -1,3 +1,5 @@
+import { useT } from "../../../hooks/useLocale";
+
 type MediaViewerProps = {
 	url: string;
 	kind: "video" | "audio";
@@ -10,6 +12,7 @@ type MediaViewerProps = {
  * `/d/*` forwards the `Range` header to the driver.
  */
 export function MediaViewer({ url, kind }: MediaViewerProps) {
+	const t = useT();
 	return (
 		<div className="space-y-2">
 			<div className="flex flex-col items-center justify-center rounded-lg border border-border bg-surface-secondary p-4">
@@ -22,7 +25,7 @@ export function MediaViewer({ url, kind }: MediaViewerProps) {
 			{kind === "video" && (
 				// `.mov` and `.mkv` are the common casualties, and a black rectangle
 				// with no explanation is the worst possible answer to them.
-				<p className="text-xs text-muted">Playback depends on the codecs this browser supports.</p>
+				<p className="text-xs text-muted">{t("preview.codecs")}</p>
 			)}
 		</div>
 	);

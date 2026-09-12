@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useT } from "../../hooks/useLocale";
 import { api } from "../../lib/api";
 import type { DirectoryNode } from "../../lib/types";
 
@@ -16,9 +17,10 @@ type DirectoryTreeProps = {
  * instead of one recursive walk up front.
  */
 export function DirectoryTree({ value, onChange }: DirectoryTreeProps) {
+	const t = useT();
 	return (
 		<ul className="text-sm">
-			<TreeNode path="/" label="Root" depth={0} value={value} onChange={onChange} />
+			<TreeNode path="/" label={t("files.root")} depth={0} value={value} onChange={onChange} />
 		</ul>
 	);
 }
@@ -37,6 +39,7 @@ type TreeNodeProps = {
 };
 
 function TreeNode({ path, label, depth, value, onChange }: TreeNodeProps) {
+	const t = useT();
 	const [expanded, setExpanded] = useState(false);
 	const [children, setChildren] = useState<DirectoryNode[] | null>(null);
 	const [loading, setLoading] = useState(false);
@@ -57,7 +60,7 @@ function TreeNode({ path, label, depth, value, onChange }: TreeNodeProps) {
 			});
 			setChildren(nodes ?? []);
 		} catch (reason) {
-			setError(reason instanceof Error ? reason.message : "Unable to list folders");
+			setError(reason instanceof Error ? reason.message : t("tree.listFailed"));
 		} finally {
 			setLoading(false);
 		}
@@ -72,7 +75,7 @@ function TreeNode({ path, label, depth, value, onChange }: TreeNodeProps) {
 					type="button"
 					onClick={() => void toggle()}
 					aria-expanded={expanded}
-					aria-label={expanded ? `Collapse ${label}` : `Expand ${label}`}
+					aria-label={expanded ? t("tree.collapse", { name: label }) : t("tree.expand", { name: label })}
 					className="w-5 shrink-0 rounded text-muted hover:text-foreground"
 				>
 					{expanded ? "▾" : "▸"}
@@ -90,7 +93,7 @@ function TreeNode({ path, label, depth, value, onChange }: TreeNodeProps) {
 			</div>
 			{expanded && loading && (
 				<p className="py-1 text-xs text-muted" style={noteStyle}>
-					Loading…
+					{t("action.loading")}
 				</p>
 			)}
 			{expanded && error && (
@@ -100,7 +103,7 @@ function TreeNode({ path, label, depth, value, onChange }: TreeNodeProps) {
 			)}
 			{expanded && !loading && children?.length === 0 && (
 				<p className="py-1 text-xs text-muted" style={noteStyle}>
-					No subfolders
+					{t("tree.noSubfolders")}
 				</p>
 			)}
 			{expanded && children && children.length > 0 && (

@@ -1,6 +1,7 @@
 import { api } from "./api";
 import type { DriverInfo } from "./drivers";
 import { formatSize } from "./format";
+import { t } from "./locale";
 import { withRetry, type RetryOptions } from "./retry";
 import { normalizeMountPath } from "./transfer";
 import type { Storage } from "./types";
@@ -63,7 +64,7 @@ export function uploadPlanFor(size: number, chunkable: boolean | null): UploadPl
 
 /** Why a file past the ceiling cannot be uploaded to this storage. */
 export function ceilingReason(name: string, size: number): string {
-	return `${name} is ${formatSize(size)}; this storage cannot accept a split upload, and one request carries at most ${SINGLE_UPLOAD_LABEL}`;
+	return t("upload.ceilingReason", { name, size: formatSize(size), limit: SINGLE_UPLOAD_LABEL });
 }
 
 /**
@@ -77,7 +78,7 @@ export function ceilingReason(name: string, size: number): string {
  */
 export function ceilingHint(chunkable: boolean | null): string | null {
 	if (chunkable !== false) return null;
-	return `This storage cannot accept a split upload — ${SINGLE_UPLOAD_LABEL} per file`;
+	return t("upload.ceilingHint", { limit: SINGLE_UPLOAD_LABEL });
 }
 
 /**
@@ -200,7 +201,7 @@ export async function uploadInChunks(
 	const ranges = chunkRanges(file.size, session.chunkSize);
 	if (!ranges.length) {
 		await transport.abort(session.uploadId).catch(() => undefined);
-		throw new Error("A split upload needs a positive file size");
+		throw new Error(t("upload.positiveSize"));
 	}
 	try {
 		let sent = 0;

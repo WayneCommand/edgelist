@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Button as HeroButton } from "@heroui/react";
+import { useT } from "../../../hooks/useLocale";
 import { languageForFile } from "../../../lib/format";
 import { previewCaption } from "../../../lib/preview";
 import type { FileItem } from "../../../lib/types";
@@ -22,14 +23,15 @@ export type TextViewerProps = {
 
 /** The editor and its Save button. Reached lazily — see `lazyTextViewer.ts`. */
 export function TextViewer({ item, text, dirty, saving, onChange, onSave, leading }: TextViewerProps) {
+	const t = useT();
 	return (
 		<div className="space-y-3">
 			<div className="flex flex-wrap items-center justify-between gap-3">
-				<p className="text-xs text-muted">{previewCaption("text", item.name, item.size)}</p>
+				<p className="text-xs text-muted">{previewCaption("text", item.name, item.size, t)}</p>
 				<div className="flex items-center gap-2">
 					{leading}
 					<HeroButton size="sm" isDisabled={!dirty || saving} onPress={onSave}>
-						{saving ? "Saving…" : "Save"}
+						{saving ? t("action.saving") : t("action.save")}
 					</HeroButton>
 				</div>
 			</div>

@@ -1,7 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { collectRemovals, groupByParent, summarizeBatch } from "./batch";
+import { setLocale } from "./locale";
 import { rangePaths } from "../hooks/useSelection";
 import type { FileItem } from "./types";
+
+/** See the note in `transfer.test.ts`: the wording is English on purpose. */
+beforeEach(() => {
+	setLocale("en");
+});
 
 function item(name: string, path: string): FileItem {
 	return { name, path, size: 0, is_dir: false, modified: "" };
@@ -38,22 +44,22 @@ describe("collectRemovals", () => {
 
 describe("summarizeBatch", () => {
 	it("reports a clean run", () => {
-		expect(summarizeBatch({ done: 2, failed: [] }, "item")).toEqual({ message: "2 items deleted", error: false });
+		expect(summarizeBatch({ done: 2, failed: [] })).toEqual({ message: "2 items deleted", error: false });
 	});
 
 	it("singularises a single entry", () => {
-		expect(summarizeBatch({ done: 1, failed: [] }, "item")).toEqual({ message: "1 item deleted", error: false });
+		expect(summarizeBatch({ done: 1, failed: [] })).toEqual({ message: "1 item deleted", error: false });
 	});
 
 	it("surfaces the first failure when nothing succeeded", () => {
-		expect(summarizeBatch({ done: 0, failed: [{ name: "a", error: "denied" }] }, "item")).toEqual({
+		expect(summarizeBatch({ done: 0, failed: [{ name: "a", error: "denied" }] })).toEqual({
 			message: "denied",
 			error: true,
 		});
 	});
 
 	it("reports both halves of a partial run", () => {
-		expect(summarizeBatch({ done: 3, failed: [{ name: "d", error: "denied" }] }, "item")).toEqual({
+		expect(summarizeBatch({ done: 3, failed: [{ name: "d", error: "denied" }] })).toEqual({
 			message: "3 items deleted, 1 failed: denied",
 			error: true,
 		});

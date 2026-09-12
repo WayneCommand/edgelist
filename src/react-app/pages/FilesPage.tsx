@@ -6,6 +6,7 @@ import { collectRemovals, groupByParent, summarizeBatch, type RemoveOutcome } fr
 import { fetchDrivers } from "../lib/drivers";
 import { directoriesToCreate, targetPath, type DroppedTree } from "../lib/dropUpload";
 import { fileActions } from "../lib/fileActions";
+import type { MessageKey } from "../lib/i18n";
 import { permissionsFor } from "../lib/mask";
 import type { MenuPosition } from "../lib/menu";
 import { clampPage, perPageFor } from "../lib/pagination";
@@ -43,6 +44,7 @@ import {
 import type { FileItem, FileListResponse, SortField, StorageListResponse, TransferMode } from "../lib/types";
 import { ROUTES, filesPathFor } from "../routes";
 import { useConfirm } from "../hooks/useConfirm";
+import { useT } from "../hooks/useLocale";
 import { useNotify } from "../hooks/useNotify";
 import { useSelection } from "../hooks/useSelection";
 import { useStoredState } from "../hooks/useStoredState";
@@ -60,7 +62,19 @@ import { FilePreview } from "../components/files/preview";
 import { SelectionBar } from "../components/files/SelectionBar";
 import { TransferDialog } from "../components/files/TransferDialog";
 
+/**
+ * A listing failure: either the server's own words or one of ours.
+ *
+ * Ours is kept as a key rather than as a string. `load` is memoised and sits in
+ * an effect's dependency array, so if it captured the hook's translator the
+ * effect would re-run — and re-fetch the directory, dropping the selection —
+ * every time the language changed. Holding the key moves the translation to
+ * render time, where the hook is available and a language change is free.
+ */
+type ListingError = { key: MessageKey } | { text: string };
+
 export function FilesPage() {
+	const t = useT();
 	const notify = useNotify();
 	const confirm = useConfirm();
 	const navigate = useNavigate();
@@ -69,7 +83,7 @@ export function FilesPage() {
 	const [path, setPath] = useState(initialPath);
 	const [items, setItems] = useState<FileItem[]>([]);
 	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState("");
+	const [error, setError] = useState<ListingError | null>(null);
 	const [query, setQuery] = useState("");
 	const [searching, setSearching] = useState(false);
 	const [page, setPage] = useState(1);
@@ -163,7 +177,7 @@ export function FilesPage() {
 		async (nextPath: string, nextPage = 1, append = false, refresh = false) => {
 			if (append) setLoadingMore(true);
 			else setLoading(true);
-			setError("");
+			setError(null);
 			// Growing the list keeps the selection; replacing it cannot.
 			if (!append) clearSelection();
 			try {
@@ -183,7 +197,7 @@ export function FilesPage() {
 				setReadme(data.readme ?? "");
 				setHeader(data.header ?? "");
 			} catch (reason) {
-				setError(reason instanceof Error ? reason.message : "Unable to load files");
+				setError(reason instanceof Error ? { text: reason.message } : { key: "files.loadFailed" });
 				// A typed path can point somewhere that does not exist. Leaving the
 				// previous directory's entries on screen under the new breadcrumb would
 				// read as "this directory holds those files", so clear them and let the
@@ -270,7 +284,7 @@ export function FilesPage() {
 		setSearching(true);
 		if (append) setLoadingMore(true);
 		else setLoading(true);
-		setError("");
+		setError(null);
 		if (!append) clearSelection();
 		try {
 			const data = await api<FileListResponse>("/api/fs/search", {
@@ -287,7 +301,7 @@ export function FilesPage() {
 			setTotal(data.total ?? 0);
 			setItems((previous) => (append ? [...previous, ...(data.content ?? [])] : (data.content ?? [])));
 		} catch (reason) {
-			setError(reason instanceof Error ? reason.message : "Unable to search files");
+			setError(reason instanceof Error ? { text: reason.message } : { key: "files.searchFailed" });
 		} finally {
 			if (append) setLoadingMore(false);
 			else setLoading(false);
@@ -302,11 +316,11 @@ export function FilesPage() {
 				method: "POST",
 				body: JSON.stringify({ path: `${path.replace(/\/$/, "")}/${folderName}` }),
 			});
-			notify("Folder created");
+			notify(t("files.folderCreated"));
 			setFolderName(null);
 			await reloadAfterWrite();
 		} catch (reason) {
-			notify(reason instanceof Error ? reason.message : "Unable to create folder", true);
+			notify(reason instanceof Error ? reason.message : t("files.createFolderFailed"), true);
 		}
 	}
 
@@ -318,19 +332,22 @@ export function FilesPage() {
 				method: "POST",
 				body: JSON.stringify({ path: renameTarget.path, name: renameName, overwrite: false }),
 			});
-			notify("Renamed");
+			notify(t("files.renamed"));
 			setRenameTarget(null);
 			await reloadAfterWrite();
 		} catch (reason) {
-			notify(reason instanceof Error ? reason.message : "Unable to rename", true);
+			notify(reason instanceof Error ? reason.message : t("files.renameFailed"), true);
 		}
 	}
 
 	async function removeSelected() {
 		const targets = selection.items;
 		if (!targets.length) return;
-		const question = targets.length === 1 ? `Delete ${targets[0].name}?` : `Delete ${targets.length} items?`;
-		if (!(await confirm({ title: "Delete", message: question }))) return;
+		const question =
+			targets.length === 1
+				? t("files.deleteOne", { name: targets[0].name })
+				: t("files.deleteMany", { count: targets.length });
+		if (!(await confirm({ title: t("action.delete"), message: question }))) return;
 		try {
 			// Search results can span directories, so one request per directory.
 			const settled = await Promise.allSettled(
@@ -338,13 +355,13 @@ export function FilesPage() {
 					api<RemoveOutcome>("/api/fs/remove", { method: "POST", body: JSON.stringify({ dir, names }) }),
 				),
 			);
-			const summary = summarizeBatch(collectRemovals(settled), "item");
+			const summary = summarizeBatch(collectRemovals(settled));
 			notify(summary.message, summary.error);
 			// Deleting the last entry of the last page would otherwise leave an empty
 			// page behind, so land on one that still has entries.
 			await reloadAfterWrite(clampPage(page, total - targets.length, pageSize));
 		} catch (reason) {
-			notify(reason instanceof Error ? reason.message : "Unable to delete", true);
+			notify(reason instanceof Error ? reason.message : t("files.deleteFailed"), true);
 		}
 	}
 
@@ -392,14 +409,14 @@ export function FilesPage() {
 					uploaded += 1;
 				} catch (reason) {
 					failed += 1;
-					notify(reason instanceof Error ? reason.message : `Unable to upload ${dropped.path}`, true);
+					notify(reason instanceof Error ? reason.message : t("files.uploadFailed", { name: dropped.path }), true);
 				} finally {
 					// No `bytes`: the next file starts its own count from zero.
 					setUploading({ done: uploaded + failed, total: tree.files.length });
 				}
 			}
 			if (uploaded) {
-				notify(uploaded === 1 ? "Uploaded" : `Uploaded ${uploaded} files`);
+				notify(uploaded === 1 ? t("files.uploaded") : t("files.uploadedMany", { count: uploaded }));
 				// An upload invalidates whatever search produced the current listing,
 				// so fall back to a plain view of the directory that was written to.
 				setSearching(false);
@@ -423,7 +440,7 @@ export function FilesPage() {
 				link.click();
 				URL.revokeObjectURL(link.href);
 			} catch (reason) {
-				notify(reason instanceof Error ? reason.message : `Unable to download ${item.name}`, true);
+				notify(reason instanceof Error ? reason.message : t("files.downloadFailed", { name: item.name }), true);
 			}
 		}
 	}
@@ -437,9 +454,9 @@ export function FilesPage() {
 			// The worker answers with a path-relative `/d...`, which is only useful
 			// once it is absolute.
 			await navigator.clipboard.writeText(new URL(data.url, window.location.origin).href);
-			notify("Link copied");
+			notify(t("files.linkCopied"));
 		} catch (reason) {
-			notify(reason instanceof Error ? reason.message : "Unable to copy link", true);
+			notify(reason instanceof Error ? reason.message : t("files.copyLinkFailed"), true);
 		}
 	}
 
@@ -479,7 +496,7 @@ export function FilesPage() {
 				setPreview({ item, kind, url: URL.createObjectURL(withMime(await response.blob(), item.name)) });
 			}
 		} catch (reason) {
-			notify(reason instanceof Error ? reason.message : "Unable to preview file", true);
+			notify(reason instanceof Error ? reason.message : t("files.previewFailed"), true);
 		} finally {
 			setPreviewLoading(false);
 		}
@@ -499,9 +516,9 @@ export function FilesPage() {
 			});
 			setPreview({ ...preview, text: previewText });
 			setPreviewDirty(false);
-			notify("Saved");
+			notify(t("files.saved"));
 		} catch (reason) {
-			notify(reason instanceof Error ? reason.message : "Unable to save file", true);
+			notify(reason instanceof Error ? reason.message : t("files.saveFailed"), true);
 		} finally {
 			setPreviewSaving(false);
 		}
@@ -510,7 +527,11 @@ export function FilesPage() {
 	async function closePreview() {
 		if (
 			previewDirty &&
-			!(await confirm({ title: "Discard changes", message: "Discard unsaved changes?", confirmLabel: "Discard" }))
+			!(await confirm({
+				title: t("files.discardTitle"),
+				message: t("files.discardMessage"),
+				confirmLabel: t("files.discard"),
+			}))
 		)
 			return;
 		setPreview(null);
@@ -583,9 +604,13 @@ export function FilesPage() {
 			<section className={selection.count > 0 ? "pb-24" : undefined}>
 				<div className="mb-5 flex flex-wrap items-center justify-between gap-3">
 					<div>
-						<p className="text-sm text-muted">Files</p>
+						<p className="text-sm text-muted">{t("files.heading")}</p>
 						<h1 className="mt-1 text-2xl font-semibold">
-							{searching ? `Search: ${query}` : path === "/" ? "All files" : crumbs[crumbs.length - 1]?.name}
+							{searching
+								? t("files.searchTitle", { query })
+								: path === "/"
+									? t("files.allFiles")
+									: crumbs[crumbs.length - 1]?.name}
 						</h1>
 					</div>
 				</div>
@@ -593,11 +618,11 @@ export function FilesPage() {
 					<input
 						value={query}
 						onChange={(event) => setQuery(event.target.value)}
-						placeholder="Search files…"
+						placeholder={t("files.searchPlaceholder")}
 						className="min-w-0 flex-1 rounded-lg border border-border bg-field-background px-3 py-2 text-sm outline-none focus:border-focus"
 					/>
 					<HeroButton type="submit" size="sm" variant="secondary">
-						Search
+						{t("files.search")}
 					</HeroButton>
 					{searching && (
 						<HeroButton
@@ -610,7 +635,7 @@ export function FilesPage() {
 								void load(path);
 							}}
 						>
-							Clear
+							{t("action.clear")}
 						</HeroButton>
 					)}
 				</form>
@@ -648,13 +673,13 @@ export function FilesPage() {
 				<section className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
 					{error && (
 						<p className="border-b border-danger/20 bg-danger-soft px-5 py-3 text-sm text-danger-soft-foreground">
-							{error}
+							{"key" in error ? t(error.key) : error.text}
 						</p>
 					)}
 					{loading ? (
 						<FileListSkeleton view={view} />
 					) : !items.length ? (
-						<div className="p-16 text-center text-sm text-muted">No files found</div>
+						<div className="p-16 text-center text-sm text-muted">{t("files.noFiles")}</div>
 					) : view === "grid" ? (
 						<FileGrid
 							items={items}
@@ -686,24 +711,24 @@ export function FilesPage() {
 				/>
 				<DirectoryReadme slot="readme" items={items} metaValue={readme} />
 				{folderName !== null && (
-					<Modal title="New folder" onClose={() => setFolderName(null)}>
+					<Modal title={t("files.newFolder")} onClose={() => setFolderName(null)}>
 						<form className="space-y-4" onSubmit={createFolder}>
 							<input
 								autoFocus
 								required
 								value={folderName}
 								onChange={(event) => setFolderName(event.target.value)}
-								placeholder="Folder name"
+								placeholder={t("files.folderName")}
 								className="w-full rounded-lg border border-border bg-field-background px-3 py-2 outline-none focus:border-focus"
 							/>
 							<HeroButton type="submit" fullWidth>
-								Create
+								{t("action.create")}
 							</HeroButton>
 						</form>
 					</Modal>
 				)}
 				{renameTarget && (
-					<Modal title="Rename" onClose={() => setRenameTarget(null)}>
+					<Modal title={t("action.rename")} onClose={() => setRenameTarget(null)}>
 						<form className="space-y-4" onSubmit={rename}>
 							<input
 								autoFocus
@@ -713,13 +738,13 @@ export function FilesPage() {
 								className="w-full rounded-lg border border-border bg-field-background px-3 py-2 outline-none focus:border-focus"
 							/>
 							<HeroButton type="submit" fullWidth>
-								Save
+								{t("action.save")}
 							</HeroButton>
 						</form>
 					</Modal>
 				)}
 				{previewLoading && (
-					<Modal title="Preview" onClose={() => setPreviewLoading(false)}>
+					<Modal title={t("files.previewTitle")} onClose={() => setPreviewLoading(false)}>
 						<Skeleton className="h-48 w-full rounded-lg" />
 					</Modal>
 				)}

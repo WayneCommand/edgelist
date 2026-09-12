@@ -1,3 +1,4 @@
+import { useT } from "../../hooks/useLocale";
 import type { Permission, Permissions } from "../../lib/mask";
 import type { Selection } from "../../hooks/useSelection";
 
@@ -30,6 +31,7 @@ export function SelectionBar({
 	onDownload,
 	onCopyLink,
 }: SelectionBarProps) {
+	const t = useT();
 	if (selection.count === 0) return null;
 	const single = selection.count === 1 ? selection.items[0] : null;
 
@@ -37,15 +39,15 @@ export function SelectionBar({
 		<div className="pointer-events-none fixed inset-x-0 bottom-4 z-20 flex justify-center px-4">
 			<div className="pointer-events-auto flex max-w-full flex-wrap items-center gap-1 rounded-xl border border-border bg-overlay/95 px-2 py-2 shadow-lg backdrop-blur">
 				<span className="max-w-48 truncate px-2 text-sm text-muted">
-					{selection.count === 1 ? single?.name : `${selection.count} selected`}
+					{selection.count === 1 ? single?.name : t("toolbar.selectedCount", { count: selection.count })}
 				</span>
-				<Action label="Rename" permission={permissions.rename} onPress={onRename} />
-				<Action label="Copy" permission={permissions.copy} onPress={onCopy} />
-				<Action label="Move" permission={permissions.move} onPress={onMove} />
-				<Action label="Download" permission={permissions.download} onPress={onDownload} />
-				<Action label="Copy link" permission={permissions.link} onPress={onCopyLink} />
-				<Action label="Delete" danger permission={permissions.remove} onPress={onDelete} />
-				<Action label="Clear" permission={{ allowed: true }} onPress={selection.clear} />
+				<Action label={t("action.rename")} permission={permissions.rename} onPress={onRename} />
+				<Action label={t("action.copy")} permission={permissions.copy} onPress={onCopy} />
+				<Action label={t("action.move")} permission={permissions.move} onPress={onMove} />
+				<Action label={t("action.download")} permission={permissions.download} onPress={onDownload} />
+				<Action label={t("action.copyLink")} permission={permissions.link} onPress={onCopyLink} />
+				<Action label={t("action.delete")} danger permission={permissions.remove} onPress={onDelete} />
+				<Action label={t("action.clear")} permission={{ allowed: true }} onPress={selection.clear} />
 			</div>
 		</div>
 	);

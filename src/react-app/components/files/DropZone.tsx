@@ -1,4 +1,5 @@
 import { type DragEvent as ReactDragEvent, type ReactNode, useEffect, useState } from "react";
+import { useT } from "../../hooks/useLocale";
 import { droppedTree, type DroppedTree } from "../../lib/dropUpload";
 
 type DropZoneProps = {
@@ -13,6 +14,7 @@ function carriesFiles(event: { dataTransfer: DataTransfer | null }): boolean {
 }
 
 export function DropZone({ onDrop, disabled = false, children }: DropZoneProps) {
+	const t = useT();
 	// `dragenter` and `dragleave` fire again for every element the pointer
 	// crosses, so the overlay is driven by a counter: a boolean would flicker off
 	// the moment the drag moved over a row inside this container.
@@ -66,7 +68,7 @@ export function DropZone({ onDrop, disabled = false, children }: DropZoneProps) 
 				// `pointer-events-none` keeps the overlay out of hit testing, so it
 				// cannot produce the `dragleave` that would immediately hide it.
 				<div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-xl border-2 border-dashed border-accent bg-accent-soft/80">
-					<p className="text-sm font-medium text-accent">Drop files or folders to upload</p>
+					<p className="text-sm font-medium text-accent">{t("toolbar.dropHint")}</p>
 				</div>
 			)}
 		</div>

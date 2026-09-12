@@ -1,3 +1,4 @@
+import { t } from "./locale";
 import { parentOf } from "./paths";
 import type { FileItem } from "./types";
 
@@ -44,17 +45,17 @@ function transferPermission(items: FileItem[], kind: "copy" | "move"): Permissio
 	// A transfer names one source directory, so a selection spanning several
 	// directories — what a search produces — has nothing to send.
 	if (new Set(items.map((item) => parentOf(item.path))).size > 1) {
-		return denied(`${kind === "copy" ? "Copy" : "Move"} needs entries from a single folder`);
+		return denied(t(kind === "copy" ? "permission.copyOneFolder" : "permission.moveOneFolder"));
 	}
 	if (items.some((item) => blocks(item.mask, ObjMask.Virtual))) {
-		return denied("Mounted storages cannot be transferred");
+		return denied(t("permission.virtualTransfer"));
 	}
 	if (items.some((item) => blocks(item.mask, kind === "copy" ? ObjMask.NoCopy : ObjMask.NoMove))) {
-		return denied(`This item cannot be ${kind === "copy" ? "copied" : "moved"}`);
+		return denied(t(kind === "copy" ? "permission.noCopy" : "permission.noMove"));
 	}
 	// A move deletes the original, so `NoRemove` blocks it even without `NoMove`.
 	if (kind === "move" && items.some((item) => blocks(item.mask, ObjMask.NoRemove))) {
-		return denied("Moving removes the original, which this item forbids");
+		return denied(t("permission.moveNoRemove"));
 	}
 	return OK;
 }
@@ -74,30 +75,26 @@ function transferPermission(items: FileItem[], kind: "copy" | "move"): Permissio
 export function permissionsFor(items: FileItem[]): Permissions {
 	const nothing = items.length === 0;
 	const single = items.length === 1 ? items[0] : null;
-	const empty = denied("Nothing is selected");
+	const empty = denied(t("permission.nothingSelected"));
 
 	return {
-		open: single ? OK : denied("Open works on one entry at a time"),
+		open: single ? OK : denied(t("permission.openOne")),
 		rename: single
 			? blocks(single.mask, ObjMask.NoRename)
-				? denied("This item cannot be renamed")
+				? denied(t("permission.noRename"))
 				: OK
-			: denied("Rename works on one entry at a time"),
+			: denied(t("permission.renameOne")),
 		copy: nothing ? empty : transferPermission(items, "copy"),
 		move: nothing ? empty : transferPermission(items, "move"),
 		remove: nothing
 			? empty
 			: items.some((item) => blocks(item.mask, ObjMask.NoRemove))
-				? denied("This item cannot be deleted")
+				? denied(t("permission.noRemove"))
 				: OK,
 		// Archives are not implemented, so a selection holding a directory cannot
 		// be fetched in one go. Refusing is clearer than downloading nothing.
-		download: nothing ? empty : items.some((item) => item.is_dir) ? denied("Archives are not supported yet") : OK,
-		link: single
-			? single.is_dir
-				? denied("Folders have no link")
-				: OK
-			: denied("Copy link works on one entry at a time"),
+		download: nothing ? empty : items.some((item) => item.is_dir) ? denied(t("permission.noArchive")) : OK,
+		link: single ? (single.is_dir ? denied(t("permission.noFolderLink")) : OK) : denied(t("permission.linkOne")),
 	};
 }
 

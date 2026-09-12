@@ -20,6 +20,12 @@ const PREFIX = "edgelist:";
 /** Key holding the file list view mode. Global, shared by every directory. */
 export const VIEW_MODE_KEY = "view-mode";
 
+/**
+ * Key holding the chosen interface language. Absent means "not chosen yet", and
+ * the browser's own preference decides — see `lib/locale.ts`.
+ */
+export const LOCALE_KEY = "locale";
+
 /** `list` renders the table, `grid` renders tiles. */
 export type ViewMode = "list" | "grid";
 

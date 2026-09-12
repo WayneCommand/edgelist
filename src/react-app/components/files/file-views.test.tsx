@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { Selection } from "../../hooks/useSelection";
+import { setLocale } from "../../lib/locale";
 import { permissionsFor } from "../../lib/mask";
 import type { FileItem } from "../../lib/types";
 import { FileGrid } from "./FileGrid";
@@ -14,7 +15,17 @@ import { SelectionBar } from "./SelectionBar";
  * Render smoke tests. They go through `react-dom/server`, so they catch a
  * crashing render or a prop that no longer lines up without pulling in a DOM
  * implementation; the selection behaviour itself is covered by the hook tests.
+ *
+ * Two things follow from rendering on the server. Every assertion here is about
+ * the English wording: a component that reads the language through the hook gets
+ * `DEFAULT_LOCALE` from `useSyncExternalStore`'s server snapshot, and the two
+ * helpers that read it ambiently — `permissionsFor` and `fileActions` — are
+ * pinned by the `beforeEach` below. The translations themselves are covered by
+ * the catalogue's own tests; a browser is where the switch is exercised.
  */
+beforeEach(() => {
+	setLocale("en");
+});
 
 const items: FileItem[] = [
 	{ name: "docs", size: 0, is_dir: true, modified: "2026-01-02T03:04:05Z", path: "/docs" },

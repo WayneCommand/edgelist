@@ -1,3 +1,4 @@
+import { t, tCount } from "./locale";
 import { isMountLayer } from "./mask";
 import type { TransferResult } from "./types";
 
@@ -40,7 +41,7 @@ export function mountPathFor(path: string, mounts: readonly string[]): string | 
  */
 export function crossStorageHint(sourceMount: string | null, destinationMount: string | null): string | null {
 	if (!sourceMount || !destinationMount || sourceMount === destinationMount) return null;
-	return `跨存储复制/移动不支持：${sourceMount} → ${destinationMount}`;
+	return t("transfer.crossStorage", { from: sourceMount, to: destinationMount });
 }
 
 /**
@@ -72,8 +73,8 @@ export function unwritableHint(path: string, mounts: readonly string[] | null): 
 	// A level that only exists to reach a nested mount is the usual reason a
 	// listing shows a folder with nowhere to put a file. The root is the same
 	// idea — it prefixes every mount — but it reads better named as itself.
-	if (path !== "/" && isMountLayer(path, mounts)) return `${path} only exists to reach a nested mount`;
-	return `No storage is mounted at ${path}`;
+	if (path !== "/" && isMountLayer(path, mounts)) return t("transfer.mountLayer", { path });
+	return t("transfer.noMount", { path });
 }
 
 /**
@@ -84,11 +85,11 @@ export function unwritableHint(path: string, mounts: readonly string[] | null): 
  * worse than one that says so while the choice is still being made.
  */
 export function destinationHint(srcDir: string, destination: string, mounts: readonly string[] | null): string | null {
-	if (destination === srcDir) return "Pick a folder other than the one being transferred from";
+	if (destination === srcDir) return t("transfer.sameFolder");
 	// From the root every path is "inside" it, so the nesting check only carries
 	// meaning below a real directory.
 	if (srcDir !== "/" && destination.startsWith(`${srcDir.replace(/\/+$/, "")}/`)) {
-		return "A folder cannot be transferred inside itself";
+		return t("transfer.insideItself");
 	}
 	const sourceMount = mounts ? mountPathFor(srcDir, mounts) : null;
 	const destinationMount = mounts ? mountPathFor(destination, mounts) : null;
@@ -97,14 +98,15 @@ export function destinationHint(srcDir: string, destination: string, mounts: rea
 
 /** One line for the toast, plus whether it should be reported as a failure. */
 export function summarizeTransfer(result: TransferResult): { message: string; error: boolean } {
-	const verb = result.operation === "copy" ? "Copied" : "Moved";
 	const parts: string[] = [];
-	if (result.accepted) parts.push(`${result.accepted} ${result.accepted === 1 ? "item" : "items"}`);
-	if (result.skipped) parts.push(`${result.skipped} skipped`);
-	if (result.failed) parts.push(`${result.failed} failed`);
+	if (result.accepted) parts.push(tCount(result.accepted, "transfer.itemsOne", "transfer.itemsOther"));
+	if (result.skipped) parts.push(t("transfer.skipped", { count: result.skipped }));
+	if (result.failed) parts.push(t("transfer.failedCount", { count: result.failed }));
 	const detail = parts.join(", ");
 	return {
-		message: result.accepted ? `${verb} ${detail}` : detail || "Nothing to do",
+		message: result.accepted
+			? t(result.operation === "copy" ? "transfer.copied" : "transfer.moved", { detail })
+			: detail || t("transfer.nothingToDo"),
 		error: result.failed > 0,
 	};
 }

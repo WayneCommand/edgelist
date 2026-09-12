@@ -1,3 +1,5 @@
+import { useT } from "../../hooks/useLocale";
+import type { MessageKey } from "../../lib/i18n";
 import { PAGE_SIZE_OPTIONS, parsePageSize, serializePageSize, type PageMode } from "../../lib/preferences";
 import { pageCount, pageNumbers, pageRange } from "../../lib/pagination";
 
@@ -21,16 +23,17 @@ type PagerProps = {
  * "No files found" panel already says everything a pager could.
  */
 export function Pager({ mode, page, pageSize, total, loading, onPage, onPageSize, onMode, onLoadMore }: PagerProps) {
+	const t = useT();
 	if (total <= 0) return null;
 	const pages = pageCount(total, pageSize);
 	const { from, to } = pageRange(page, pageSize, total);
 	// With no page size there is only ever one page, and `to` is the total.
 	const counted =
 		mode === "load_more"
-			? `Showing ${to} of ${total}`
+			? t("pager.showingOf", { to, total })
 			: pages > 1
-				? `${from}–${to} of ${total}`
-				: `${total} ${total === 1 ? "item" : "items"}`;
+				? t("pager.rangeOf", { from, to, total })
+				: t(total === 1 ? "pager.itemsOne" : "pager.itemsOther", { count: total });
 	return (
 		<div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm">
 			<p className="text-muted">{counted}</p>
@@ -45,7 +48,7 @@ export function Pager({ mode, page, pageSize, total, loading, onPage, onPageSize
 								onClick={onLoadMore}
 								className="rounded-lg border border-border px-3 py-1 text-xs transition-colors hover:bg-surface-secondary disabled:opacity-50"
 							>
-								{loading ? "Loading…" : "Show more"}
+								{loading ? t("action.loading") : t("pager.showMore")}
 							</button>
 						)
 					: pages > 1 && <PageButtons page={page} pages={pages} onPage={onPage} />}
@@ -55,9 +58,10 @@ export function Pager({ mode, page, pageSize, total, loading, onPage, onPageSize
 }
 
 function PageSizeSelect({ pageSize, onChange }: { pageSize: number; onChange: (size: number) => void }) {
+	const t = useT();
 	return (
 		<label className="flex items-center gap-1.5 text-xs text-muted">
-			Per page
+			{t("pager.perPage")}
 			<select
 				value={serializePageSize(pageSize)}
 				onChange={(event) => onChange(parsePageSize(event.target.value))}
@@ -65,7 +69,7 @@ function PageSizeSelect({ pageSize, onChange }: { pageSize: number; onChange: (s
 			>
 				{PAGE_SIZE_OPTIONS.map((size) => (
 					<option key={size} value={serializePageSize(size)}>
-						{size > 0 ? size : "All"}
+						{size > 0 ? size : t("pager.all")}
 					</option>
 				))}
 			</select>
@@ -78,16 +82,17 @@ function PageSizeSelect({ pageSize, onChange }: { pageSize: number; onChange: (s
  * more" appends to it — the action button inside that mode says "Show more", so
  * the switch and the button never read the same.
  */
-const MODES: ReadonlyArray<{ mode: PageMode; label: string }> = [
-	{ mode: "pagination", label: "Pages" },
-	{ mode: "load_more", label: "Load more" },
+const MODES: ReadonlyArray<{ mode: PageMode; label: MessageKey }> = [
+	{ mode: "pagination", label: "pager.pages" },
+	{ mode: "load_more", label: "pager.loadMore" },
 ];
 
 function ModeSwitch({ mode, onChange }: { mode: PageMode; onChange: (mode: PageMode) => void }) {
+	const t = useT();
 	return (
 		<div
 			role="group"
-			aria-label="Paging mode"
+			aria-label={t("pager.pagingMode")}
 			className="flex items-center gap-0.5 rounded-lg border border-border p-0.5"
 		>
 			{MODES.map((option) => (
@@ -100,7 +105,7 @@ function ModeSwitch({ mode, onChange }: { mode: PageMode; onChange: (mode: PageM
 						mode === option.mode ? "bg-accent-soft text-accent" : "text-muted hover:text-foreground"
 					}`}
 				>
-					{option.label}
+					{t(option.label)}
 				</button>
 			))}
 		</div>
@@ -108,9 +113,10 @@ function ModeSwitch({ mode, onChange }: { mode: PageMode; onChange: (mode: PageM
 }
 
 function PageButtons({ page, pages, onPage }: { page: number; pages: number; onPage: (page: number) => void }) {
+	const t = useT();
 	return (
 		<div className="flex items-center gap-0.5">
-			<PageStep label="Previous page" disabled={page <= 1} onPress={() => onPage(page - 1)}>
+			<PageStep label={t("pager.previous")} disabled={page <= 1} onPress={() => onPage(page - 1)}>
 				‹
 			</PageStep>
 			{pageNumbers(page, pages).map((item, index) =>
@@ -136,7 +142,7 @@ function PageButtons({ page, pages, onPage }: { page: number; pages: number; onP
 					</button>
 				),
 			)}
-			<PageStep label="Next page" disabled={page >= pages} onPress={() => onPage(page + 1)}>
+			<PageStep label={t("pager.next")} disabled={page >= pages} onPress={() => onPage(page + 1)}>
 				›
 			</PageStep>
 		</div>

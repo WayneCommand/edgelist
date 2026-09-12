@@ -1,10 +1,16 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { fileActions } from "../../lib/fileActions";
+import { setLocale } from "../../lib/locale";
 import { ObjMask, permissionsFor } from "../../lib/mask";
 import type { FileItem } from "../../lib/types";
 import { menuPosition } from "../../lib/menu";
 import { ContextMenu } from "./ContextMenu";
+
+/** The menu is built through the ambient translator, so the wording is pinned. */
+beforeEach(() => {
+	setLocale("en");
+});
 
 const noop = () => {};
 const handlers = { open: noop, rename: noop, copy: noop, move: noop, remove: noop, download: noop, link: noop };

@@ -1,3 +1,4 @@
+import { useT } from "../../hooks/useLocale";
 import { formatSize } from "../../lib/format";
 import type { FileItem } from "../../lib/types";
 import type { Selection } from "../../hooks/useSelection";
@@ -37,6 +38,7 @@ type FileTileProps = {
 };
 
 function FileTile({ item, index, selection, onOpen, onContextMenu }: FileTileProps) {
+	const t = useT();
 	const selected = selection.isSelected(item.path);
 	return (
 		<div
@@ -65,7 +67,7 @@ function FileTile({ item, index, selection, onOpen, onContextMenu }: FileTilePro
 				type="checkbox"
 				checked={selected}
 				readOnly
-				aria-label={`Select ${item.name}`}
+				aria-label={t("table.select", { name: item.name })}
 				className={`absolute top-2 left-2 h-4 w-4 transition-opacity ${
 					selected ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus:opacity-100"
 				}`}
@@ -76,7 +78,7 @@ function FileTile({ item, index, selection, onOpen, onContextMenu }: FileTilePro
 			/>
 			<span className="text-4xl">{item.is_dir ? "📁" : "📄"}</span>
 			<span className="w-full truncate text-sm font-medium">{item.name}</span>
-			<span className="text-xs text-muted">{item.is_dir ? "Folder" : formatSize(item.size)}</span>
+			<span className="text-xs text-muted">{item.is_dir ? t("table.folder") : formatSize(item.size)}</span>
 		</div>
 	);
 }

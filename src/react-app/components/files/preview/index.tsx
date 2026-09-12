@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { Button as HeroButton, Skeleton } from "@heroui/react";
+import { useT } from "../../../hooks/useLocale";
 import { previewCaption, type PreviewKind } from "../../../lib/preview";
 import type { FileItem } from "../../../lib/types";
 import { Modal } from "../../common/Modal";
@@ -45,6 +46,7 @@ export function PreviewBody({
 	onSave,
 	onDownload,
 }: { source: PreviewSource } & PreviewActions) {
+	const t = useT();
 	const { item, kind } = source;
 
 	if (kind === "text") {
@@ -80,9 +82,9 @@ export function PreviewBody({
 	return (
 		<div className="space-y-3">
 			<div className="flex items-center justify-between gap-3">
-				<p className="text-xs text-muted">{previewCaption(kind, item.name, item.size)}</p>
+				<p className="text-xs text-muted">{previewCaption(kind, item.name, item.size, t)}</p>
 				<HeroButton size="sm" variant="secondary" onPress={onDownload}>
-					Download
+					{t("action.download")}
 				</HeroButton>
 			</div>
 			<BinaryViewer source={source} />

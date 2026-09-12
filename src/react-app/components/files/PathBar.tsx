@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from "react";
+import { useT } from "../../hooks/useLocale";
 import { normalizeInputPath } from "../../lib/paths";
 
 type PathBarProps = {
@@ -22,6 +23,7 @@ type PathBarProps = {
  * click away again.
  */
 export function PathBar({ path, crumbs, searching = false, onNavigate }: PathBarProps) {
+	const t = useT();
 	// Doubles as the "is the editor open" flag and the text being typed: there is
 	// no draft until the user asks for one.
 	const [draft, setDraft] = useState<string | null>(null);
@@ -43,7 +45,7 @@ export function PathBar({ path, crumbs, searching = false, onNavigate }: PathBar
 					// belongs to the user. Driving it from state would re-render on every
 					// keystroke and fight the cursor.
 					defaultValue={draft}
-					aria-label="Path"
+					aria-label={t("files.path")}
 					onChange={(event) => setDraft(event.target.value)}
 					onKeyDown={(event) => {
 						if (event.key === "Escape") setDraft(null);
@@ -59,9 +61,9 @@ export function PathBar({ path, crumbs, searching = false, onNavigate }: PathBar
 
 	return (
 		<div className="mb-4 flex flex-wrap items-center gap-2 text-sm text-muted">
-			{searching && <span className="text-xs">Search results in</span>}
+			{searching && <span className="text-xs">{t("files.searchResultsIn")}</span>}
 			<button type="button" onClick={() => onNavigate("/")} className="hover:text-accent">
-				Root
+				{t("files.root")}
 			</button>
 			{crumbs.map((crumb) => (
 				<span key={crumb.path}>
@@ -73,8 +75,8 @@ export function PathBar({ path, crumbs, searching = false, onNavigate }: PathBar
 			))}
 			<button
 				type="button"
-				aria-label="Edit path"
-				title="Edit path"
+				aria-label={t("files.editPath")}
+				title={t("files.editPath")}
 				onClick={() => setDraft(path)}
 				className="rounded-md px-1.5 py-0.5 text-xs text-muted hover:bg-surface-secondary hover:text-foreground"
 			>

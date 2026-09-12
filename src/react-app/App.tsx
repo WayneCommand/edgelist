@@ -1,20 +1,23 @@
 import { Button as HeroButton, Toast } from "@heroui/react";
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from "react-router";
-import { ROUTES, routeFor } from "./routes";
+import { ROUTES, routeFor, type Route as AppRoute } from "./routes";
+import type { MessageKey } from "./lib/i18n";
 import { useAuth } from "./hooks/useAuth";
+import { useT } from "./hooks/useLocale";
 import { ConfirmProvider } from "./components/common/ConfirmDialog";
+import { LocaleSelect } from "./components/common/LocaleSelect";
 import { BackupPage } from "./pages/BackupPage";
 import { FilesPage } from "./pages/FilesPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MetadataPage } from "./pages/MetadataPage";
 import { StoragesPage } from "./pages/StoragesPage";
 
-const NAV_ITEMS = [
-	{ kind: "files", label: "Files", path: ROUTES.files() },
-	{ kind: "storages", label: "Storages", path: ROUTES.storages },
-	{ kind: "metadata", label: "Metadata", path: ROUTES.metadata },
-	{ kind: "backup", label: "Backup & restore", path: ROUTES.backup },
-] as const;
+const NAV_ITEMS: ReadonlyArray<{ kind: AppRoute["kind"]; label: MessageKey; path: string }> = [
+	{ kind: "files", label: "nav.files", path: ROUTES.files() },
+	{ kind: "storages", label: "nav.storages", path: ROUTES.storages },
+	{ kind: "metadata", label: "nav.metadata", path: ROUTES.metadata },
+	{ kind: "backup", label: "nav.backup", path: ROUTES.backup },
+];
 
 function RequireAuth({ signedIn }: { signedIn: boolean }) {
 	const location = useLocation();
@@ -24,6 +27,7 @@ function RequireAuth({ signedIn }: { signedIn: boolean }) {
 
 function Shell() {
 	const { signOut } = useAuth();
+	const t = useT();
 	const route = routeFor(useLocation().pathname);
 	const navigate = useNavigate();
 	return (
@@ -45,13 +49,16 @@ function Shell() {
 							className={`rounded-lg px-3 py-2 text-sm ${route.kind === kind ? "bg-accent-soft font-medium text-accent-soft-foreground" : "text-muted hover:bg-surface-secondary"}`}
 							onClick={() => navigate(path)}
 						>
-							{label}
+							{t(label)}
 						</button>
 					))}
 				</nav>
-				<HeroButton size="sm" variant="ghost" onPress={signOut}>
-					Sign out
-				</HeroButton>
+				<div className="flex items-center gap-2">
+					<LocaleSelect />
+					<HeroButton size="sm" variant="ghost" onPress={signOut}>
+						{t("nav.signOut")}
+					</HeroButton>
+				</div>
 			</header>
 			<div className="mx-auto max-w-6xl p-6">
 				<Outlet />

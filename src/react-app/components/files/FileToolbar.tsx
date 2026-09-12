@@ -1,7 +1,9 @@
 import { type ChangeEvent, useRef } from "react";
 import { Button as HeroButton } from "@heroui/react";
 import type { Selection } from "../../hooks/useSelection";
+import { useT } from "../../hooks/useLocale";
 import { pickedTree, type DroppedTree } from "../../lib/dropUpload";
+import type { MessageKey } from "../../lib/i18n";
 import type { ViewMode } from "../../lib/preferences";
 import { progressPercent, type UploadProgress } from "../../lib/upload";
 
@@ -43,6 +45,7 @@ export function FileToolbar({
 	onNewFolder,
 	onUpload,
 }: FileToolbarProps) {
+	const t = useT();
 	const fileRef = useRef<HTMLInputElement>(null);
 	const folderRef = useRef<HTMLInputElement>(null);
 	const busy = uploading !== null;
@@ -68,20 +71,20 @@ export function FileToolbar({
 					className="h-4 w-4"
 					checked={selection.allSelected}
 					readOnly
-					aria-label="Select all files"
+					aria-label={t("toolbar.selectAll")}
 					ref={(node) => {
 						if (node) node.indeterminate = selection.someSelected;
 					}}
 					onClick={selection.toggleAll}
 				/>
-				{selection.count > 0 ? `${selection.count} selected` : "Select all"}
+				{selection.count > 0 ? t("toolbar.selectedCount", { count: selection.count }) : t("toolbar.selectAll")}
 			</label>
 			<div className="ml-auto flex flex-wrap items-center gap-2">
 				{uploading && (
 					<span role="status" className="text-xs text-muted">
 						{/* A file going up in parts reports its own progress: the file
 						    counter alone would sit still for minutes. */}
-						Uploading {uploading.done}/{uploading.total}
+						{t("toolbar.uploading", { done: uploading.done, total: uploading.total })}
 						{uploading.bytes ? ` · ${progressPercent(uploading.bytes.sent, uploading.bytes.total)}%` : ""}…
 					</span>
 				)}
@@ -99,16 +102,16 @@ export function FileToolbar({
 				)}
 				<ViewSwitch view={view} onChange={onViewChange} />
 				<HeroButton size="sm" variant="outline" isDisabled={locked} onPress={onNewFolder}>
-					New folder
+					{t("files.newFolder")}
 				</HeroButton>
 				<HeroButton size="sm" variant="outline" isDisabled={locked} onPress={() => folderRef.current?.click()}>
-					Upload folder
+					{t("toolbar.uploadFolder")}
 				</HeroButton>
 				<HeroButton size="sm" variant="secondary" isDisabled={locked} onPress={() => fileRef.current?.click()}>
-					Upload
+					{t("toolbar.upload")}
 				</HeroButton>
 				<HeroButton size="sm" variant="ghost" onPress={onRefresh}>
-					Refresh
+					{t("action.refresh")}
 				</HeroButton>
 			</div>
 			<input ref={fileRef} hidden type="file" multiple onChange={pick} />
@@ -117,16 +120,17 @@ export function FileToolbar({
 	);
 }
 
-const VIEW_OPTIONS: ReadonlyArray<{ mode: ViewMode; label: string }> = [
-	{ mode: "list", label: "List" },
-	{ mode: "grid", label: "Grid" },
+const VIEW_OPTIONS: ReadonlyArray<{ mode: ViewMode; label: MessageKey }> = [
+	{ mode: "list", label: "toolbar.listView" },
+	{ mode: "grid", label: "toolbar.gridView" },
 ];
 
 function ViewSwitch({ view, onChange }: { view: ViewMode; onChange: (view: ViewMode) => void }) {
+	const t = useT();
 	return (
 		<div
 			role="group"
-			aria-label="View mode"
+			aria-label={t("toolbar.viewMode")}
 			className="flex items-center gap-0.5 rounded-lg border border-border p-0.5"
 		>
 			{VIEW_OPTIONS.map((option) => (
@@ -139,7 +143,7 @@ function ViewSwitch({ view, onChange }: { view: ViewMode; onChange: (view: ViewM
 						view === option.mode ? "bg-accent-soft text-accent" : "text-muted hover:text-foreground"
 					}`}
 				>
-					{option.label}
+					{t(option.label)}
 				</button>
 			))}
 		</div>

@@ -1,6 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { setLocale } from "./locale";
 import { crossStorageHint, destinationHint, mountPathFor, summarizeTransfer, unwritableHint } from "./transfer";
 import type { TransferResult } from "./types";
+
+/**
+ * These assertions are about the English wording, and the translator behind
+ * them reads the ambient language — which `lib/locale.ts` takes from the
+ * browser, or under Node from `navigator.language`. Pinning it keeps the suite
+ * from depending on the machine it runs on.
+ */
+beforeEach(() => {
+	setLocale("en");
+});
 
 describe("mountPathFor", () => {
 	it("picks the longest matching mount", () => {
@@ -100,7 +111,7 @@ describe("destinationHint", () => {
 	});
 
 	it("refuses a destination in another storage", () => {
-		expect(destinationHint("/waynecos", "/jianguoyun", mounts)).toContain("跨存储");
+		expect(destinationHint("/waynecos", "/jianguoyun", mounts)).toContain("Cross-storage");
 	});
 
 	it("refuses a destination no storage serves", () => {

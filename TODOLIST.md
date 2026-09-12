@@ -420,14 +420,62 @@
     不重复第二遍。
   - **测试**：新增 `lib/retry.test.ts`（10 例：可重试/不可重试的判据、成功即返回、抖一下后成功、非瞬时错误立即放弃、
     重试次数用尽后重抛最后一次失败、退避序列、每次重试的上报）与 `lib/upload.test.ts`（31 例）。
-- [ ] 8.8 i18n 骨架（中/英），与 OpenList 文案风格对齐。
+- [x] 8.8 i18n 骨架（中/英），与 OpenList 文案风格对齐。
+  - **范围按「骨架 + 主流程」落地**：机制本身、外壳（导航 / Sign out）、登录页，以及整条文件浏览链路
+    （工具栏、列表/网格、分页、面包屑、右键菜单、多选栏、传输对话框、全部预览面板、上传与上限提示）。
+    **三个管理页（存储 / 元数据 / 备份）暂不翻译，仍是英文**，差距按页记在下面的「未做」里。
+  - **键名用点分路径，不拿英文原文当键**：写 `files.noFiles` 而不是 `"No files"`。英文改一个词不该让译文失效，
+    而且键名能在代码里 grep 到；反过来，用英文原文当键的话，改文案就成了一次静默的翻译丢失。
+  - **中文表是 `Partial`**：没翻到的键回落到英文，**永远不把裸键名漏到界面上**。因此一份翻了一半的目录
+    仍然可以发布，8.8 不需要一次翻完——这也是后面补三个管理页的前提。
+  - **不做复数引擎**：英文要变名词、中文不变，所以单复数落成两个键（`*One`/`*Other`）+ `tCount`。
+    为两种语言里的一种引入一张规则表和一层间接，不值。`batch.itemsOne` 与 `batch.itemsOther` 在中文里
+    同形（都是 `{{count}} 个项目`），这是对的、不是笔误——目录一致性测试比的是**占位符集合**，不是字面量相等。
+  - **不引入日期/数字格式化，也不按语言懒加载**：前者是 `Intl` 的事，后者会让首屏多一次往返，
+    而我们只有两种语言、目录不到 200 条。
+  - **模块级 store + `useSyncExternalStore`，不用 context**：`lib/` 里的模块在组件树之外拼用户可见文案
+    （`mask.ts` / `fileActions.ts` / `transfer.ts` / `batch.ts` / `upload.ts`），把翻译器穿过这些签名要动的地方
+    远多于这个功能本身。代价写在 `locale.ts` 顶部并在此重申：**`t` 不是响应式的**，渲染文案的组件必须自己
+    订阅（`useT` / `useLocale`）。
+  - **两种取用方式，各有理由**：`lib/` 模块与组件走环境 `t`；`lib/preview.ts` 是例外，收一个**注入**的
+    `Translate`（`previewNotice` / `previewCaption`）——它唯一的调用方直接把结果渲染出去，注入让这个模块
+    保持无全局状态，测试不必摆环境。`Translate` 类型声明在 `lib/i18n.ts`，这样 `lib/` 不必反向依赖 `hooks/`。
+  - **`summarizeBatch` 去掉了 `noun` / `verb` 参数**：调用方传 `"item"` 就是在传英文语法。
+    两个句子改成围绕 `{{detail}}` 组织，名词短语由目录自己拼好再作为参数传进去。
+  - **顺手清掉了英文界面里最后一条硬编码中文**：`crossStorageHint` 原本是
+    `` `跨存储复制/移动不支持：${sourceMount} → ${destinationMount}` ``，现在是 `t("transfer.crossStorage", …)`。
+  - **`FilesPage` 的错误状态存键、不存字符串**：`load` 是 memo 过的、又坐在 effect 的依赖数组里，
+    若它捕获了 hook 的翻译器，每次切语言都会重跑 effect、重新拉一遍目录并**丢掉当前选中**。
+    存 `MessageKey` 把翻译挪到渲染期（`{"key" in error ? t(error.key) : error.text}`），切语言就是免费的。
+  - **文案风格向 OpenList 靠**：沿用它的 `general` / `aria` / `name` / `size` / `time` / `type` / `order` /
+    `theme` / `error` 分组意图，键名与英文措辞都向它对齐，后续补三个管理页时不需要再发明一套结构。
+  - **测试**：新增 `lib/i18n.test.ts`（17 例：插值、显式参数替换、缺参数时占位符原样保留、
+    **删掉一条中文表项后回落到英文**、`isLocale` 拒 `""` / `"en-US"` / 非字符串、`localeFrom` 只取主子标签
+    且大小写不敏感、以及目录一致性——每个英文键都有中文、没有多余中文键、占位符集合相同、没有空串）
+    与 `lib/locale.test.ts`（10 例：`vi.resetModules()` + 桩 `localStorage` / `navigator` 重导入 store，
+    覆盖显式选择优先于浏览器、无存储时跟随浏览器、都读不到时英文、非法存量值被忽略、`setLocale` 记住并通知、
+    值没变不通知、退订生效、模块级 `t` 跟随语言、`tCount` 选形）。
+    另改了 `transfer` / `batch` / `upload` / `preview` / `file-views` / `ContextMenu` 六个既有套件：
+    给读环境翻译器的断言加 `beforeEach(() => setLocale("en"))` 固定语言，免得断言随机器变；
+    `preview.test.ts` 改为显式传入本地 `en` / `zh` 翻译器。
 
-> 🚧 **阶段八进行中**：8.1–8.7 已完成（预览分派器 + 各预览器 + 目录 readme/header + 目录缓存 + 分片上传后端与前端 +
-> 上限提示与重试），8.8 未开始（i18n 骨架）。
+> 🚧 **阶段八进行中**：8.1–8.8 已完成（预览分派器 + 各预览器 + 目录 readme/header + 目录缓存 + 分片上传后端与前端 +
+> 上限提示与重试 + i18n 骨架与主流程文案）。
+>
+> **8.8 未做（按页记录，后续按同一目录补）**：三个管理页仍是英文，范围是用户选定的「骨架 + 主流程」时
+> 明确排除的部分。
+> - **存储页**（`pages/StoragesPage.tsx` 与 `components/storage/*`）：表单标签、驱动 help、校验错误。
+> - **元数据页**（`pages/MetadataPage.tsx`）：规则表单与列表。
+> - **备份页**（`pages/BackupPage.tsx`）：导入/导出文案。
+> 补的时候只需要往 `lib/i18n.ts` 的 `EN` / `ZH` 里加分组（如 `storage.*` / `meta.*` / `backup.*`）
+> 并把字符串换成 `t(...)`，机制不用动。
 >
 > **验证**：新增 `lib/preview.test.ts`（21 例）、`lib/markdown.test.ts`（23 例）、
 > `components/files/preview/preview-views.test.tsx`（11 例）、`worker/download-route.test.ts`（3 例）。
 > 合计 **383 例 / 26 文件**；`tsc -b` / `eslint .` / `prettier --check src` / `vite build` 全绿。
+> 8.8 后为 **35 文件 / 552 例**（新增 `lib/i18n.test.ts` 17 例、`lib/locale.test.ts` 10 例、
+> `lib/preview.test.ts` +2 例）；`tsc -p tsconfig.app.json` / `tsc -p tsconfig.worker.json` / `eslint .` /
+> `prettier --check src` 全绿。
 >
 > **端到端验收 38 项全绿**（真浏览器 + 真数据）：登录后列表渲染时 Monaco 一次都没被请求（`monaco requests=0`），
 > 列表也没取任何文件字节 → 打开 `文档/Athena.md` 是**渲染态**（`<h1>Athena</h1>`、真正的 `<ol>` 3 项、链接是真 `<a>`、
@@ -542,7 +590,11 @@
     7.4 的 `DriverField` 只决定每种类型长什么样。
 - [ ] Meta 规则对 `fs/*` 生效（读/写/隐藏/密码）。
 - [ ] 文件页支持多选、右键菜单、网格视图、列头排序。
-- [ ] 跨存储复制/移动被禁用且给出中文提示。
+- [ ] 跨存储复制/移动被禁用且给出提示。
+  - 入口禁用已由 6.x 完成，提示**已国际化**（默认英文，可切中文，`t("transfer.crossStorage")`）。
+    仍不勾是因为它跟「文件页交互集」一起做端到端验收更合适，不是文案问题。
+- [x] 界面支持中/英切换，语言选择被记住，未翻译处回落到英文而不是裸键名。
+  - `LocaleSelect` 在导航栏与登录卡片各一处；`lib/locale.ts` 的记忆 + `lib/i18n.ts` 的回落各有单测覆盖。
 - [x] `App.tsx` 只剩路由壳；`pnpm lint` 无超长行报错。
 - [x] `pnpm test` / `pnpm lint` / `pnpm build` 全绿。
 
