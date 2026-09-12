@@ -1,15 +1,15 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Button as HeroButton, Skeleton } from "@heroui/react";
 import { useLocation, useNavigate } from "react-router";
-import { api } from "../lib/api";
+import { api, fetchFileResponse } from "../lib/api";
 import { collectRemovals, groupByParent, summarizeBatch, type RemoveOutcome } from "../lib/batch";
 import { directoriesToCreate, targetPath, type DroppedTree } from "../lib/dropUpload";
 import { fileActions } from "../lib/fileActions";
-import { languageForFile } from "../lib/format";
 import { permissionsFor } from "../lib/mask";
 import type { MenuPosition } from "../lib/menu";
 import { clampPage, perPageFor } from "../lib/pagination";
 import { crumbsOf } from "../lib/paths";
+import { isPreviewable, needsText, previewKindFor, withMime, type PreviewKind } from "../lib/preview";
 import { unwritableHint } from "../lib/transfer";
 import {
 	DEFAULT_PAGE_MODE,
@@ -31,7 +31,6 @@ import {
 } from "../lib/preferences";
 import type { FileItem, FileListResponse, SortField, Storage, TransferMode } from "../lib/types";
 import { ROUTES, filesPathFor } from "../routes";
-import { useAuth } from "../hooks/useAuth";
 import { useConfirm } from "../hooks/useConfirm";
 import { useNotify } from "../hooks/useNotify";
 import { useSelection } from "../hooks/useSelection";
@@ -41,18 +40,17 @@ import { ContextMenu } from "../components/files/ContextMenu";
 import { DropZone } from "../components/files/DropZone";
 import { FileGrid } from "../components/files/FileGrid";
 import { FileListSkeleton } from "../components/files/FileListSkeleton";
-import { FilePreviewModal } from "../components/files/FilePreviewModal";
 import { FileTable } from "../components/files/FileTable";
 import { FileToolbar } from "../components/files/FileToolbar";
 import { Pager } from "../components/files/Pager";
 import { PathBar } from "../components/files/PathBar";
+import { FilePreview } from "../components/files/preview";
 import { SelectionBar } from "../components/files/SelectionBar";
 import { TransferDialog } from "../components/files/TransferDialog";
 
 export function FilesPage() {
 	const notify = useNotify();
 	const confirm = useConfirm();
-	const { token } = useAuth();
 	const navigate = useNavigate();
 	const initialPath = filesPathFor(useLocation().pathname);
 
@@ -69,11 +67,25 @@ export function FilesPage() {
 	const [folderName, setFolderName] = useState<string | null>(null);
 	const [renameTarget, setRenameTarget] = useState<FileItem | null>(null);
 	const [renameName, setRenameName] = useState("");
-	const [preview, setPreview] = useState<{ item: FileItem; content: string } | null>(null);
-	const [previewContent, setPreviewContent] = useState("");
+	// What the previewer is showing. `text` is set for the kinds that need the
+	// file as text and `url` for the ones that need it as bytes — never both.
+	const [preview, setPreview] = useState<{ item: FileItem; kind: PreviewKind; text?: string; url?: string } | null>(
+		null,
+	);
+	const [previewText, setPreviewText] = useState("");
 	const [previewDirty, setPreviewDirty] = useState(false);
 	const [previewSaving, setPreviewSaving] = useState(false);
 	const [previewLoading, setPreviewLoading] = useState(false);
+
+	// The binary viewers get an object URL, which holds its blob until it is
+	// revoked. Tying the revocation to the URL itself covers every way the
+	// preview ends — closed, replaced by another file, or the page navigating
+	// away — without the close handler having to remember to do it.
+	const previewUrl = preview?.url;
+	useEffect(() => {
+		if (!previewUrl) return;
+		return () => URL.revokeObjectURL(previewUrl);
+	}, [previewUrl]);
 	const [transfer, setTransfer] = useState<{ mode: TransferMode; dir: string; names: string[] } | null>(null);
 	const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
 	// Which paths a storage is mounted at. `null` means "not known yet" — a failed
@@ -339,9 +351,7 @@ export function FilesPage() {
 		// failure on one entry should not abort the rest.
 		for (const item of items) {
 			try {
-				const response = await fetch(`/d${item.path}`, { headers: { Authorization: token } });
-				if (!response.ok) throw new Error(`Download failed: ${item.name}`);
-				const blob = await response.blob();
+				const blob = await (await fetchFileResponse(item.path)).blob();
 				const link = document.createElement("a");
 				link.href = URL.createObjectURL(blob);
 				link.download = item.name;
@@ -383,19 +393,26 @@ export function FilesPage() {
 		setTransfer({ mode, dir, names });
 	}
 
-	function isPreviewable(name: string) {
-		return languageForFile(name) !== null;
-	}
-
 	async function previewFile(item: FileItem) {
+		const kind = previewKindFor(item.name, item.size);
+		// Kinds with nothing to fetch: an Office document has no renderer here, and
+		// a file past the buffering limit is refused before any bytes move. Both get
+		// a panel that says so.
+		if (kind === "office" || kind === "toolarge") {
+			setPreview({ item, kind });
+			return;
+		}
 		setPreviewLoading(true);
 		try {
-			const response = await fetch(`/d${item.path}`, { headers: { Authorization: token } });
-			if (!response.ok) throw new Error("Unable to preview file");
-			const content = await response.text();
-			setPreview({ item, content });
-			setPreviewContent(content);
-			setPreviewDirty(false);
+			const response = await fetchFileResponse(item.path);
+			if (needsText(kind)) {
+				const text = await response.text();
+				setPreview({ item, kind, text });
+				setPreviewText(text);
+				setPreviewDirty(false);
+			} else {
+				setPreview({ item, kind, url: URL.createObjectURL(withMime(await response.blob(), item.name)) });
+			}
 		} catch (reason) {
 			notify(reason instanceof Error ? reason.message : "Unable to preview file", true);
 		} finally {
@@ -409,10 +426,13 @@ export function FilesPage() {
 		try {
 			await api("/api/fs/put", {
 				method: "PUT",
-				headers: { "File-Path": encodeURIComponent(preview.item.path), "Content-Type": "text/plain; charset=utf-8" },
-				body: new Blob([previewContent], { type: "text/plain; charset=utf-8" }),
+				headers: {
+					"File-Path": encodeURIComponent(preview.item.path),
+					"Content-Type": "text/plain; charset=utf-8",
+				},
+				body: new Blob([previewText], { type: "text/plain; charset=utf-8" }),
 			});
-			setPreview({ ...preview, content: previewContent });
+			setPreview({ ...preview, text: previewText });
 			setPreviewDirty(false);
 			notify("Saved");
 		} catch (reason) {
@@ -429,7 +449,7 @@ export function FilesPage() {
 		)
 			return;
 		setPreview(null);
-		setPreviewContent("");
+		setPreviewText("");
 		setPreviewDirty(false);
 	}
 
@@ -468,11 +488,13 @@ export function FilesPage() {
 			openDirectory(item.path);
 			return;
 		}
-		if (isPreviewable(item.name)) {
-			await previewFile(item);
+		// A file past its previewer's ceiling is still "previewable": it opens a
+		// panel that says why it cannot be shown, rather than silently downloading.
+		if (!isPreviewable(item.name, item.size)) {
+			await download([item]);
 			return;
 		}
-		await download([item]);
+		await previewFile(item);
 	}
 
 	// Right clicking an entry that is not part of the selection makes it the
@@ -634,16 +656,16 @@ export function FilesPage() {
 					</Modal>
 				)}
 				{preview && (
-					<FilePreviewModal
-						item={preview.item}
-						content={previewContent}
+					<FilePreview
+						source={preview}
 						dirty={previewDirty}
 						saving={previewSaving}
-						onChange={(content) => {
-							setPreviewContent(content);
-							setPreviewDirty(content !== preview.content);
+						onChange={(text) => {
+							setPreviewText(text);
+							setPreviewDirty(text !== preview.text);
 						}}
 						onSave={() => void savePreview()}
+						onDownload={() => void download([preview.item])}
 						onClose={() => void closePreview()}
 					/>
 				)}

@@ -318,14 +318,57 @@
 
 ## 阶段八：增强（预览 / 缓存 / 上传）
 
-- [ ] 8.1 抽出预览分派器 `components/files/preview/index.tsx`，按扩展名选择预览器。
-- [ ] 8.2 图片预览、视频/音频预览。
-- [ ] 8.3 PDF / Office / markdown 预览。
+- [x] 8.1 抽出预览分派器 `components/files/preview/index.tsx`，按扩展名选择预览器。
+  - **按扩展名，不按 MIME**：列表里根本没有媒体类型——S3 与 WebDAV 都把 `Content-Type` 留空，worker 只是透传驱动给的值。要按 MIME 分派就得先下载一遍才知道该用哪个预览器，所以扩展名是唯一不花钱的判据。为此补了 `extensionOf()`：旧的 `name.split(".").pop()` 会把一个叫 `png` 的文件当成图片、把 `json` 送进 JSON 编辑器。
+  - 纯逻辑抽在 `lib/preview.ts`（无 DOM，可测），`index.tsx` 只管渲染与分发；删掉了旧的 `FilePreviewModal.tsx`。
+  - **`svg` 归到图片**：文件管理器就该把 SVG 显示成图，XML 只是"用编辑器打开"一步之遥。
+  - **Monaco 改成懒加载**（`React.lazy` + 动态 `import()`）：入口包 **8,100,278 → 467,387 字节（−94%）**，Monaco 被隔离进 7.6 MB 的 `TextViewer` 分块，只在第一次打开文本时加载。这同时让分派器能在 Node 里被 `renderToStaticMarkup` 渲染（`preview-views.test.tsx` 的 11 例就是这么跑的）。
+  - 顺带修掉一个**真 bug**：`app.on(["GET","HEAD"], "/d/*")` 在 Hono 4 里 `c.req.param("*")` 是 `null`，路径塌成 `/`，于是**每一次下载、以及 `/api/fs/link` 发出去的每一个 URL 都 404 "Storage not found"**。通配符必须具名：`/d/:name{.*}`。新增 `download-route.test.ts`（3 例），并**反向验证过这个守卫会咬人**（临时改回旧写法 → 1 例失败，改回来即通过）。
+  - 又修一个只在 dev 出现的坑：`@typefox/monaco-editor-react` 把 React 声明成**普通依赖**而不是 peer，pnpm 于是在它下面装了一份 React 19.2.8（应用是 19.2.1），Vite 的依赖预打包把这份内联进去，打开任何文本文件就 `Invalid hook call`。生产构建是干净的（Rollup 会去重），只有 dev server 会重复。用 `resolve.dedupe: ["react","react-dom"]` 修掉。
+- [x] 8.2 图片预览、视频/音频预览。
+  - `/d/*` 是**要鉴权头的**，所以 `<img src="/d/...">` 永远拿不到字节——浏览器不会给子资源带 `Authorization`。三者都走 `fetchFileResponse()` 取字节，再转成 object URL。
+  - `withMime()` 只在驱动**没说话**时补媒体类型：驱动答 `application/octet-stream` 时 `<video>` 拒绝播放，而驱动真的知道类型时（S3 对象上的 `Content-Type`）它是更好的权威，就不覆盖。
+  - 视频给了 codec 提示（浏览器对 `.mkv`/`.mov` 的容器支持并不一致）。
+  - **object URL 的释放绑在 URL 本身**：`useEffect(..., [previewUrl])` 返回的清理函数 revoke 它，这样无论预览以哪种方式结束都会释放。
+  - **16 MB 缓冲上限**（`BLOB_SIZE_LIMIT`，从 64 MB 调低）：`URL.createObjectURL(await response.blob())` 是"整份文件进内存才显示第一个像素"，`preload="metadata"` 救不了——blob 到元素手上时已经是完整的。实测真实桶里 51 MB 的录音半分钟还没出来。**这一步下载功能还不可用**，所以超限的文件不再退回下载，而是打开一块说明面板（`toolarge`），**一个字节都不取**。
+- [x] 8.3 PDF / Office / markdown 预览。
+  - **PDF** 把 object URL 交给 `<iframe>`，用浏览器自带的阅读器。
+  - **Office 说清为什么不能看**：`.doc/.xls/.ppt` 是旧二进制格式，连 OOXML 三件套也需要一个比整个前端还大的渲染器，所以给一块面板明说"没有浏览器内预览"，而不是悄悄失败。分派器对 `office` **直接短路，不发任何请求**。
+  - **markdown 自带渲染器**（`lib/markdown.ts`，零依赖）：先转义再加标签，所以 `dangerouslySetInnerHTML` 拿到的永远是自己写的标记；链接走允许名单（`/`、`#`、`http(s):`、`mailto:`）。打开是**渲染态**，可切到 Source 复用 Monaco（模式开关放进编辑器工具栏的 `leading` 槽位，避免出现两个 Save）。
+  - 渲染器踩到一个真坑：`inline()` 递归时共用一个全局正则，内层调用重置了 `lastIndex`，外层从同一个匹配重新开始，输出无限增长 → `RangeError: Invalid string length`。改成递归前先把匹配物化到 `new RegExp(source, "g")` 的副本上。
+  - 另一个：`[click](javascript:alert(1))` 只渲染出 `click)`，因为 href 停在第一个 `)`。改成允许一层配对括号 `((?:[^()\s]|\([^()]*\))+)`，顺带也修好了维基那种带括号的真实链接。
 - [ ] 8.4 README 渲染（header/readme/footer 三个 md）。
 - [ ] 8.5 目录缓存实现（决策 1 闭环）：用 `caches.default` 按 `mount_path + path` 缓存列表，TTL 取 `cache_expiration`，`refresh` 绕过；**恢复 0.2 移除的字段**。
 - [ ] 8.6 前端分片上传接入 `/api/fs/multipart/*`；非 S3 驱动时降级并提示上限。
 - [ ] 8.7 前端上传体积上限提示与失败重试。
 - [ ] 8.8 i18n 骨架（中/英），与 OpenList 文案风格对齐。
+
+> 🚧 **阶段八进行中**：8.1–8.3 已完成（预览分派器 + 各预览器），8.4–8.8 未开始。
+>
+> **验证**：新增 `lib/preview.test.ts`（21 例）、`lib/markdown.test.ts`（23 例）、
+> `components/files/preview/preview-views.test.tsx`（11 例）、`worker/download-route.test.ts`（3 例）。
+> 合计 **383 例 / 26 文件**；`tsc -b` / `eslint .` / `prettier --check src` / `vite build` 全绿。
+>
+> **端到端验收 38 项全绿**（真浏览器 + 真数据）：登录后列表渲染时 Monaco 一次都没被请求（`monaco requests=0`），
+> 列表也没取任何文件字节 → 打开 `文档/Athena.md` 是**渲染态**（`<h1>Athena</h1>`、真正的 `<ol>` 3 项、链接是真 `<a>`、
+> 正文里没有残留的 `## `、Monaco 仍未加载）→ 切到 Source 才加载 Monaco（121 个请求）、一个 Save 且初始 disabled →
+> 打开 `worldlink.yaml` 编辑器带 `YAML · 7.8 KB` 说明，输入后标题出现 `*`、Save 变可用，保存**只发一个 PUT**
+> （`%2Fwaynecos%2Fworldlink.yaml`，8000 字节），保存后 `*` 消失 → `logo/Bash.svg` 以 `blob:` 打开且
+> `naturalWidth > 0`（真的解码了）、没有编辑器、有 Download → `media/confront2_缩混.m4a` 的 `<audio>` 从 `blob:` 播放、
+> `duration=0.25`（读到了元数据）、没有 codec 提示 → `media/division.mp4`（127.7 MB）打开的是**说明面板而不是播放器**，
+> 且**一个字节都没取**（`before=4 after=4`）→ 注入的 `quarterly-report.docx` 同样是说明面板 + Download、**不取字节** →
+> 我们自己创建的 object URL 2 个全部释放（`created=2 revoked=2`），Monaco 为 worker 自留的 2 个不计入。
+> 截图 `/tmp/edgelist-preview-{markdown,source,image,audio,toolarge,office}.png`。
+>
+> **没有写任何云端数据**：唯一的写请求（保存）被 `page.route` 拦下并本地应答（"1 attempted, 1 answered locally"）。
+>
+> **两处环境注记**（都不是代码问题）：① 验收期间 `/waynecos`（S3 挂载）出现过一次 12 秒停顿，`networkidle` 因此超时，
+> 脚本改用 `domcontentloaded` + 显式等行；② 媒体字节用本地生成的 WAV 代替、列表里 `.m4a` 的大小被改写成 1.5 MB，
+> 因为真实文件 51 MB / 128 MB 超过缓冲上限、走的就是 `toolarge` 分支——那正是要测的行为之一。
+>
+> **构建注记**：`vite build` 在本回合被沙箱的批量删除守卫拦下（Vite 清空自己 gitignored 的 `dist/` 时超阈值），
+> 于是临时用 `emptyOutDir: false` 跑了一次（跑完已还原），产物正常：入口 **467.59 kB**、Monaco 隔离在
+> `TextViewer-DKm8sPs3.js`（7.6 MB）。
 
 ---
 

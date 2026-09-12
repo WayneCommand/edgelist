@@ -20,3 +20,23 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 	}
 	return result.data as T;
 }
+
+/**
+ * Reads a file's bytes from `/d/*`.
+ *
+ * That route is authenticated like every other one, so it cannot be pointed at
+ * from an `<img>` or `<video>` — the browser sends no `Authorization` header for
+ * a subresource. Everything that shows or saves a file goes through here and
+ * turns the response into an object URL instead.
+ */
+export async function fetchFileResponse(path: string): Promise<Response> {
+	const headers = new Headers();
+	headers.set("Authorization", getAuthToken());
+	const response = await fetch(`/d${path}`, { headers });
+	if (response.status === 401) clearAuthToken();
+	if (!response.ok) {
+		const name = path.split("/").pop() ?? "file";
+		throw new Error(`Unable to read ${name} (${response.status})`);
+	}
+	return response;
+}
