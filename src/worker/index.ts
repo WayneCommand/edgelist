@@ -66,7 +66,10 @@ app.post("/api/fs/multipart/chunk", requireAuth, fsMultipartChunk);
 app.post("/api/fs/multipart/complete", requireAuth, fsMultipartComplete);
 app.post("/api/fs/multipart/status", requireAuth, fsMultipartStatus);
 app.post("/api/fs/multipart/abort", requireAuth, fsMultipartAbort);
-app.on(["GET", "HEAD"], "/d/*", requireAuth, fileDownload);
+// The wildcard must be named. Hono does not expose a bare `*` as a param, so
+// `/d/*` left `c.req.param("*")` null, the path collapsed to "/", and every
+// download — and every URL `/api/fs/link` hands out — answered 404.
+app.on(["GET", "HEAD"], "/d/:name{.*}", requireAuth, fileDownload);
 app.get("/api/admin/storage/list", requireAuth, storageList);
 app.get("/api/admin/storage/get", requireAuth, storageGet);
 app.post("/api/admin/storage/create", requireAuth, storageCreate);

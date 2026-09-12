@@ -305,7 +305,9 @@ export async function fsFormUpload(c: FsContext) {
 
 export async function fileDownload(c: FsContext) {
 	try {
-		const path = `/${c.req.param("*") ?? ""}`;
+		// Read the wildcard by the name the route gives it; see the note in
+		// `index.ts` for why a bare `*` does not work here.
+		const path = `/${c.req.param("name") ?? ""}`;
 		const normalizedPath = normalizePath(path);
 		const auth = c.get("auth") as Record<string, unknown> | undefined;
 		const user = auth ? { id: 0, permission: 3 } : null;
