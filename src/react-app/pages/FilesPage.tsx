@@ -3,6 +3,7 @@ import { Button as HeroButton, Skeleton } from "@heroui/react";
 import { useLocation, useNavigate } from "react-router";
 import { api, fetchFileResponse } from "../lib/api";
 import { collectRemovals, groupByParent, summarizeBatch, type RemoveOutcome } from "../lib/batch";
+import { fetchDrivers } from "../lib/drivers";
 import { directoriesToCreate, targetPath, type DroppedTree } from "../lib/dropUpload";
 import { fileActions } from "../lib/fileActions";
 import { permissionsFor } from "../lib/mask";
@@ -10,7 +11,17 @@ import type { MenuPosition } from "../lib/menu";
 import { clampPage, perPageFor } from "../lib/pagination";
 import { crumbsOf } from "../lib/paths";
 import { isPreviewable, needsText, previewKindFor, withMime, type PreviewKind } from "../lib/preview";
-import { unwritableHint } from "../lib/transfer";
+import { mountPathFor, unwritableHint } from "../lib/transfer";
+import {
+	ceilingHint,
+	ceilingReason,
+	chunkableMounts,
+	uploadFile,
+	uploadInChunks,
+	uploadPlanFor,
+	workerTransport,
+	type UploadProgress,
+} from "../lib/upload";
 import {
 	DEFAULT_PAGE_MODE,
 	DEFAULT_PAGE_SIZE,
@@ -29,7 +40,7 @@ import {
 	sortKeyFor,
 	type PageMode,
 } from "../lib/preferences";
-import type { FileItem, FileListResponse, SortField, Storage, TransferMode } from "../lib/types";
+import type { FileItem, FileListResponse, SortField, StorageListResponse, TransferMode } from "../lib/types";
 import { ROUTES, filesPathFor } from "../routes";
 import { useConfirm } from "../hooks/useConfirm";
 import { useNotify } from "../hooks/useNotify";
@@ -92,11 +103,14 @@ export function FilesPage() {
 		return () => URL.revokeObjectURL(previewUrl);
 	}, [previewUrl]);
 	const [transfer, setTransfer] = useState<{ mode: TransferMode; dir: string; names: string[] } | null>(null);
-	const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
+	const [uploading, setUploading] = useState<UploadProgress | null>(null);
 	// Which paths a storage is mounted at. `null` means "not known yet" — a failed
 	// read is not the same answer as "nothing is mounted", and gating on the
 	// latter would lock every button in the app on a transient error.
 	const [mounts, setMounts] = useState<string[] | null>(null);
+	// The subset of those mounts whose driver can reassemble a split upload, and
+	// `null` for the same reason as above: unknown is not "none".
+	const [chunkable, setChunkable] = useState<string[] | null>(null);
 	const [menu, setMenu] = useState<MenuPosition | null>(null);
 	const [storedView, setStoredView] = useStoredState(VIEW_MODE_KEY, DEFAULT_VIEW_MODE);
 	const view = parseViewMode(storedView);
@@ -120,6 +134,18 @@ export function FilesPage() {
 	// New folder and the two uploads — and all three fail identically when no
 	// storage serves this path, so they share one reason.
 	const writeHint = unwritableHint(path, mounts);
+	// Whether the storage serving this directory can be told to reassemble a
+	// split upload. Three-valued like the mount list it is derived from: `null`
+	// while either read is unknown, which `uploadPlanFor` reads as "try it".
+	const canChunk = useMemo(() => {
+		if (!mounts || !chunkable) return null;
+		const mount = mountPathFor(path, mounts);
+		return mount === null ? false : chunkable.includes(mount);
+	}, [chunkable, mounts, path]);
+	// Where the ceiling is worth stating: a storage that cannot split an upload.
+	// A directory with no storage at all already says so through `writeHint`, and
+	// repeating it there would be two notes saying one thing.
+	const uploadCeilingHint = writeHint ? null : ceilingHint(canChunk);
 
 	function openDirectory(next: string) {
 		navigate({ pathname: ROUTES.files(next) });
@@ -198,25 +224,30 @@ export function FilesPage() {
 
 	// The mount list is what tells the client whether a directory can be written
 	// to at all: the worker resolves a path by longest prefix over the mounts, so
-	// a path under none of them has nowhere to put a file. It is fetched once —
-	// storages are edited on their own page, and a stale answer only ever costs a
-	// button that the server would refuse anyway.
+	// a path under none of them has nowhere to put a file. The driver list is
+	// what tells it which of those mounts can take a file in parts. Both are
+	// fetched once — storages are edited on their own page, and a stale answer
+	// only ever costs a button that the server would refuse anyway.
+	//
+	// Each read fails on its own so one of them being down does not throw away
+	// the other: `null` means unknown for both, and both callers treat unknown as
+	// permissive rather than as a refusal.
 	useEffect(() => {
 		let cancelled = false;
 		void (async () => {
-			try {
-				const data = await api<{ content: Storage[] }>("/api/admin/storage/list");
-				if (cancelled) return;
-				setMounts(
-					(data.content ?? [])
-						.map((item) => item?.mount_path)
-						.filter((mount): mount is string => typeof mount === "string"),
-				);
-			} catch {
-				// Unknown, not empty: gating on a failed read would grey out every
-				// write button on what is very likely a blip.
-				if (!cancelled) setMounts(null);
-			}
+			const [storages, drivers] = await Promise.all([
+				api<StorageListResponse>("/api/admin/storage/list")
+					.then((data) => data.content ?? [])
+					.catch(() => null),
+				fetchDrivers().catch(() => null),
+			]);
+			if (cancelled) return;
+			setMounts(
+				storages
+					? storages.map((item) => item?.mount_path).filter((mount): mount is string => typeof mount === "string")
+					: null,
+			);
+			setChunkable(storages && drivers ? chunkableMounts(storages, drivers) : null);
 		})();
 		return () => {
 			cancelled = true;
@@ -320,6 +351,7 @@ export function FilesPage() {
 	async function upload(tree: DroppedTree) {
 		if (!tree.files.length) return;
 		setUploading({ done: 0, total: tree.files.length });
+		const transport = workerTransport();
 		try {
 			// Drivers that are not object stores (WebDAV) reject a PUT whose parent
 			// collection is missing, so the dropped tree is created first, parents
@@ -341,19 +373,28 @@ export function FilesPage() {
 			let failed = 0;
 			for (const dropped of tree.files) {
 				try {
-					await api("/api/fs/put", {
-						method: "PUT",
-						headers: {
-							"File-Path": encodeURIComponent(targetPath(path, dropped.path)),
-							"Content-Type": dropped.file.type || "application/octet-stream",
-						},
-						body: dropped.file,
-					});
+					const destination = targetPath(path, dropped.path);
+					// The transport is chosen per file, by size: a file past the
+					// ceiling cannot go up in one request, and only an object store
+					// can be told to take it in parts.
+					const plan = uploadPlanFor(dropped.file.size, canChunk);
+					if (plan.transport === "refused") {
+						throw new Error(ceilingReason(dropped.path, dropped.file.size));
+					}
+					if (plan.transport === "single") {
+						await uploadFile(destination, dropped.file, dropped.file.type);
+					} else {
+						await uploadInChunks(dropped.file, destination, transport, {
+							onProgress: (sent, total) =>
+								setUploading({ done: uploaded + failed, total: tree.files.length, bytes: { sent, total } }),
+						});
+					}
 					uploaded += 1;
 				} catch (reason) {
 					failed += 1;
 					notify(reason instanceof Error ? reason.message : `Unable to upload ${dropped.path}`, true);
 				} finally {
+					// No `bytes`: the next file starts its own count from zero.
 					setUploading({ done: uploaded + failed, total: tree.files.length });
 				}
 			}
@@ -587,6 +628,7 @@ export function FilesPage() {
 					view={view}
 					uploading={uploading}
 					writeHint={writeHint}
+					ceilingHint={uploadCeilingHint}
 					onViewChange={setStoredView}
 					onRefresh={() => void load(path, page, false, true)}
 					onNewFolder={() => setFolderName("")}

@@ -27,6 +27,12 @@ export type DriverInfo = {
 	name: string;
 	common: DriverItem[];
 	additional: DriverItem[];
+	/**
+	 * What the driver can do, e.g. `multipart`. Optional because it is read off
+	 * the wire: a client talking to an older worker gets no list at all, and the
+	 * code that reads it has to treat that as "unknown" rather than "nothing".
+	 */
+	capabilities?: string[];
 };
 
 /** Which bucket an item lives in: the storage record, or its `addition` JSON. */

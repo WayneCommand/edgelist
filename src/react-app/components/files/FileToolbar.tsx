@@ -3,18 +3,25 @@ import { Button as HeroButton } from "@heroui/react";
 import type { Selection } from "../../hooks/useSelection";
 import { pickedTree, type DroppedTree } from "../../lib/dropUpload";
 import type { ViewMode } from "../../lib/preferences";
+import { progressPercent, type UploadProgress } from "../../lib/upload";
 
 type FileToolbarProps = {
 	selection: Selection;
 	view: ViewMode;
 	/** Set while a batch is in flight, so the buttons can lock and show progress. */
-	uploading: { done: number; total: number } | null;
+	uploading: UploadProgress | null;
 	/**
 	 * Why nothing can be written to the current directory, or `null` when it can.
 	 * Three actions here create entries — the two pickers and New folder — and all
 	 * three would fail identically, so they are locked together with one reason.
 	 */
 	writeHint: string | null;
+	/**
+	 * The per-file ceiling, for a directory whose storage cannot split an upload,
+	 * or `null` where the note would not apply. It is a capability note rather
+	 * than an error: nothing is wrong until a file is picked that is too big.
+	 */
+	ceilingHint: string | null;
 	onViewChange: (view: ViewMode) => void;
 	onRefresh: () => void;
 	onNewFolder: () => void;
@@ -30,6 +37,7 @@ export function FileToolbar({
 	view,
 	uploading,
 	writeHint,
+	ceilingHint,
 	onViewChange,
 	onRefresh,
 	onNewFolder,
@@ -71,7 +79,10 @@ export function FileToolbar({
 			<div className="ml-auto flex flex-wrap items-center gap-2">
 				{uploading && (
 					<span role="status" className="text-xs text-muted">
-						Uploading {uploading.done}/{uploading.total}…
+						{/* A file going up in parts reports its own progress: the file
+						    counter alone would sit still for minutes. */}
+						Uploading {uploading.done}/{uploading.total}
+						{uploading.bytes ? ` · ${progressPercent(uploading.bytes.sent, uploading.bytes.total)}%` : ""}…
 					</span>
 				)}
 				{writeHint && (
@@ -79,6 +90,11 @@ export function FileToolbar({
 					// so the reason is written out where it can actually be read.
 					<span className="text-xs text-muted" data-testid="write-hint">
 						{writeHint}
+					</span>
+				)}
+				{ceilingHint && (
+					<span className="text-xs text-muted" data-testid="ceiling-hint">
+						{ceilingHint}
 					</span>
 				)}
 				<ViewSwitch view={view} onChange={onViewChange} />

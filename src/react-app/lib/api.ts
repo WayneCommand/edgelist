@@ -3,6 +3,24 @@ import { clearAuthToken, getAuthToken } from "../hooks/useAuth";
 type ApiEnvelope<T> = { code?: number; message?: string; data?: T };
 
 /**
+ * A failed API call, carrying the status that produced it.
+ *
+ * The status is what lets a caller tell a refusal from a blip: a 403 will say
+ * the same thing however many times it is asked, while a 502 or a dropped
+ * connection may not. It extends `Error` so every existing `instanceof Error`
+ * check keeps working unchanged.
+ */
+export class ApiError extends Error {
+	readonly status: number;
+
+	constructor(message: string, status: number) {
+		super(message);
+		this.name = "ApiError";
+		this.status = status;
+	}
+}
+
+/**
  * Talks to the OpenList-compatible Worker API. A 401 clears the session so the
  * router can bounce the user back to the sign-in page.
  */
@@ -16,7 +34,9 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 	if (response.status === 401) clearAuthToken();
 	const result = (await response.json().catch(() => ({}))) as ApiEnvelope<T>;
 	if (!response.ok || result.code !== 200) {
-		throw new Error(result.message || `Request failed (${response.status})`);
+		// `failure()` on the worker sets the body's `code` and the HTTP status to
+		// the same number, so the transport status is a faithful signal either way.
+		throw new ApiError(result.message || `Request failed (${response.status})`, response.status);
 	}
 	return result.data as T;
 }

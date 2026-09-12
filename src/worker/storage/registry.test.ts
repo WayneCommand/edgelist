@@ -146,6 +146,20 @@ describe("getDriverInfo", () => {
 		expect(getDriverInfo(findDriver("object")!).key).toBe("object");
 	});
 
+	it("publishes capabilities so a client can decide before it asks", () => {
+		// The file page reads this to know whether a file past the single-request
+		// ceiling can go up in parts. A `Set` would not survive the response, and
+		// the list has to be the driver's own — not a copy kept somewhere else,
+		// which is exactly how the two would drift apart.
+		for (const driver of DRIVERS) {
+			const info = getDriverInfo(driver);
+			expect(Array.isArray(info.capabilities)).toBe(true);
+			expect([...info.capabilities].sort()).toEqual([...driver.capabilities].sort());
+		}
+		expect(getDriverInfo(findDriver("object")!).capabilities).toContain("multipart");
+		expect(getDriverInfo(findDriver("webdav")!).capabilities).not.toContain("multipart");
+	});
+
 	it("marks every credential as secret so the form can mask it", () => {
 		const secrets = (driver: string) =>
 			findDriver(driver)!

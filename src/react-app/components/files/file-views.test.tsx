@@ -84,6 +84,7 @@ describe("file views", () => {
 				view="grid"
 				uploading={null}
 				writeHint={null}
+				ceilingHint={null}
 				onViewChange={noop}
 				onRefresh={noop}
 				onNewFolder={noop}
@@ -102,6 +103,7 @@ describe("file views", () => {
 				view="list"
 				uploading={null}
 				writeHint={null}
+				ceilingHint={null}
 				onViewChange={noop}
 				onRefresh={noop}
 				onNewFolder={noop}
@@ -119,6 +121,7 @@ describe("file views", () => {
 				view="list"
 				uploading={{ done: 3, total: 8 }}
 				writeHint={null}
+				ceilingHint={null}
 				onViewChange={noop}
 				onRefresh={noop}
 				onNewFolder={noop}
@@ -136,6 +139,7 @@ describe("file views", () => {
 				view="list"
 				uploading={null}
 				writeHint={null}
+				ceilingHint={null}
 				onViewChange={noop}
 				onRefresh={noop}
 				onNewFolder={noop}
@@ -153,6 +157,7 @@ describe("file views", () => {
 				view="list"
 				uploading={null}
 				writeHint={hint}
+				ceilingHint={null}
 				onViewChange={noop}
 				onRefresh={noop}
 				onNewFolder={noop}
@@ -176,6 +181,7 @@ describe("file views", () => {
 				view="list"
 				uploading={null}
 				writeHint={null}
+				ceilingHint={null}
 				onViewChange={noop}
 				onRefresh={noop}
 				onNewFolder={noop}
@@ -183,6 +189,64 @@ describe("file views", () => {
 			/>,
 		);
 		expect(html).not.toContain('data-testid="write-hint"');
+		expect(html).not.toContain('disabled=""');
+	});
+
+	it("reports how far through a split upload the current file is", () => {
+		const html = renderToStaticMarkup(
+			<FileToolbar
+				selection={fakeSelection()}
+				view="list"
+				uploading={{ done: 1, total: 3, bytes: { sent: 40, total: 160 } }}
+				writeHint={null}
+				ceilingHint={null}
+				onViewChange={noop}
+				onRefresh={noop}
+				onNewFolder={noop}
+				onUpload={noop}
+			/>,
+		);
+		// Without this the counter sits at "1/3" for however long a large file
+		// takes, which reads as a hang.
+		expect(html).toContain("Uploading 1/3 · 25%");
+	});
+
+	it("says nothing about a file size in a directory whose storage can split uploads", () => {
+		const html = renderToStaticMarkup(
+			<FileToolbar
+				selection={fakeSelection()}
+				view="list"
+				uploading={null}
+				writeHint={null}
+				ceilingHint={null}
+				onViewChange={noop}
+				onRefresh={noop}
+				onNewFolder={noop}
+				onUpload={noop}
+			/>,
+		);
+		expect(html).not.toContain('data-testid="ceiling-hint"');
+	});
+
+	it("states the per-file ceiling where the storage cannot split an upload", () => {
+		const hint = "This storage cannot accept a split upload — 100 MB per file";
+		const html = renderToStaticMarkup(
+			<FileToolbar
+				selection={fakeSelection()}
+				view="list"
+				uploading={null}
+				writeHint={null}
+				ceilingHint={hint}
+				onViewChange={noop}
+				onRefresh={noop}
+				onNewFolder={noop}
+				onUpload={noop}
+			/>,
+		);
+		expect(html).toContain('data-testid="ceiling-hint"');
+		expect(html).toContain("100 MB per file");
+		// It is a note about the storage, not a reason the buttons are unusable:
+		// a small file still goes up perfectly well.
 		expect(html).not.toContain('disabled=""');
 	});
 });

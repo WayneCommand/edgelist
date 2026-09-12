@@ -2,6 +2,16 @@ import { isMountLayer } from "./mask";
 import type { TransferResult } from "./types";
 
 /**
+ * A mount path in the form `mountPathFor` compares: no trailing slash, and `/`
+ * stays `/` rather than becoming empty. Exported because callers that keep a
+ * list of mounts of their own have to spell them the same way, or a mount that
+ * matches here would fail to match there.
+ */
+export function normalizeMountPath(mount: string): string {
+	return mount === "/" ? "/" : mount.replace(/\/+$/, "");
+}
+
+/**
  * The storage that serves `path`, as a mount path.
  *
  * Mounts form a virtual tree resolved by longest prefix, exactly like the
@@ -12,7 +22,7 @@ import type { TransferResult } from "./types";
 export function mountPathFor(path: string, mounts: readonly string[]): string | null {
 	let best: string | null = null;
 	for (const mount of mounts) {
-		const candidate = mount === "/" ? "/" : mount.replace(/\/+$/, "");
+		const candidate = normalizeMountPath(mount);
 		const matches = candidate === "/" || path === candidate || path.startsWith(`${candidate}/`);
 		if (!matches) continue;
 		if (best === null || candidate.length > best.length) best = candidate;

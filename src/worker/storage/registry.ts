@@ -125,6 +125,13 @@ export function getDriverInfo(driver: DriverDefinition) {
 		config: driver.config,
 		common: buildCommonItems(driver.config),
 		additional: driver.additionalItems,
+		// What the driver can actually do, for callers that have to decide before
+		// they ask. The file page is the reason this is published: a file past the
+		// single-request ceiling has to go up in parts, and only an object store
+		// can be told to reassemble them — so the client needs to know which
+		// storage can before it spends the bandwidth finding out. A `Set` does not
+		// survive `JSON.stringify`, and sorting keeps the payload stable.
+		capabilities: [...driver.capabilities].sort(),
 	};
 }
 
