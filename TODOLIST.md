@@ -588,11 +588,35 @@
 - [x] 存储表单由 `/api/admin/driver/list` 驱动，新增驱动不需要改前端。
   - 阶段二就绪，阶段七 7.5 接上。字段、类型、默认值、选项、必填、help 全部来自 registry；
     7.4 的 `DriverField` 只决定每种类型长什么样。
-- [ ] Meta 规则对 `fs/*` 生效（读/写/隐藏/密码）。
-- [ ] 文件页支持多选、右键菜单、网格视图、列头排序。
-- [ ] 跨存储复制/移动被禁用且给出提示。
-  - 入口禁用已由 6.x 完成，提示**已国际化**（默认英文，可切中文，`t("transfer.crossStorage")`）。
-    仍不勾是因为它跟「文件页交互集」一起做端到端验收更合适，不是文案问题。
+- [x] Meta 规则对 `fs/*` 生效（读/写/隐藏/密码）。
+  - **验收方式**：真浏览器 + 真 API，规则写在本机 dev KV，**用完即删**（收尾时 `meta/list` 确认为空）。
+  - **写**：`write:false` → `fs/mkdir` 返回 **403**，且是**在任何字节到达存储之前**拒绝的
+    （`fsMkdir` 把 `canWrite` 放在 `resolveStorage`/`adapter.mkdir` 之前，已读代码确认）。
+  - **读**：`read_users:[99]` → `fs/list` 返回 **403**。
+  - **隐藏**：`hide` + `h_sub:true` → 条目从列表消失，删掉规则后立刻恢复。
+  - **UI 往返**：在元数据页新建规则 → 列表出现 → 页面上删除（带确认框）→ 列表恢复原样。
+  - **密码规则端到端验不到，只有单测覆盖**：本地会话是 `{ id: 0, permission: 3 }`，而 `canAccess` 在
+    `permission & 2` 非零时直接放行——与 OpenList 的 `CanAccessWithoutPassword()` 一致。
+    项目没有用户模型（「多用户管理」在明确排除范围内），所以除管理员外没有第二个身份能触发密码分支。
+- [ ] 修正 `hide` 的三处偏差（本次验收发现，均为与 OpenList 的行为差异）。
+  - **`h_sub` 被当成必需开关**：`fsList` 写的是 `if (meta?.hide && meta.h_sub)`，而 OpenList 的
+    `whetherHide` 是把 `HSub` 作为「是否作用于子目录」传给 `MetaCoversPath`——**精确匹配时根本不看这个开关**。
+    后果：`h_sub` 没打开时 `hide` 完全无效。已端到端证明：同一条规则不加 `h_sub` 条目照常显示，
+    只加上 `h_sub` 立刻消失。
+  - **元数据页没有 `h_sub` 控件**（只有 header / readme 两个 `_sub` 开关），所以**从界面填的 `hide` 一定是死字段**
+    ——正是验收清单「表单里不再存在能改但不生效的字段」要防的那种情况。
+  - **缺管理员豁免**：OpenList 的 `whetherHide` 先判 `user.CanSeeHides()`，管理员不受隐藏影响；
+    EdgeList 少了这一步，管理员会被自己的 `hide` 规则挡住、看不到隐藏项。
+- [x] 文件页支持多选、右键菜单、网格视图、列头排序。
+  - 真浏览器验收 **28 项全绿**（`/waynecos`，13 个条目）：点行体只选该行、勾选框累加、**Shift 扩展**到 3 项、
+    全选 = 13/13、Clear 清空；右键菜单含 Open / Rename / Copy / Move / Download / Copy link / Delete，
+    `Escape` 关闭；切到网格后表头消失、13 个磁贴、`aria-pressed` 翻转、`localStorage` 的
+    `edgelist:view-mode` 写成 `grid` 并能切回 `list`；点「Size」列头后**请求体真的是**
+    `order_by=size&order_direction=asc`，再点一次变 `desc`，`aria-sort` 同步为 `ascending` / `descending`。
+- [x] 跨存储复制/移动被禁用且给出提示。
+  - 在 `/waynecos` 选中一个文件 → 打开 Copy 对话框 → 在目录树里选 `/jianguoyun` → 出现
+    `Cross-storage copy/move is not supported: /waynecos → /jianguoyun`，**提交按钮 disabled**，
+    且**没有发出任何 `/api/fs/copy` 请求**（用 `page.on("request")` 统计，全流程零写请求）。
 - [x] 界面支持中/英切换，语言选择被记住，未翻译处回落到英文而不是裸键名。
   - `LocaleSelect` 在导航栏与登录卡片各一处；`lib/locale.ts` 的记忆 + `lib/i18n.ts` 的回落各有单测覆盖。
 - [x] `App.tsx` 只剩路由壳；`pnpm lint` 无超长行报错。
