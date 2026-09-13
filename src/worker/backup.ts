@@ -51,7 +51,16 @@ export async function backupExport(c: BackupContext) {
 		const metas = ((await readConfig(c.env.EDGE_CONFIG, CONFIG_KEYS.metas)) ?? []) as MetaConfig[];
 		const storages = await listStorageConfigs(c.env.EDGE_CONFIG);
 		const backup: BackupData = {
-			encrypted: encrypt("encrypted", password),
+			// OpenList's own backup page starts from `encrypted: ""` and only
+			// overwrites it when a password was typed
+			// (`src/pages/manage/backup-restore.tsx:120-130`). The marker is a
+			// *verifier*: an empty string means "nothing is encrypted", and the
+			// restore side reads it with `Boolean(data.encrypted)`. Writing the
+			// literal `"encrypted"` here — which is what `encrypt` returns for an
+			// empty password — makes that read true, and then OpenList (and this
+			// worker) try to AES-decrypt records that were never encrypted, so a
+			// password-less export cannot be imported anywhere.
+			encrypted: password ? encrypt("encrypted", password) : "",
 			settings: Array.isArray(settings) ? settings : [],
 			users: [],
 			storages: storages.map((item) => encryptRecord(item, password)),

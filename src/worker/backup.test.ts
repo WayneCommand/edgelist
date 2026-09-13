@@ -44,7 +44,9 @@ function context(kv: KVNamespace, body: unknown): BackupContext {
 }
 
 function backup(storages: Record<string, unknown>[], metas: unknown[] = []) {
-	return { encrypted: false, settings: [], users: [], storages, metas, shares: [] };
+	// `""`, not `false`: the marker is a string in both OpenList's backup page
+	// and this worker's export, and the restore side reads it with `Boolean()`.
+	return { encrypted: "", settings: [], users: [], storages, metas, shares: [] };
 }
 
 async function restore(storages: Record<string, unknown>[]) {
@@ -56,7 +58,11 @@ async function restore(storages: Record<string, unknown>[]) {
 async function exported(storages: StorageConfig[]) {
 	const { kv } = fakeKv({ [STORAGES_KEY]: storages });
 	const response = await backupExport(context(kv, {}));
-	return (await response.json()) as { storages: Record<string, unknown>[]; metas: unknown[] };
+	return (await response.json()) as {
+		encrypted: string;
+		storages: Record<string, unknown>[];
+		metas: unknown[];
+	};
 }
 
 describe("backup restore migration", () => {
@@ -147,5 +153,27 @@ describe("backup export", () => {
 			order_by: "name",
 			cache_expiration: 30,
 		});
+	});
+});
+
+describe("backup without a password", () => {
+	// The `encrypted` marker is a verifier, not a payload: no password has to
+	// leave it empty, which is what OpenList's own backup page does
+	// (`src/pages/manage/backup-restore.tsx:120-130`). Anything truthy there makes
+	// `Boolean(data.encrypted)` true on the restore side, and then both OpenList
+	// and this worker try to AES-decrypt records that were never encrypted — so a
+	// password-less export could not be imported at all, including by us.
+	it("leaves the encrypted marker empty and the records readable", async () => {
+		const data = await exported([legacyStorage({ id: 1, extract_folder: "back" })]);
+		expect(data.encrypted).toBe("");
+		expect(data.storages[0]).toMatchObject({ mount_path: "/legacy", extract_folder: "back" });
+	});
+
+	it("restores the export it just wrote", async () => {
+		const data = await exported([legacyStorage({ id: 1, extract_folder: "back", order_by: "size" })]);
+		const { kv, store } = fakeKv();
+		const response = await backupRestore(context(kv, { data }));
+		expect(await response.json()).toMatchObject({ code: 200 });
+		expect(store.get(STORAGES_KEY)).toMatchObject([{ extract_folder: "back", order_by: "size" }]);
 	});
 });
