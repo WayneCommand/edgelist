@@ -577,10 +577,37 @@
 - [x] `.md`、`.yaml`、`.txt` 等文本文件可以在线编辑并保存回原存储。
 - [x] 表单里不再存在"能改但不生效"的字段（假字段清理完成）。
   - 阶段零清掉 6 个，阶段七 7.5 又清掉 8 个（S3 的 `custom_host` 等，见 7.5），并加了守卫测试。
-- [ ] `extract_folder` 改名后，旧备份导入、新备份导出到 OpenList 均正确。
-  - 迁移本身有单测覆盖（0.7），但**没有真的拿 OpenList 跑过一次导入/导出往返**，所以这条先不勾。
-- [ ] 挂载点目录在列表中可识别为磁盘，重命名/删除/移动入口被正确禁用。
-  - 入口禁用已由 6.7/6.11 完成并验收；"可识别为磁盘"还差一个视觉标识（文件列表里挂载点仍是 📁），未做。
+  - **反面也查了一次**：这次验收发现元数据页**少**了 `h_sub` 开关，导致 `hide` 是个「能改但不生效」的字段
+    （改动但不生效）。已补上；同时修掉了误导性的占位符（见下面 `hide` 那条）。
+- [x] `extract_folder` 改名后，旧备份导入、新备份导出到 OpenList 均正确。
+  - **验收方式**：对本地 dev worker 的**真 API** 跑完整往返（导出 → 导入 → 再导出），
+    23 项检查全绿，收尾时配置与开工前**逐字节相同**（`/tmp/verify_extract_folder.py`）。
+  - **六种拼写都验了**：`folder_order:after → back`、`before → front`、原生 `extract_folder` 压过 legacy 键、
+    读不出的值回落 `front`、OpenList 的 `""`（「不提取」）原样保留、两个键都没有时保持无键。
+    导入后**没有任何存储还留着 `folder_order`**。
+  - **导出结构对得上 OpenList**：`model.Storage` 内嵌 `Sort` 与 `Proxy`（`internal/model/storage.go:8-39`），
+    所以 `order_by` / `order_direction` / `extract_folder` / `webdav_policy` 等都是**顶层字段**。
+    脚本逐键比对后的结论是 **`none — every key binds`**：导出里每个键都是 OpenList 声明过的，没有多余的。
+  - **顺手修掉一个会让这条永远不成立的 bug**：无密码导出原来把 `encrypted` 写成字面量 `"encrypted"`，
+    而恢复侧读的是 `Boolean(data.encrypted)` → 判成「已加密」→ 去 AES 解密从未加密的记录 → 导入失败。
+    OpenList 自己的备份页是从 `encrypted: ""` 起步、只在填了密码时才覆盖
+    （`OpenList-Frontend/src/pages/manage/backup-restore.tsx:120-130`），已照此修正。
+    **修之前，无密码的导出连 EdgeList 自己都导不回来**，更谈不上导进 OpenList。
+    已加两条单测钉住（`backup.test.ts` 7 → 9 例），并把测试替身里的 `encrypted: false` 改成 `""`——
+    原来那个布尔值两种实现都不会产生，正好把这条路径遮住了。
+  - **没有真的启动 OpenList 二进制**：本机无 Go 也无 Docker，本次改从**两侧源码**取权威定义。
+    真机往返需要先装 Go，见文末「待办」。
+- [x] 挂载点目录在列表中可识别为磁盘，重命名/删除/移动入口被正确禁用。
+  - 入口禁用已由 6.7/6.11 完成并验收。
+  - **视觉标识已补**：挂载点用 💾 而不是 📁，说明列写 `Mount point`（中文「挂载点」）而不是 `Folder`。
+    判据是「有 `ObjMask.Virtual` 且**没有** `NoWrite`」——真实挂载点是 `OBJ_LOCKED | Virtual`（可写穿），
+    只为到达嵌套挂载而存在的中间层是 `OBJ_READ_ONLY | Virtual`（不可写）；两者都带 `Virtual`，
+    只有 `NoWrite` 能把它们分开，所以中间层仍然显示为普通文件夹。
+  - 表格与网格共用 `fileGlyph` / `fileDescription`（`lib/format.ts`），两处不会各叫各的名字。
+  - **真浏览器验收 16 项全绿**：根目录 3/3 条目都是 💾 + `Mount point`；右键菜单里
+    Rename / Copy / Move / Download / Copy link / Delete **全部 disabled**、只有 Open 可用
+    （图标必须能预测菜单会不会拒绝，否则这个标识没有意义）；进入 `/jianguoyun` 后没有任何条目被标成磁盘、
+    两个真实文件夹仍是 📁 + `Folder`；网格视图保持 💾 与文案；切中文后显示「挂载点」且图标不变。
 - [x] 嵌套挂载 `/a` + `/a/b` 可正确路由，禁用 `/a/b` 后回退到 `/a`。
   - `selectStorage` 的单测覆盖：嵌套、前缀误匹配（`/ab` vs `/a`）、disabled 回退外层（`config.test.ts`）。
 - [x] 文件列表支持按名称（自然序）/大小/时间排序，目录前置。
@@ -593,20 +620,35 @@
   - **写**：`write:false` → `fs/mkdir` 返回 **403**，且是**在任何字节到达存储之前**拒绝的
     （`fsMkdir` 把 `canWrite` 放在 `resolveStorage`/`adapter.mkdir` 之前，已读代码确认）。
   - **读**：`read_users:[99]` → `fs/list` 返回 **403**。
-  - **隐藏**：`hide` + `h_sub:true` → 条目从列表消失，删掉规则后立刻恢复。
+  - **隐藏**：当时验到「`hide` + `h_sub:true` → 条目从列表消失」。注意那次能生效**恰恰是因为当时还没有管理员豁免**；
+    补上 `canSeeHides()` 之后 `permission:3` 的本地会话对 `hide` 免疫，条目不再消失（见下一条）。
+    所以这一格现在的有效证据是**单测**（`whetherHide` 组用 `permission:0` 的非管理员身份断言），
+    端到端已经触发不到隐藏分支——本项目只有一个身份。
   - **UI 往返**：在元数据页新建规则 → 列表出现 → 页面上删除（带确认框）→ 列表恢复原样。
   - **密码规则端到端验不到，只有单测覆盖**：本地会话是 `{ id: 0, permission: 3 }`，而 `canAccess` 在
     `permission & 2` 非零时直接放行——与 OpenList 的 `CanAccessWithoutPassword()` 一致。
     项目没有用户模型（「多用户管理」在明确排除范围内），所以除管理员外没有第二个身份能触发密码分支。
-- [ ] 修正 `hide` 的三处偏差（本次验收发现，均为与 OpenList 的行为差异）。
-  - **`h_sub` 被当成必需开关**：`fsList` 写的是 `if (meta?.hide && meta.h_sub)`，而 OpenList 的
-    `whetherHide` 是把 `HSub` 作为「是否作用于子目录」传给 `MetaCoversPath`——**精确匹配时根本不看这个开关**。
-    后果：`h_sub` 没打开时 `hide` 完全无效。已端到端证明：同一条规则不加 `h_sub` 条目照常显示，
-    只加上 `h_sub` 立刻消失。
-  - **元数据页没有 `h_sub` 控件**（只有 header / readme 两个 `_sub` 开关），所以**从界面填的 `hide` 一定是死字段**
-    ——正是验收清单「表单里不再存在能改但不生效的字段」要防的那种情况。
-  - **缺管理员豁免**：OpenList 的 `whetherHide` 先判 `user.CanSeeHides()`，管理员不受隐藏影响；
-    EdgeList 少了这一步，管理员会被自己的 `hide` 规则挡住、看不到隐藏项。
+- [x] 修正 `hide` 的三处偏差（本次验收发现，均为与 OpenList 的行为差异）。
+  - **`h_sub` 被当成必需开关**：`fsList` 原来写的是 `if (meta?.hide && meta.h_sub)`，而 OpenList 的
+    `whetherHide` 是把 `HSub` 作为「是否作用于子目录」传给 `MetaCoversPath`——**精确匹配时根本不看这个开关**
+    （`server/common/check.go:80-85`：先比相等、相等即真，再看 `applyToSubFolder`）。
+    修法：`meta.h_sub ?? false` 作为 flag 传入，不再当开关判。
+  - **列表与访问是两套判断，不能合并**：OpenList 把它们分在 `common.CanAccess`（看请求路径的**父目录**）
+    与 `fs.whetherHide`（看**被列出的目录本身**）两处。EdgeList 现在也有对应的两个函数，
+    `fsList` 改调 `whetherHide(user, meta, requestedPath)`。
+  - **元数据页没有 `h_sub` 控件**，所以**从界面填的 `hide` 一定是死字段**——正是「表单里不再存在能改但不生效的字段」
+    要防的那种情况。已补上「Hide applies to subfolders」开关，并把误导性的占位符
+    `Hidden names, comma separated` 改成 `one regular expression per line`（代码本来就按行当正则，
+    照占位符用逗号分隔会拼出非法正则）。
+  - **缺管理员豁免**：OpenList 先判 `user.CanSeeHides()`（`permission & 1`，`internal/model/user.go:103`），
+    管理员不受隐藏影响。已按同一位置语义补上 `canSeeHides()`。
+  - **副作用（用户已确认接受）**：本地会话是 `{ id: 0, permission: 3 }`，bit 0 已置位，
+    所以**管理员对 `hide` 免疫——本项目里 `hide` 实际变成空操作**。这正是 OpenList 对管理员的行为。
+  - 顺带把 `fsList` 里非法正则从「抛异常 → 整个目录 400」改成跳过该条，与 `canAccess` 一致：
+    语义修正后原本惰性的规则会开始生效，一条打错的规则不该让整个目录打不开。
+  - 单测：`meta.test.ts` 由 44 例增至 53 例，新增 `whetherHide` / `canSeeHides` 两组；
+    **原来那条断言 `h_sub:false` 放行**（`should allow access when h_sub is false`）正是错的语义，已反转为
+    「精确匹配即使 `h_sub:false` 也要拦，下一层才放行」。
 - [x] 文件页支持多选、右键菜单、网格视图、列头排序。
   - 真浏览器验收 **28 项全绿**（`/waynecos`，13 个条目）：点行体只选该行、勾选框累加、**Shift 扩展**到 3 项、
     全选 = 13/13、Clear 清空；右键菜单含 Open / Rename / Copy / Move / Download / Copy link / Delete，
@@ -621,6 +663,22 @@
   - `LocaleSelect` 在导航栏与登录卡片各一处；`lib/locale.ts` 的记忆 + `lib/i18n.ts` 的回落各有单测覆盖。
 - [x] `App.tsx` 只剩路由壳；`pnpm lint` 无超长行报错。
 - [x] `pnpm test` / `pnpm lint` / `pnpm build` 全绿。
+
+## 待办（验收后剩下的）
+
+- [ ] **真的拿 OpenList 跑一次备份往返**：本机没有 Go 也没有 Docker，`extract_folder` 那条是从两侧源码
+  取权威定义验的（见上）。本次已经把真机路径走通到一半，剩余步骤记在这里：
+  - 已下载 Go 1.25 到 `/tmp/gotoolchain`，`/tmp/openlist-bin`（109 MB）**已经编译成功**。
+    关键坑：`proxy.golang.org` 在本机返回 **Bad Gateway**，必须用 `GOPROXY=https://goproxy.cn,direct`
+    才能拉到模块（否则 `GOMODCACHE` 一直是 0B、构建静默失败）。
+  - 卡在最后一步：`/tmp/openlist-bin admin set <pwd> --data /tmp/openlist-data`（首次运行要设管理员密码）
+    被沙箱的敏感操作审批拦下且审批超时，按要求**没有重试**。放行后即可：
+    `admin set` → `server --data /tmp/openlist-data`（配置已写好，只监听 127.0.0.1:5244）→
+    登录取 token → 把 EdgeList 的导出逐条 POST 到 `/api/admin/storage/create` → 再从
+    `/api/admin/storage/list` 导出导回 EdgeList。
+  - 临时产物约 **3.3 GB**，都在 `/tmp`（`gotoolchain` 288M、`gomodcache` 1.9G、`gocache` 978M、
+    `openlist-bin` 109M、`openlist-data` 80K），不需要可直接删。
+- [ ] 三个管理页的 i18n（存储 / 元数据 / 备份）。机制已就绪，只需往 `EN` / `ZH` 加分组并把字符串换成 `t(...)`。
 
 ## Commit 约定
 
