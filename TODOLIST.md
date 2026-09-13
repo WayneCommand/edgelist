@@ -684,16 +684,29 @@
     驱动注册表自己的字段名与帮助文本来自 worker，**不翻译**（`humanize(item.name)` 直接渲染）。
   - 顺带修掉一个真 bug：`StoragesPage` 的 `setFormError("挂载路径必须唯一")` 是硬编码中文，英文界面下也照样弹中文，
     现在走 `t("storages.duplicateMount")`。
-  - **验收方式**：对本地 dev worker 跑浏览器验收（`/tmp/verify_admin_i18n.cjs`），**44 项检查全绿**
+  - **验收方式**：对本地 dev worker 跑浏览器验收（`/tmp/verify_admin_i18n.cjs`），**47 项检查全绿**
     （`FAILURES: 0`）。覆盖：三个页面在英/中两种语言下的标题、eyebrow、按钮、表头、行内动作、状态、开关与 placeholder；
     导航栏本身也随语言切换；切回英文后页面里不残留中文；语言选择写入 `localStorage` 的 `edgelist:locale` 并在刷新后保持。
     重复挂载路径的报错在英文界面下显示 `That mount path is already in use`，**且没有发出任何 `storage/create` 请求**
     （网络层拦截计数为 0）——这条同时证明了「不再硬编码中文」和「校验在请求之前」。
-  - 两个新守卫测试盯着这一类 bug 不再复发：`lib/i18n.test.ts` 里的 `keeps Chinese out of every other frontend file`
+  - 收尾复查时又揪出**第二处同类 bug**（守卫抓不到，因为是英文）：`lib/drivers.ts` 的 `storageFromJson` 里四条
+    抛给用户看的消息全是硬编码英文——`"That is not valid JSON"` / `"A storage has to be a JSON object"` /
+    `"mount_path is required"` / `"driver is required"`，而 `StorageJsonDialog` 是**原样**把它们显示出来的
+    （`setError(reason.message)`），所以中文用户粘错 JSON 会看到英文。现在走新增的
+    `storages.jsonInvalid` / `jsonNotObject` / `jsonMountRequired` / `jsonDriverRequired`，用 `lib/locale.ts`
+    的模块级 `t`（与 `lib/mask.ts` 一致：在事件处理器里跑，不是渲染，读当下语言）。
+    验收脚本加了三条：中文界面下报错是 `这不是合法的 JSON`、不残留 `That is not valid JSON`、且**零写请求**。
+  - **这一处为什么原测试抓不到**：`drivers.test.ts` 原本只断言英文文案，而**英文正是硬编码字符串会产生的输出**，
+    所以断言照样通过。补了一条 `raises those messages in the language in effect`——先 `setLocale("zh")` 再断言中文，
+    并**验证过它会失败**：把 `drivers.ts` 还原成 HEAD 版本后该条变红（`Received: "That is not valid JSON"`），
+    其余 28 条仍全绿，正好证明只断言英文没有鉴别力。文件顶部也补了 `beforeEach(() => setLocale("en"))`，
+    免得这套断言依赖跑测机器的 `navigator.language`。
+  - 两个新守卫测试盯着第一类 bug 不再复发：`lib/i18n.test.ts` 里的 `keeps Chinese out of every other frontend file`
     （扫全部前端源码，剥掉注释后找 `[\u4e00-\u9fff]`，放行 `lib/i18n.ts` 与 `LocaleSelect.tsx`）
     与 `uses every key it declares`（声明的键必须有人用）。守卫本身**验证过会失败**：临时塞一个含中文的文件进去，
     那条断言确实变红，删掉后恢复绿。
-  - 已知取舍：CJK 守卫只认中文，将来加第三种语言要另加一条；`FilesPage` 的 `load` 故意不把 `t` 放进依赖
+  - 已知取舍：CJK 守卫只认中文，将来加第三种语言要另加一条——**第二处 bug 就是这条局限的实例**
+    （硬编码英文它抓不到，只能靠人读）；`FilesPage` 的 `load` 故意不把 `t` 放进依赖
     （放进去会在切语言时丢掉选中项与搜索词），`StoragesPage` / `MetadataPage` 则接受多一次列表读取把 `t` 放进去，
     两处都写了注释说明为什么做相反的选择。
 

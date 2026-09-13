@@ -1,4 +1,5 @@
 import { api } from "./api";
+import { t } from "./locale";
 import type { Storage } from "./types";
 
 /**
@@ -183,24 +184,27 @@ export function storageToJson(storage: Storage): string {
 
 /**
  * A storage from pasted JSON, minus the fields the server owns. Throws with a
- * message meant for the user, because the only caller is a dialog that shows it.
+ * message meant for the user, because the only caller is a dialog that shows it
+ * verbatim — so the messages go through the catalogue like any other string on
+ * screen. The module-level `t` is the right one here: this runs from an event
+ * handler, not from a render, and reads the language in effect at that moment.
  */
 export function storageFromJson(text: string): Storage {
 	let parsed: unknown;
 	try {
 		parsed = JSON.parse(text);
 	} catch {
-		throw new Error("That is not valid JSON");
+		throw new Error(t("storages.jsonInvalid"));
 	}
 	if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-		throw new Error("A storage has to be a JSON object");
+		throw new Error(t("storages.jsonNotObject"));
 	}
 	const source = { ...(parsed as Record<string, unknown>) };
 	for (const key of SERVER_OWNED_FIELDS) delete source[key];
 	// Some exports carry `addition` as an object rather than the string the API
 	// stores, and the form needs the string form either way.
 	if (typeof source.addition !== "string") source.addition = JSON.stringify(source.addition ?? {});
-	if (typeof source.mount_path !== "string" || !source.mount_path) throw new Error("mount_path is required");
-	if (typeof source.driver !== "string" || !source.driver) throw new Error("driver is required");
+	if (typeof source.mount_path !== "string" || !source.mount_path) throw new Error(t("storages.jsonMountRequired"));
+	if (typeof source.driver !== "string" || !source.driver) throw new Error(t("storages.jsonDriverRequired"));
 	return source as unknown as Storage;
 }

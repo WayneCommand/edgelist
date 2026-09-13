@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
 	additionOf,
 	coerceDefault,
@@ -17,7 +17,19 @@ import {
 	type DriverInfo,
 	type DriverItem,
 } from "./drivers";
+import { setLocale } from "./locale";
 import type { Storage } from "./types";
+
+/**
+ * `storageFromJson` builds its error messages through the catalogue, and the
+ * translator behind it reads the ambient language — which `lib/locale.ts` takes
+ * from the browser, or under Node from `navigator.language`. Pinning it keeps
+ * the suite from depending on the machine it runs on. See the note in
+ * `transfer.test.ts`.
+ */
+beforeEach(() => {
+	setLocale("en");
+});
 
 const S3: DriverInfo = {
 	key: "object",
@@ -263,5 +275,17 @@ describe("storage JSON", () => {
 		expect(() => storageFromJson("[1]")).toThrow("has to be a JSON object");
 		expect(() => storageFromJson('{"driver":"object"}')).toThrow("mount_path is required");
 		expect(() => storageFromJson('{"mount_path":"/a"}')).toThrow("driver is required");
+	});
+
+	// The dialog shows the thrown message verbatim, so it has to be translated —
+	// an English-only literal here reaches a Chinese user as English. Asserting
+	// the English wording above cannot catch that, because English is also what
+	// a hardcoded string would produce.
+	it("raises those messages in the language in effect", () => {
+		setLocale("zh");
+		expect(() => storageFromJson("{oops")).toThrow("这不是合法的 JSON");
+		expect(() => storageFromJson("[1]")).toThrow("存储必须是一个 JSON 对象");
+		expect(() => storageFromJson('{"driver":"object"}')).toThrow("缺少 mount_path");
+		expect(() => storageFromJson('{"mount_path":"/a"}')).toThrow("缺少 driver");
 	});
 });

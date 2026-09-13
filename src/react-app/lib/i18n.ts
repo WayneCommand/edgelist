@@ -285,6 +285,13 @@ export const EN = {
 	"storages.import": "Import",
 	"storages.imported": "Storage loaded from JSON",
 	"storages.importFailed": "Unable to read that storage",
+	// Raised by `storageFromJson`, which throws rather than returning a result
+	// because the only caller is a dialog that shows the message. The last two
+	// name the wire fields deliberately: the reader is looking at the JSON.
+	"storages.jsonInvalid": "That is not valid JSON",
+	"storages.jsonNotObject": "A storage has to be a JSON object",
+	"storages.jsonMountRequired": "mount_path is required",
+	"storages.jsonDriverRequired": "driver is required",
 
 	// Metadata rules
 	"meta.heading": "Metadata rules",
@@ -579,6 +586,10 @@ export const ZH: Partial<Record<MessageKey, string>> = {
 	"storages.import": "导入",
 	"storages.imported": "已从 JSON 载入存储",
 	"storages.importFailed": "无法读取该存储",
+	"storages.jsonInvalid": "这不是合法的 JSON",
+	"storages.jsonNotObject": "存储必须是一个 JSON 对象",
+	"storages.jsonMountRequired": "缺少 mount_path",
+	"storages.jsonDriverRequired": "缺少 driver",
 
 	"meta.heading": "元数据规则",
 	"meta.add": "添加规则",
