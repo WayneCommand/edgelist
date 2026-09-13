@@ -1,5 +1,5 @@
 import { useT } from "../../hooks/useLocale";
-import { formatSize } from "../../lib/format";
+import { fileDescription, fileGlyph } from "../../lib/format";
 import type { MenuPosition } from "../../lib/menu";
 import { DEFAULT_SORT_STATE } from "../../lib/preferences";
 import type { FileItem, SortField, SortState } from "../../lib/types";
@@ -144,13 +144,13 @@ function FileRow({ item, index, selection, onOpen, onContextMenu }: FileRowProps
 				}}
 			/>
 			<span className="w-8 shrink-0 text-center text-2xl" aria-hidden="true">
-				{item.is_dir ? "📁" : "📄"}
+				{fileGlyph(item)}
 			</span>
 			<span role="gridcell" className="min-w-0 flex-1 truncate text-sm font-medium">
 				{item.name}
 			</span>
 			<span role="gridcell" className="hidden w-32 text-right text-xs text-muted sm:block">
-				{item.is_dir ? t("table.folder") : formatSize(item.size)}
+				{fileDescription(item, t)}
 			</span>
 			<span role="gridcell" className="hidden w-36 text-right text-xs text-muted md:block">
 				{item.modified ? new Date(item.modified).toLocaleDateString() : "—"}

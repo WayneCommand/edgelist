@@ -99,6 +99,19 @@ export function permissionsFor(items: FileItem[]): Permissions {
 }
 
 /**
+ * Whether an entry is a mount point rather than an ordinary folder.
+ *
+ * The worker marks a real mount point `OBJ_LOCKED | Virtual` and an
+ * intermediate level that only exists to reach a nested mount
+ * `OBJ_READ_ONLY | Virtual`. Both carry `Virtual`, so that bit alone cannot tell
+ * them apart — `NoWrite` is what does, because a mount point can be written
+ * through and an intermediate level cannot.
+ */
+export function isMountPoint(item: FileItem): boolean {
+	return blocks(item.mask, ObjMask.Virtual) && !blocks(item.mask, ObjMask.NoWrite);
+}
+
+/**
  * Whether a directory exists only to reach a nested mount.
  *
  * The worker auto-creates the intermediate levels of a nested mount and marks

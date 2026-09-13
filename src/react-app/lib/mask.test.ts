@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { OBJ_LOCKED, OBJ_READ_ONLY, ObjMask, isMountLayer, permissionsFor } from "./mask";
+import { OBJ_LOCKED, OBJ_READ_ONLY, ObjMask, isMountLayer, isMountPoint, permissionsFor } from "./mask";
 import { parentOf } from "./paths";
 import type { FileItem } from "./types";
 
@@ -142,5 +142,25 @@ describe("isMountLayer", () => {
 	it("treats a nested mount under the root as a layer boundary", () => {
 		expect(isMountLayer("/", ["/waynecos"])).toBe(true);
 		expect(isMountLayer("/", ["/"])).toBe(false);
+	});
+});
+
+// The two virtual cases carry the same `Virtual` bit, so the listing cannot tell
+// a mount point from the level that only exists to reach it by that bit alone.
+// `NoWrite` is the discriminator: a mount point can be written through, an
+// intermediate level cannot.
+describe("isMountPoint", () => {
+	it("recognises a mount point", () => {
+		expect(isMountPoint(file({ mask: OBJ_LOCKED | ObjMask.Virtual }))).toBe(true);
+	});
+
+	it("does not mistake an intermediate mount level for one", () => {
+		expect(isMountPoint(file({ mask: OBJ_READ_ONLY | ObjMask.Virtual }))).toBe(false);
+	});
+
+	it("leaves plain entries alone", () => {
+		expect(isMountPoint(file())).toBe(false);
+		expect(isMountPoint(file({ mask: 0 }))).toBe(false);
+		expect(isMountPoint(file({ mask: ObjMask.NoRename }))).toBe(false);
 	});
 });

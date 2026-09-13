@@ -120,6 +120,7 @@ export const EN = {
 	"table.size": "Size",
 	"table.modified": "Modified",
 	"table.folder": "Folder",
+	"table.mount": "Mount point",
 	"table.select": "Select {{name}}",
 
 	// Paging
@@ -329,6 +330,7 @@ export const ZH: Partial<Record<MessageKey, string>> = {
 	"table.size": "大小",
 	"table.modified": "修改时间",
 	"table.folder": "文件夹",
+	"table.mount": "挂载点",
 	"table.select": "选择 {{name}}",
 
 	"pager.showingOf": "已显示 {{to}} / {{total}}",

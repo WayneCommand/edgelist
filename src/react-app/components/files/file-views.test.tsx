@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Selection } from "../../hooks/useSelection";
 import { setLocale } from "../../lib/locale";
-import { permissionsFor } from "../../lib/mask";
+import { OBJ_LOCKED, OBJ_READ_ONLY, ObjMask, permissionsFor } from "../../lib/mask";
 import type { FileItem } from "../../lib/types";
 import { FileGrid } from "./FileGrid";
 import { FileTable } from "./FileTable";
@@ -30,6 +30,31 @@ beforeEach(() => {
 const items: FileItem[] = [
 	{ name: "docs", size: 0, is_dir: true, modified: "2026-01-02T03:04:05Z", path: "/docs" },
 	{ name: "readme.md", size: 2048, is_dir: false, modified: "2026-01-03T03:04:05Z", path: "/readme.md" },
+];
+
+/**
+ * A mount point, the level that only exists to reach it, and an ordinary
+ * folder. All three are directories; only the first is a storage you can write
+ * through, so only the first must stop looking like a folder.
+ */
+const mountItems: FileItem[] = [
+	{
+		name: "drive",
+		size: 0,
+		is_dir: true,
+		modified: "2026-01-02T03:04:05Z",
+		path: "/drive",
+		mask: OBJ_LOCKED | ObjMask.Virtual,
+	},
+	{
+		name: "layer",
+		size: 0,
+		is_dir: true,
+		modified: "2026-01-02T03:04:05Z",
+		path: "/layer",
+		mask: OBJ_READ_ONLY | ObjMask.Virtual,
+	},
+	{ name: "docs", size: 0, is_dir: true, modified: "2026-01-02T03:04:05Z", path: "/docs" },
 ];
 
 function fakeSelection(overrides: Partial<Selection> = {}): Selection {
@@ -399,5 +424,32 @@ describe("path bar", () => {
 	it("says where a search ran", () => {
 		const html = renderToStaticMarkup(<PathBar path="/waynecos" crumbs={[crumbs[0]]} searching onNavigate={noop} />);
 		expect(html).toContain("Search results in");
+	});
+});
+
+// A mount point is a directory that refuses rename, move and remove, so leaving
+// it with the folder glyph makes the list lie about what it will do. The
+// intermediate level a nested mount needs is *not* a mount point — it has no
+// storage of its own — and must keep looking like the folder it is.
+describe("mount points in the listing", () => {
+	it("gives a mount point a disk glyph and its own label in the table", () => {
+		const html = renderToStaticMarkup(<FileTable items={mountItems} {...viewProps} />);
+		expect(html).toContain("💾");
+		expect(html).toContain("Mount point");
+		// `layer` and `docs` are folders, so exactly two keep the folder glyph.
+		expect(html.match(/📁/g)).toHaveLength(2);
+	});
+
+	it("gives a mount point a disk glyph and its own label in the grid", () => {
+		const html = renderToStaticMarkup(<FileGrid items={mountItems} {...viewProps} />);
+		expect(html).toContain("💾");
+		expect(html).toContain("Mount point");
+		expect(html.match(/📁/g)).toHaveLength(2);
+	});
+
+	it("keeps the plain listing free of the disk glyph", () => {
+		const html = renderToStaticMarkup(<FileTable items={items} {...viewProps} />);
+		expect(html).not.toContain("💾");
+		expect(html).not.toContain("Mount point");
 	});
 });

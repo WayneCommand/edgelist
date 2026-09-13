@@ -1,5 +1,5 @@
 import { useT } from "../../hooks/useLocale";
-import { formatSize } from "../../lib/format";
+import { fileDescription, fileGlyph } from "../../lib/format";
 import type { FileItem } from "../../lib/types";
 import type { Selection } from "../../hooks/useSelection";
 import type { MenuPosition } from "../../lib/menu";
@@ -76,9 +76,9 @@ function FileTile({ item, index, selection, onOpen, onContextMenu }: FileTilePro
 					selection.toggle(item, index, event.shiftKey);
 				}}
 			/>
-			<span className="text-4xl">{item.is_dir ? "📁" : "📄"}</span>
+			<span className="text-4xl">{fileGlyph(item)}</span>
 			<span className="w-full truncate text-sm font-medium">{item.name}</span>
-			<span className="text-xs text-muted">{item.is_dir ? t("table.folder") : formatSize(item.size)}</span>
+			<span className="text-xs text-muted">{fileDescription(item, t)}</span>
 		</div>
 	);
 }
