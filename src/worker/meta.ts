@@ -90,6 +90,34 @@ export function canWrite(
 	return true;
 }
 
+/**
+ * Whether the user is exempt from `hide` rules.
+ *
+ * OpenList spends a whole permission bit on this (`model.CanSeeHides`, bit 0)
+ * rather than deriving it from an "admin" label, and every hide check consults
+ * it *before* matching patterns. So a user who can see hides is never blocked by
+ * one — see `common.CanAccess` and `fs.whetherHide` in the reference.
+ */
+export function canSeeHides(user: { permission?: number } | null): boolean {
+	return ((user?.permission ?? 0) & 1) !== 0;
+}
+
+/**
+ * Whether a listing should drop the entries a rule's hide patterns match.
+ *
+ * This is deliberately a *separate* check from `canAccess`, because OpenList
+ * resolves it in `fs.whetherHide` and it asks a different question: it looks at
+ * the directory being listed rather than at the parent of the requested path.
+ * `h_sub` is the subfolder flag here too — a rule on `/docs` with `h_sub` off
+ * still hides the entries sitting directly inside `/docs`, because that is an
+ * exact match; it just stops reaching into `/docs/deep`.
+ */
+export function whetherHide(user: { permission?: number } | null, meta: MetaConfig | null, path: string): boolean {
+	if (!user || canSeeHides(user)) return false;
+	if (!meta || !meta.hide) return false;
+	return metaCoversPath(meta.path, path, meta.h_sub ?? false);
+}
+
 export function canAccess(
 	user: { id?: number; permission?: number } | null,
 	meta: MetaConfig | null,
@@ -97,7 +125,12 @@ export function canAccess(
 	password?: string,
 ): boolean {
 	if (!user || !meta) return true;
-	if (meta.hide && meta.h_sub && metaCoversPath(meta.path, pathDir(reqPath), true)) {
+	// `h_sub` is the subfolder flag, not a switch that turns the rule on: an
+	// exact match on the parent directory always applies. Passing it as the flag
+	// (rather than requiring it to be true) is what `common.CanAccess` does, and
+	// it is why a rule saved from the metadata form — which used to have no
+	// `h_sub` control at all — was inert.
+	if (meta.hide && !canSeeHides(user) && metaCoversPath(meta.path, pathDir(reqPath), meta.h_sub ?? false)) {
 		const patterns = meta.hide.split("\n").filter(Boolean);
 		const fileName = reqPath.split("/").pop() ?? "";
 		for (const pattern of patterns) {

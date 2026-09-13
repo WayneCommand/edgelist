@@ -52,6 +52,8 @@ export type Meta = {
 	password?: string;
 	write?: boolean;
 	hide?: string;
+	/** Whether the hidden-name patterns also apply to paths beneath `path`. */
+	h_sub?: boolean;
 	readme?: string;
 	/** Whether the readme also applies to paths beneath `path`. */
 	r_sub?: boolean;

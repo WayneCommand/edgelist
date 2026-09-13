@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { canAccess, canWrite, getNearestMeta, metaHeader, metaReadme, type MetaConfig } from "./meta";
+import {
+	canAccess,
+	canSeeHides,
+	canWrite,
+	getNearestMeta,
+	metaHeader,
+	metaReadme,
+	whetherHide,
+	type MetaConfig,
+} from "./meta";
 import { CONFIG_KEYS } from "./env";
 import { ObjMask } from "./storage/types";
 
@@ -36,13 +45,35 @@ describe("canAccess", () => {
 		expect(canAccess(user, meta, "/test/file.txt", undefined)).toBe(true);
 	});
 
-	it("should allow access when h_sub is false", () => {
+	// `h_sub` is the *subfolder* flag, not a switch that turns the rule on.
+	// OpenList's `MetaCoversPath` answers true on an exact match whatever the flag
+	// says (server/common/check.go:80-85), so a rule on `/test` hides
+	// `/test/secret.txt` even with `h_sub` off. Reading it as a required switch is
+	// exactly what made a `hide` rule saved from the metadata form inert.
+	it("should deny access on an exact match even when h_sub is false", () => {
 		const meta = createMeta({ path: "/test", hide: ".*secret.*", h_sub: false });
 		const user = { id: 1, permission: 0 };
-		expect(canAccess(user, meta, "/test/secret.txt", undefined)).toBe(true);
+		expect(canAccess(user, meta, "/test/secret.txt", undefined)).toBe(false);
 	});
 
-	it("should allow access when user has admin permission (bit 2 set)", () => {
+	it("should allow access one level down when h_sub is false", () => {
+		const meta = createMeta({ path: "/test", hide: ".*secret.*", h_sub: false });
+		const user = { id: 1, permission: 0 };
+		// pathDir("/test/sub/secret.txt") = "/test/sub" — a prefix rather than an
+		// exact match, so the rule does not reach it without h_sub.
+		expect(canAccess(user, meta, "/test/sub/secret.txt", undefined)).toBe(true);
+	});
+
+	it("should let a user who can see hides through a hide rule", () => {
+		const meta = createMeta({ path: "/test", hide: ".*secret.*", h_sub: true });
+		// `CanSeeHides` is permission bit 0 (internal/model/user.go:103).
+		expect(canAccess({ id: 1, permission: 1 }, meta, "/test/secret.txt", undefined)).toBe(true);
+		expect(canAccess({ id: 1, permission: 3 }, meta, "/test/secret.txt", undefined)).toBe(true);
+		// ...and a user without that bit is still blocked.
+		expect(canAccess({ id: 1, permission: 2 }, meta, "/test/secret.txt", undefined)).toBe(false);
+	});
+
+	it("should skip the password when the user can access without one (bit 1)", () => {
 		const meta = createMeta({ password: "abc", p_sub: true });
 		const user = { id: 1, permission: 2 };
 		expect(canAccess(user, meta, "/test/file.txt", undefined)).toBe(true);
@@ -96,6 +127,59 @@ describe("canAccess", () => {
 		const user = { id: 2, permission: 0 };
 		// metaCoversPath("/test", "/test/file.txt", false) = false => not covered => allow
 		expect(canAccess(user, meta, "/test/file.txt", undefined)).toBe(true);
+	});
+});
+
+// `whetherHide` is the listing-side check, and it is not the same question as
+// `canAccess`: it looks at the directory being listed rather than at the parent
+// of the requested path. OpenList keeps them in separate places for that reason
+// (`common.CanAccess` vs `fs.whetherHide`).
+describe("whetherHide", () => {
+	it("should hide on an exact match even when h_sub is false", () => {
+		const meta = createMeta({ path: "/test", hide: ".*secret.*", h_sub: false });
+		expect(whetherHide({ permission: 0 }, meta, "/test")).toBe(true);
+	});
+
+	it("should reach into a subfolder only when h_sub is true", () => {
+		expect(whetherHide({ permission: 0 }, createMeta({ path: "/test", hide: "x", h_sub: true }), "/test/sub")).toBe(
+			true,
+		);
+		expect(whetherHide({ permission: 0 }, createMeta({ path: "/test", hide: "x", h_sub: false }), "/test/sub")).toBe(
+			false,
+		);
+	});
+
+	it("should never hide from a user who can see hides", () => {
+		const meta = createMeta({ path: "/test", hide: ".*secret.*", h_sub: true });
+		// The local session is `{ id: 0, permission: 3 }`, so in this app the
+		// admin is always exempt and `hide` is inert for it — the same outcome as
+		// OpenList, where an admin does not see hides applied to itself either.
+		expect(whetherHide({ permission: 3 }, meta, "/test")).toBe(false);
+	});
+
+	it("should not hide without a rule, without patterns, or without a user", () => {
+		const meta = createMeta({ path: "/test", hide: ".*secret.*", h_sub: true });
+		expect(whetherHide({ permission: 0 }, null, "/test")).toBe(false);
+		expect(whetherHide({ permission: 0 }, createMeta({ path: "/test", hide: "" }), "/test")).toBe(false);
+		expect(whetherHide(null, meta, "/test")).toBe(false);
+	});
+
+	it("should not hide a sibling path", () => {
+		expect(whetherHide({ permission: 0 }, createMeta({ path: "/test", hide: "x", h_sub: true }), "/other")).toBe(false);
+	});
+});
+
+describe("canSeeHides", () => {
+	it("should read permission bit 0 and nothing else", () => {
+		expect(canSeeHides({ permission: 1 })).toBe(true);
+		expect(canSeeHides({ permission: 3 })).toBe(true);
+		expect(canSeeHides({ permission: 2 })).toBe(false);
+		expect(canSeeHides({ permission: 0 })).toBe(false);
+	});
+
+	it("should treat a missing user or permission as not exempt", () => {
+		expect(canSeeHides(null)).toBe(false);
+		expect(canSeeHides({})).toBe(false);
 	});
 });
 

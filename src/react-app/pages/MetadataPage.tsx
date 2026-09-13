@@ -111,9 +111,18 @@ export function MetadataPage() {
 						<input
 							value={editing.hide ?? ""}
 							onChange={(event) => setEditing({ ...editing, hide: event.target.value })}
-							placeholder="Hidden names, comma separated"
+							placeholder="Hidden names — one regular expression per line"
 							className="w-full rounded-lg border border-border bg-field-background px-3 py-2"
 						/>
+						{/* `h_sub` is the subfolder flag, so without this switch a `hide`
+						    rule only ever covers its own directory — and until this control
+						    existed the field could not be reached from the form at all. */}
+						<HeroSwitch
+							isSelected={Boolean(editing.h_sub)}
+							onChange={(value) => setEditing({ ...editing, h_sub: value })}
+						>
+							Hide applies to subfolders
+						</HeroSwitch>
 						<textarea
 							value={editing.header ?? ""}
 							onChange={(event) => setEditing({ ...editing, header: event.target.value })}

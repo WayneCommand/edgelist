@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import type { EdgeListBindings } from "./env";
 import { planTransfers, type TransferInput, type TransferKind, type TransferPlannerDependencies } from "./fs-transfer";
-import { canAccess, canWrite, getNearestMeta, metaHeader, metaReadme } from "./meta";
+import { canAccess, canWrite, getNearestMeta, metaHeader, metaReadme, whetherHide } from "./meta";
 import { invalidateDirectory, listDirectory } from "./storage/cache";
 import {
 	getStorageConfig,
@@ -134,11 +134,21 @@ export async function fsList(c: FsContext) {
 			if (!virtualMounts.length) throw error;
 		}
 		let allItems = mergeFileObjects(physicalItems, virtualMounts);
-		if (meta?.hide && meta.h_sub) {
-			const patterns = meta.hide
+		if (meta && whetherHide(user, meta, requestedPath)) {
+			// One regular expression per line, as the reference does it. A pattern
+			// that does not compile is skipped rather than thrown, so one typo in a
+			// rule cannot take a whole directory down with a 400 — `canAccess`
+			// already reads them the same way.
+			const patterns = (meta.hide ?? "")
 				.split("\n")
 				.filter(Boolean)
-				.map((p) => new RegExp(p));
+				.flatMap((pattern) => {
+					try {
+						return [new RegExp(pattern)];
+					} catch {
+						return [];
+					}
+				});
 			allItems = allItems.filter((item) => !patterns.some((re) => re.test(item.name)));
 		}
 		const sorted = applySort(allItems, resolveSort(input, storage));
