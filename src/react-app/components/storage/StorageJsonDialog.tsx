@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button as HeroButton } from "@heroui/react";
 import { storageFromJson, storageToJson } from "../../lib/drivers";
 import type { Storage } from "../../lib/types";
+import { useT } from "../../hooks/useLocale";
 import { Modal } from "../common/Modal";
 
 type StorageJsonDialogProps = {
@@ -21,6 +22,7 @@ const AREA_CLASS =
  * loud rather than leaving the user to discover it.
  */
 export function StorageJsonDialog({ mode, storage, onImport, onClose }: StorageJsonDialogProps) {
+	const t = useT();
 	const [text, setText] = useState(() => (mode === "export" ? storageToJson(storage) : ""));
 	const [error, setError] = useState("");
 	const [copied, setCopied] = useState(false);
@@ -31,7 +33,7 @@ export function StorageJsonDialog({ mode, storage, onImport, onClose }: StorageJ
 			setCopied(true);
 		} catch {
 			// Clipboard access can be denied; the text is selectable anyway.
-			setError("Copying failed — select the text and copy it manually");
+			setError(t("storages.copyFailed"));
 		}
 	}
 
@@ -39,27 +41,27 @@ export function StorageJsonDialog({ mode, storage, onImport, onClose }: StorageJ
 		try {
 			onImport(storageFromJson(text));
 		} catch (reason) {
-			setError(reason instanceof Error ? reason.message : "Unable to read that storage");
+			setError(reason instanceof Error ? reason.message : t("storages.importFailed"));
 		}
 	}
 
 	return (
-		<Modal wide title={mode === "export" ? "Export storage" : "Import storage"} onClose={onClose}>
+		<Modal
+			wide
+			title={mode === "export" ? t("storages.jsonExportTitle") : t("storages.jsonImportTitle")}
+			onClose={onClose}
+		>
 			<div className="space-y-3">
 				{!copied && mode === "export" && (
 					<p className="rounded-lg bg-warning-soft px-3 py-2 text-xs text-warning-soft-foreground">
-						This JSON contains the storage credentials.
+						{t("storages.jsonCredentials")}
 					</p>
 				)}
-				{!copied && mode === "import" && (
-					<p className="text-xs text-muted">
-						Paste a storage exported from EdgeList or OpenList. `id`, `status`, `disabled` and `modified` are ignored.
-					</p>
-				)}
+				{!copied && mode === "import" && <p className="text-xs text-muted">{t("storages.jsonImportHint")}</p>}
 				<textarea
 					className={AREA_CLASS}
 					value={text}
-					aria-label="Storage JSON"
+					aria-label={t("storages.jsonLabel")}
 					readOnly={mode === "export"}
 					placeholder={mode === "import" ? '{ "mount_path": "/nas", "driver": "webdav", ... }' : undefined}
 					onChange={(event) => {
@@ -68,14 +70,14 @@ export function StorageJsonDialog({ mode, storage, onImport, onClose }: StorageJ
 					}}
 				/>
 				{error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger-soft-foreground">{error}</p>}
-				{copied && <p className="text-sm text-success">Copied to the clipboard</p>}
+				{copied && <p className="text-sm text-success">{t("storages.copied")}</p>}
 				{mode === "export" ? (
 					<HeroButton fullWidth onPress={() => void copy()}>
-						Copy JSON
+						{t("storages.copyJson")}
 					</HeroButton>
 				) : (
 					<HeroButton fullWidth isDisabled={!text.trim()} onPress={submit}>
-						Import
+						{t("storages.import")}
 					</HeroButton>
 				)}
 			</div>

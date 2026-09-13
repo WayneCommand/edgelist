@@ -1,6 +1,7 @@
 import { Skeleton } from "@heroui/react";
 import { driverLabel, type DriverInfo } from "../../lib/drivers";
 import type { Storage } from "../../lib/types";
+import { useT } from "../../hooks/useLocale";
 
 type StorageTableProps = {
 	items: Storage[];
@@ -23,6 +24,7 @@ const ACTION_CLASS =
  * against — renaming it in place would silently move every path beneath it.
  */
 export function StorageTable({ items, drivers, busyId, onOpen, onEdit, onToggle, onDelete }: StorageTableProps) {
+	const t = useT();
 	return (
 		<div role="table">
 			<div
@@ -30,22 +32,22 @@ export function StorageTable({ items, drivers, busyId, onOpen, onEdit, onToggle,
 				className="flex items-center gap-4 border-b border-separator bg-surface-secondary px-5 py-2 text-xs text-muted"
 			>
 				<span role="columnheader" className="min-w-0 flex-1">
-					Mount path
+					{t("storages.columnMount")}
 				</span>
 				<span role="columnheader" className="hidden w-24 shrink-0 sm:block">
-					Driver
+					{t("storages.columnDriver")}
 				</span>
 				<span role="columnheader" className="hidden w-16 shrink-0 md:block">
-					Order
+					{t("storages.columnOrder")}
 				</span>
 				<span role="columnheader" className="w-24 shrink-0">
-					Status
+					{t("storages.columnStatus")}
 				</span>
 				<span role="columnheader" className="hidden w-40 shrink-0 lg:block">
-					Remark
+					{t("storages.columnRemark")}
 				</span>
 				<span role="columnheader" className="w-56 shrink-0 text-right">
-					Actions
+					{t("storages.columnActions")}
 				</span>
 			</div>
 			{items.map((item) => {
@@ -77,7 +79,7 @@ export function StorageTable({ items, drivers, busyId, onOpen, onEdit, onToggle,
 						<span role="cell" className="w-24 shrink-0">
 							<span className={`inline-flex items-center gap-1.5 text-xs ${enabled ? "text-success" : "text-muted"}`}>
 								<span aria-hidden="true" className={`h-2 w-2 rounded-full ${enabled ? "bg-success" : "bg-muted"}`} />
-								{enabled ? "Enabled" : "Disabled"}
+								{enabled ? t("storages.enabled") : t("storages.disabled")}
 							</span>
 						</span>
 						<span role="cell" className="hidden w-40 shrink-0 truncate text-xs text-muted lg:block">
@@ -85,10 +87,10 @@ export function StorageTable({ items, drivers, busyId, onOpen, onEdit, onToggle,
 						</span>
 						<span role="cell" className="flex w-56 shrink-0 justify-end gap-1">
 							<button type="button" className={ACTION_CLASS} disabled={busy} onClick={() => onEdit(item)}>
-								Edit
+								{t("action.edit")}
 							</button>
 							<button type="button" className={ACTION_CLASS} disabled={busy} onClick={() => onToggle(item)}>
-								{enabled ? "Disable" : "Enable"}
+								{enabled ? t("storages.disable") : t("storages.enable")}
 							</button>
 							<button
 								type="button"
@@ -96,7 +98,7 @@ export function StorageTable({ items, drivers, busyId, onOpen, onEdit, onToggle,
 								disabled={busy}
 								onClick={() => onDelete(item)}
 							>
-								Delete
+								{t("action.delete")}
 							</button>
 						</span>
 					</div>

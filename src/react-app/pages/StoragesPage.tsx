@@ -6,6 +6,7 @@ import { driverFor, fetchDrivers, newStorage, type DriverInfo } from "../lib/dri
 import type { Storage } from "../lib/types";
 import { ROUTES } from "../routes";
 import { useConfirm } from "../hooks/useConfirm";
+import { useT } from "../hooks/useLocale";
 import { useNotify } from "../hooks/useNotify";
 import { StorageForm } from "../components/storage/StorageForm";
 import { StorageJsonDialog } from "../components/storage/StorageJsonDialog";
@@ -17,6 +18,7 @@ function driverKeyOf(item: Storage, drivers: readonly DriverInfo[]): string {
 }
 
 export function StoragesPage() {
+	const t = useT();
 	const notify = useNotify();
 	const confirm = useConfirm();
 	const navigate = useNavigate();
@@ -34,11 +36,17 @@ export function StoragesPage() {
 			const data = await api<{ content: Storage[] }>("/api/admin/storage/list");
 			setItems(data.content ?? []);
 		} catch (reason) {
-			notify(reason instanceof Error ? reason.message : "Unable to load storages", true);
+			notify(reason instanceof Error ? reason.message : t("storages.loadFailed"), true);
 		} finally {
 			setLoading(false);
 		}
-	}, [notify]);
+		// `t` belongs here even though it only feeds a one-shot toast: it changes
+		// identity with the language, and the effect below re-runs on `load`. That
+		// costs one extra read of a short list when the language changes, and buys
+		// a page whose identity is honest about what it closed over. `FilesPage`
+		// makes the opposite trade for the same shape of callback, because there a
+		// re-run would also drop the selection and the search.
+	}, [notify, t]);
 
 	// The registry is what the form is built from, so it is fetched once. It only
 	// changes with a deploy, and a stale answer costs a field that the worker
@@ -48,10 +56,10 @@ export function StoragesPage() {
 			try {
 				setDrivers(await fetchDrivers());
 			} catch (reason) {
-				notify(reason instanceof Error ? reason.message : "Unable to load drivers", true);
+				notify(reason instanceof Error ? reason.message : t("storages.driversFailed"), true);
 			}
 		})();
-	}, [notify]);
+	}, [notify, t]);
 
 	useEffect(() => {
 		void load();
@@ -84,7 +92,7 @@ export function StoragesPage() {
 		const trimmed = editing.mount_path.replace(/^\/+/, "").replace(/\/+$/, "");
 		const mountPath = trimmed ? `/${trimmed}` : "/";
 		if (items.some((item) => item.id !== editing.id && item.mount_path.replace(/\/+$/, "") === mountPath)) {
-			setFormError("挂载路径必须唯一");
+			setFormError(t("storages.duplicateMount"));
 			return;
 		}
 		const payload = { ...editing, mount_path: mountPath };
@@ -93,11 +101,11 @@ export function StoragesPage() {
 		const endpoint = editing.id > 0 ? "/api/admin/storage/update" : "/api/admin/storage/create";
 		try {
 			await api(endpoint, { method: "POST", body: JSON.stringify(payload) });
-			notify("Storage saved");
+			notify(t("storages.saved"));
 			setEditing(null);
 			await load();
 		} catch (reason) {
-			setFormError(reason instanceof Error ? reason.message : "Unable to save storage");
+			setFormError(reason instanceof Error ? reason.message : t("storages.saveFailed"));
 		}
 	}
 
@@ -108,7 +116,7 @@ export function StoragesPage() {
 			await api(`/api/admin/storage/${action}?id=${item.id}`, { method: "POST" });
 			await load();
 		} catch (reason) {
-			notify(reason instanceof Error ? reason.message : "Unable to change the storage", true);
+			notify(reason instanceof Error ? reason.message : t("storages.toggleFailed"), true);
 		} finally {
 			setBusyId(null);
 		}
@@ -118,24 +126,30 @@ export function StoragesPage() {
 		try {
 			await api("/api/admin/storage/load_all", { method: "POST" });
 			await load();
-			notify("Storages reloaded");
+			notify(t("storages.reloaded"));
 		} catch (reason) {
-			notify(reason instanceof Error ? reason.message : "Unable to reload storages", true);
+			notify(reason instanceof Error ? reason.message : t("storages.reloadFailed"), true);
 		}
 	}
 
 	async function remove(item: Storage) {
-		if (!(await confirm({ title: "Delete storage", message: `Delete ${item.mount_path}?` }))) return;
+		if (
+			!(await confirm({
+				title: t("storages.deleteTitle"),
+				message: t("storages.deleteMessage", { mount: item.mount_path }),
+			}))
+		)
+			return;
 		setBusyId(item.id);
 		try {
 			await api("/api/admin/storage/delete", {
 				method: "POST",
 				body: JSON.stringify({ id: item.id, mount_path: item.mount_path }),
 			});
-			notify("Storage deleted");
+			notify(t("storages.deleted"));
 			await load();
 		} catch (reason) {
-			notify(reason instanceof Error ? reason.message : "Unable to delete storage", true);
+			notify(reason instanceof Error ? reason.message : t("storages.deleteFailed"), true);
 		} finally {
 			setBusyId(null);
 		}
@@ -145,22 +159,22 @@ export function StoragesPage() {
 		<section>
 			<div className="mb-5 flex flex-wrap items-center justify-between gap-3">
 				<div>
-					<p className="text-sm text-muted">Manage</p>
-					<h1 className="mt-1 text-2xl font-semibold">Storages</h1>
+					<p className="text-sm text-muted">{t("manage.eyebrow")}</p>
+					<h1 className="mt-1 text-2xl font-semibold">{t("storages.heading")}</h1>
 				</div>
 				<div className="flex flex-wrap items-center gap-2">
 					<HeroButton size="sm" variant="ghost" onPress={() => void reloadAll()}>
-						Reload all
+						{t("storages.reloadAll")}
 					</HeroButton>
 					<HeroButton size="sm" variant="outline" onPress={() => void load()}>
-						Refresh
+						{t("action.refresh")}
 					</HeroButton>
-					<HeroButton onPress={add}>Add storage</HeroButton>
+					<HeroButton onPress={add}>{t("storages.add")}</HeroButton>
 				</div>
 			</div>
 
 			{chips.length > 1 && (
-				<div className="mb-3 flex flex-wrap items-center gap-2" role="group" aria-label="Filter by driver">
+				<div className="mb-3 flex flex-wrap items-center gap-2" role="group" aria-label={t("storages.filterByDriver")}>
 					{chips.map((driver) => {
 						const active = filter.includes(driver.key);
 						return (
@@ -181,7 +195,7 @@ export function StoragesPage() {
 					})}
 					{filter.length > 0 && (
 						<button type="button" className="text-xs text-muted hover:text-foreground" onClick={() => setFilter([])}>
-							Clear
+							{t("action.clear")}
 						</button>
 					)}
 				</div>
@@ -191,9 +205,9 @@ export function StoragesPage() {
 				{loading ? (
 					<StorageTableSkeleton />
 				) : !items.length ? (
-					<p className="p-8 text-sm text-muted">No storage configured.</p>
+					<p className="p-8 text-sm text-muted">{t("storages.empty")}</p>
 				) : !visible.length ? (
-					<p className="p-8 text-sm text-muted">No storage matches the selected drivers.</p>
+					<p className="p-8 text-sm text-muted">{t("storages.emptyFiltered")}</p>
 				) : (
 					<StorageTable
 						items={visible}
@@ -228,7 +242,7 @@ export function StoragesPage() {
 					onImport={(imported) => {
 						setEditing(imported);
 						setJson(null);
-						notify("Storage loaded from JSON");
+						notify(t("storages.imported"));
 					}}
 					onClose={() => setJson(null)}
 				/>

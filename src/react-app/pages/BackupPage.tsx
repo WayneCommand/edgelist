@@ -2,9 +2,11 @@ import { useState } from "react";
 import { Button as HeroButton, Card as HeroCard, Switch as HeroSwitch } from "@heroui/react";
 import { api } from "../lib/api";
 import { useAuth } from "../hooks/useAuth";
+import { useT } from "../hooks/useLocale";
 import { useNotify } from "../hooks/useNotify";
 
 export function BackupPage() {
+	const t = useT();
 	const notify = useNotify();
 	const { token } = useAuth();
 	const [password, setPassword] = useState("");
@@ -18,16 +20,16 @@ export function BackupPage() {
 				headers: { Authorization: token, "content-type": "application/json" },
 				body: JSON.stringify({ password }),
 			});
-			if (!response.ok) throw new Error("Backup failed");
+			if (!response.ok) throw new Error(t("backup.exportFailed"));
 			const blob = await response.blob();
 			const link = document.createElement("a");
 			link.href = URL.createObjectURL(blob);
 			link.download = "openlist_backup.json";
 			link.click();
 			URL.revokeObjectURL(link.href);
-			notify("Backup downloaded");
+			notify(t("backup.downloaded"));
 		} catch (reason) {
-			notify(reason instanceof Error ? reason.message : "Backup failed", true);
+			notify(reason instanceof Error ? reason.message : t("backup.exportFailed"), true);
 		} finally {
 			setLoading(false);
 		}
@@ -37,9 +39,9 @@ export function BackupPage() {
 		try {
 			const data = JSON.parse(await file.text());
 			await api("/api/admin/backup/restore", { method: "POST", body: JSON.stringify({ data, password, override }) });
-			notify("Backup restored");
+			notify(t("backup.restored"));
 		} catch (reason) {
-			notify(reason instanceof Error ? reason.message : "Restore failed", true);
+			notify(reason instanceof Error ? reason.message : t("backup.restoreFailed"), true);
 		} finally {
 			setLoading(false);
 		}
@@ -47,32 +49,30 @@ export function BackupPage() {
 	return (
 		<section>
 			<div className="mb-5">
-				<p className="text-sm text-muted">Manage</p>
-				<h1 className="mt-1 text-2xl font-semibold">Backup & restore</h1>
+				<p className="text-sm text-muted">{t("manage.eyebrow")}</p>
+				<h1 className="mt-1 text-2xl font-semibold">{t("backup.heading")}</h1>
 			</div>
 			<HeroCard className="max-w-xl" variant="default">
-				<p className="text-sm text-muted">
-					Export an OpenList-compatible JSON backup or restore one previously created by OpenList/EdgeList.
-				</p>
+				<p className="text-sm text-muted">{t("backup.intro")}</p>
 				<label className="mt-5 block text-sm font-medium">
-					Encryption password
+					{t("backup.password")}
 					<input
 						type="password"
 						value={password}
 						onChange={(event) => setPassword(event.target.value)}
-						placeholder="Optional"
+						placeholder={t("backup.passwordPlaceholder")}
 						className="mt-2 w-full rounded-lg border border-border bg-field-background px-3 py-2 font-normal"
 					/>
 				</label>
 				<HeroSwitch className="mt-4" isSelected={override} onChange={setOverride}>
-					Override matching storages and metadata
+					{t("backup.override")}
 				</HeroSwitch>
 				<div className="mt-6 flex flex-wrap gap-3">
 					<HeroButton isDisabled={loading} onPress={() => void backup()}>
-						Download backup
+						{t("backup.download")}
 					</HeroButton>
 					<label className="inline-flex cursor-pointer items-center rounded-lg border border-border px-4 py-2.5 text-sm font-medium hover:bg-surface-secondary">
-						Choose backup
+						{t("backup.choose")}
 						<input
 							hidden
 							type="file"

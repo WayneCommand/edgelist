@@ -1,4 +1,5 @@
 import { humanize, selectOptions, type DriverItem } from "../../lib/drivers";
+import { useT } from "../../hooks/useLocale";
 
 type DriverFieldProps = {
 	item: DriverItem;
@@ -28,6 +29,7 @@ export function DriverField({ item, value, onChange }: DriverFieldProps) {
 }
 
 function Control({ item, value, onChange }: DriverFieldProps) {
+	const t = useT();
 	if (item.type === "bool") {
 		// A checkbox rather than a switch: the value is written into a JSON blob
 		// that OpenList reads back, so it stays a plain boolean either way.
@@ -39,7 +41,7 @@ function Control({ item, value, onChange }: DriverFieldProps) {
 					aria-label={humanize(item.name)}
 					onChange={(event) => onChange(event.target.checked)}
 				/>
-				<span className="text-xs text-muted">{value === true ? "Enabled" : "Disabled"}</span>
+				<span className="text-xs text-muted">{value === true ? t("storages.enabled") : t("storages.disabled")}</span>
 			</span>
 		);
 	}
@@ -54,7 +56,7 @@ function Control({ item, value, onChange }: DriverFieldProps) {
 			>
 				{selectOptions(item).map((option) => (
 					<option key={option} value={option}>
-						{option || "(upstream order)"}
+						{option || t("storages.upstreamOrder")}
 					</option>
 				))}
 			</select>
