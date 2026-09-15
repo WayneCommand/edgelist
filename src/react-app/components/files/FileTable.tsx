@@ -115,7 +115,7 @@ function FileRow({ item, index, selection, onOpen, onContextMenu }: FileRowProps
 			role="row"
 			tabIndex={0}
 			aria-selected={selected}
-			className={`flex cursor-default items-center gap-4 border-b border-separator px-5 py-4 outline-none last:border-0 ${
+			className={`flex cursor-default items-center gap-4 border-b border-separator px-5 py-4 outline-none transition-colors last:border-0 ${
 				selected ? "bg-accent-soft" : "hover:bg-surface-secondary"
 			}`}
 			onClick={() => selection.selectOnly(item, index)}

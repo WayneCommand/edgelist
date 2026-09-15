@@ -123,6 +123,9 @@ textarea:focus {
 	border-color: var(--focus);
 	outline: 2px solid color-mix(in oklch, var(--focus) 20%, transparent);
 	outline-offset: 1px;
+	transition-property: border-color, box-shadow, outline;
+	transition-duration: 150ms;
+	transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
 }
 
 input[type="checkbox"] {
@@ -216,4 +219,18 @@ input[type="checkbox"] {
 
 .markdown-body del {
 	color: var(--muted);
+}
+
+/* Suppress transitions during theme switch to prevent visual smearing */
+.theme-transitioning *,
+.theme-transitioning *::before,
+.theme-transitioning *::after {
+	transition: none !important;
+}
+
+/* Scale on press for interactive elements */
+button:active:not(:disabled),
+a:active {
+	transform: scale(0.96);
+	transition: transform 100ms cubic-bezier(0.2, 0, 0, 1);
 }

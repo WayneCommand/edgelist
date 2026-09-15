@@ -78,7 +78,7 @@ export function PathBar({ path, crumbs, searching = false, onNavigate }: PathBar
 				aria-label={t("files.editPath")}
 				title={t("files.editPath")}
 				onClick={() => setDraft(path)}
-				className="rounded-md px-1.5 py-0.5 text-xs text-muted hover:bg-surface-secondary hover:text-foreground"
+				className="rounded-md px-1.5 py-0.5 text-xs text-muted transition-colors hover:bg-surface-secondary hover:text-foreground"
 			>
 				✎
 			</button>

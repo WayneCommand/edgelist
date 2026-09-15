@@ -8,7 +8,7 @@ type DriverFieldProps = {
 };
 
 const CONTROL_CLASS =
-	"w-full rounded-lg border border-border bg-field-background px-3 py-2 text-sm text-foreground outline-none transition focus:border-focus focus:ring-4 focus:ring-accent/15";
+	"w-full rounded-lg border border-border bg-field-background px-3 py-2 text-sm text-foreground outline-none transition-[border-color,box-shadow] focus:border-focus focus:ring-4 focus:ring-accent/15";
 
 /**
  * One field of a storage form, chosen by the item's declared type. The registry

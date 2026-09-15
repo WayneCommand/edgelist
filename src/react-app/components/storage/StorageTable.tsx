@@ -57,7 +57,7 @@ export function StorageTable({ items, drivers, busyId, onOpen, onEdit, onToggle,
 					<div
 						key={item.id}
 						role="row"
-						className="flex items-center gap-4 border-b border-separator px-5 py-4 last:border-0"
+						className="flex items-center gap-4 border-b border-separator px-5 py-4 transition-colors last:border-0 hover:bg-surface-secondary"
 					>
 						<span role="cell" className="min-w-0 flex-1">
 							<button

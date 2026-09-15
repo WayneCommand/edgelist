@@ -36,7 +36,7 @@ function Shell() {
 			<header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-separator/80 bg-surface/95 px-6 backdrop-blur">
 				<div className="flex items-center gap-3">
 					<button className="flex items-center gap-3" onClick={() => navigate(ROUTES.files())}>
-						<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent font-bold text-accent-foreground">
+						<div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent font-bold text-accent-foreground">
 							E
 						</div>
 						<span className="font-semibold">EdgeList</span>
