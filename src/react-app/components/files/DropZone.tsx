@@ -19,6 +19,11 @@ export function DropZone({ onDrop, disabled = false, children }: DropZoneProps) 
 	// crosses, so the overlay is driven by a counter: a boolean would flicker off
 	// the moment the drag moved over a row inside this container.
 	const [depth, setDepth] = useState(0);
+	// Crossing the page raises and lowers this several times in a drag, so the
+	// overlay gets the most restrained transition there is: a plain fade, no
+	// travel. It is also the place a hard cut was most visible, because it
+	// happens under the pointer that is causing it.
+	const active = depth > 0 && !disabled;
 
 	useEffect(() => {
 		if (disabled) return;
@@ -64,13 +69,21 @@ export function DropZone({ onDrop, disabled = false, children }: DropZoneProps) 
 			onDrop={(event) => void handleDrop(event)}
 		>
 			{children}
-			{depth > 0 && !disabled && (
-				// `pointer-events-none` keeps the overlay out of hit testing, so it
-				// cannot produce the `dragleave` that would immediately hide it.
-				<div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-xl border-2 border-dashed border-accent bg-accent-soft/80">
-					<p className="text-sm font-medium text-accent">{t("toolbar.dropHint")}</p>
-				</div>
-			)}
+			{/* Kept mounted so the fade has somewhere to come from.
+			    `pointer-events-none` keeps the overlay out of hit testing, so it
+			    cannot produce the `dragleave` that would immediately hide it.
+			    `aria-hidden` is not redundant with the fade: opacity alone does not
+			    take the hint out of the reading order, so a screen reader would
+			    announce an upload prompt while no drag is happening. */}
+			<div
+				aria-hidden={!active}
+				data-open={active}
+				className={`pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-xl border-2 border-dashed border-accent bg-accent-soft/80 transition-opacity duration-150 ease-out motion-reduce:transition-none ${
+					active ? "opacity-100" : "opacity-0"
+				}`}
+			>
+				<p className="text-sm font-medium text-accent">{t("toolbar.dropHint")}</p>
+			</div>
 		</div>
 	);
 }

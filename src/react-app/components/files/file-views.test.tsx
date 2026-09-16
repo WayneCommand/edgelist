@@ -4,6 +4,7 @@ import type { Selection } from "../../hooks/useSelection";
 import { setLocale } from "../../lib/locale";
 import { OBJ_LOCKED, OBJ_READ_ONLY, ObjMask, permissionsFor } from "../../lib/mask";
 import type { FileItem } from "../../lib/types";
+import { DropZone } from "./DropZone";
 import { FileGrid } from "./FileGrid";
 import { FileTable } from "./FileTable";
 import { FileToolbar } from "./FileToolbar";
@@ -327,8 +328,32 @@ function barProps(selected: FileItem[]) {
 }
 
 describe("selection bar", () => {
-	it("stays hidden with nothing selected", () => {
-		expect(renderToStaticMarkup(<SelectionBar {...barProps([])} />)).toBe("");
+	it("waits off-screen with nothing selected instead of vanishing", () => {
+		// The bar has to exist to have something to slide in from, so "hidden"
+		// means faded and pushed down rather than absent.
+		const html = renderToStaticMarkup(<SelectionBar {...barProps([])} />);
+		expect(html).toContain("opacity-0");
+		expect(html).toContain("translate-y-3");
+		// Leaving is quicker than arriving.
+		expect(html).toContain("duration-150");
+		expect(html).not.toContain("duration-300");
+	});
+
+	it("keeps its buttons out of the tab order while faded out", () => {
+		// A faded-out toolbar is still a toolbar full of buttons as far as the
+		// keyboard is concerned.
+		const html = renderToStaticMarkup(<SelectionBar {...barProps([])} />);
+		expect(html).toContain("inert");
+	});
+
+	it("slides in over 300ms once something is selected", () => {
+		const html = renderToStaticMarkup(<SelectionBar {...barProps([items[1]])} />);
+		expect(html).toContain("opacity-100");
+		expect(html).toContain("translate-y-0");
+		expect(html).toContain("duration-300");
+		// React must drop the attribute entirely when it is false: as a boolean
+		// attribute, presence alone is what makes a subtree inert.
+		expect(html).not.toContain("inert");
 	});
 
 	it("names a single selection", () => {
@@ -375,6 +400,37 @@ describe("selection bar", () => {
 		expect(html).toContain("rounded-2xl");
 		expect(html).toContain("shadow-overlay");
 		expect(html).not.toContain("border-border");
+	});
+});
+
+describe("drop zone", () => {
+	it("keeps the hint mounted but faded and unannounced while idle", () => {
+		const html = renderToStaticMarkup(
+			<DropZone onDrop={noop}>
+				<span>listing</span>
+			</DropZone>,
+		);
+		// The overlay has to exist for the fade to come from somewhere, so it is
+		// hidden twice over: faded out on screen, and out of the reading order.
+		expect(html).toContain("opacity-0");
+		expect(html).not.toContain("opacity-100");
+		expect(html).toContain('aria-hidden="true"');
+		expect(html).toContain("transition-opacity");
+		expect(html).toContain("duration-150");
+	});
+
+	it("fades the hint in only once a drag is over the zone", () => {
+		const html = renderToStaticMarkup(
+			<DropZone onDrop={noop}>
+				<span>listing</span>
+			</DropZone>,
+		);
+		// A drag that has just started is depth 0, so nothing is announced yet —
+		// the drag counter is what keeps it from flickering, and the overlay's own
+		// `pointer-events-none` is what keeps it from producing the `dragleave`
+		// that would hide it again.
+		expect(html).toContain("pointer-events-none");
+		expect(html).toContain('data-open="false"');
 	});
 });
 

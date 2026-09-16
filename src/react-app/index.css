@@ -333,3 +333,37 @@ input[type="checkbox"] {
 		transition-duration: 0ms;
 	}
 }
+
+/* Arrivals that cannot be a transition.
+ *
+ * A transition needs the element to be present in both states. The error banner
+ * and the two blocks of the empty state are mounted at the moment they appear,
+ * so they have no "before" to travel from — these are one-shot animations. Only
+ * the `from` keyframe is stated: the destination is left implicit, so an element
+ * animates up to whatever it already sits at rather than the stylesheet
+ * restating the design.
+ *
+ * `both` is what makes the delay usable. The empty state's second beat holds the
+ * invisible start state while it waits instead of being painted and then yanked
+ * back to nothing.
+ *
+ * Two variables, because the banner and the empty state want a different throw
+ * and a different beat, and neither is worth a keyframe of its own.
+ */
+@keyframes arrive {
+	from {
+		opacity: 0;
+		translate: 0 var(--arrive-from, 6px);
+	}
+}
+
+@utility arrive {
+	animation: arrive var(--arrive-duration, 200ms) ease-out both;
+	animation-delay: var(--arrive-delay, 0ms);
+
+	/* The end state is the element's own, so dropping the animation leaves it
+	   fully drawn: the message is still there, it simply did not travel. */
+	@media (prefers-reduced-motion: reduce) {
+		animation: none;
+	}
+}

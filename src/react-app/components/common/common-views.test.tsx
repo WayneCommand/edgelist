@@ -21,4 +21,13 @@ describe("EmptyState", () => {
 		expect(html).toContain("<p");
 		expect(html).toContain("No storage configured.");
 	});
+
+	it("arrives in two beats, disc first", () => {
+		const html = renderToStaticMarkup(<EmptyState message="No files found" />);
+		// Both blocks animate, and only the second waits — which is what makes it
+		// a sequence. The delay is a variable so the two share one keyframe and
+		// the second one holds its invisible start state until its turn.
+		expect(html.match(/class="arrive/g)).toHaveLength(2);
+		expect(html).toContain("[--arrive-delay:100ms]");
+	});
 });

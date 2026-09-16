@@ -596,13 +596,19 @@ export function FilesPage() {
 	// Search results arrive ranked by the server, so the headers only re-sort a
 	// real directory listing.
 	const sortable = searching ? undefined : { state: sort, change: changeSort };
-	// The floating selection bar sits over the end of the list; the padding keeps
-	// the last row reachable instead of permanently covered. The drop zone goes
-	// quiet when the directory cannot take a file, so a drag does not raise an
-	// overlay promising an upload that would be refused.
+	// The floating selection bar sits over the end of the list; the clearance
+	// keeps the last row reachable instead of permanently covered. It grows and
+	// shrinks on the same clock as the bar, because the two are one movement —
+	// padding that snapped in while the bar slid up would make the list jump
+	// twice for one action. The drop zone goes quiet when the directory cannot
+	// take a file, so a drag does not raise an overlay promising an upload that
+	// would be refused.
+	const selecting = selection.count > 0;
 	return (
 		<DropZone onDrop={(tree) => void upload(tree)} disabled={uploading !== null || writeHint !== null}>
-			<section className={selection.count > 0 ? "pb-24" : undefined}>
+			<section
+				className={`${selecting ? "pb-24 duration-300" : "pb-0 duration-150"} transition-[padding-bottom] ease-out motion-reduce:transition-none`}
+			>
 				<div className="mb-5 flex flex-wrap items-center justify-between gap-3">
 					<div>
 						<p className="text-sm text-muted">{t("files.heading")}</p>
@@ -677,7 +683,12 @@ export function FilesPage() {
 				    sit flush against the list it explains. */}
 				<HeroCard className="gap-0 overflow-hidden p-0" variant="default">
 					{error && (
-						<p className="border-b border-danger/20 bg-danger-soft px-5 py-3 text-sm text-danger-soft-foreground">
+						// It lands rather than appearing: the banner changes the height of
+						// everything under it, and a block that shoves the list down with
+						// no movement reads as the wrong click. It travels downward from
+						// above (a negative start) because it sits at the top of the card.
+						// One beat, no stagger — an error is not a sequence.
+						<p className="arrive border-b border-danger/20 bg-danger-soft px-5 py-3 text-sm text-danger-soft-foreground [--arrive-duration:150ms] [--arrive-from:-4px]">
 							{"key" in error ? t(error.key) : error.text}
 						</p>
 					)}
