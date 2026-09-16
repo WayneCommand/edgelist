@@ -58,7 +58,7 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 							required
 							value={accessKey}
 							onChange={(event) => setAccessKey(event.target.value)}
-							className="w-full rounded-lg border border-border bg-field-background px-3.5 py-3 outline-none transition focus:border-focus focus:ring-4 focus:ring-accent/15"
+							className="w-full px-3.5 py-3"
 							autoComplete="username"
 						/>
 					</label>
@@ -69,7 +69,7 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 							type="password"
 							value={secretKey}
 							onChange={(event) => setSecretKey(event.target.value)}
-							className="w-full rounded-lg border border-border bg-field-background px-3.5 py-3 outline-none transition focus:border-focus focus:ring-4 focus:ring-accent/15"
+							className="w-full px-3.5 py-3"
 							autoComplete="current-password"
 						/>
 					</label>

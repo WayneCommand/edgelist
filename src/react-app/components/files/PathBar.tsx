@@ -54,7 +54,7 @@ export function PathBar({ path, crumbs, searching = false, onNavigate }: PathBar
 					// Clicking away abandons the edit, which is what a cancelled edit
 					// should do rather than navigating somewhere unintended.
 					onBlur={() => setDraft(null)}
-					className="w-full rounded-lg border border-border bg-field-background px-3 py-2 text-sm outline-none focus:border-focus"
+					className="w-full px-3 py-2 text-sm"
 				/>
 			</form>
 		);

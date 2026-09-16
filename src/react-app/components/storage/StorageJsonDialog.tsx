@@ -12,8 +12,8 @@ type StorageJsonDialogProps = {
 	onClose: () => void;
 };
 
-const AREA_CLASS =
-	"h-64 w-full rounded-lg border border-border bg-field-background p-3 font-mono text-xs text-foreground outline-none transition focus:border-focus focus:ring-4 focus:ring-accent/15";
+// Layout only: the field skin lives in `index.css`.
+const AREA_CLASS = "h-64 w-full p-3 font-mono text-xs";
 
 /**
  * Moving a storage in and out as JSON, the way OpenList does it: the whole

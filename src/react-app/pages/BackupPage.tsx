@@ -61,7 +61,7 @@ export function BackupPage() {
 						value={password}
 						onChange={(event) => setPassword(event.target.value)}
 						placeholder={t("backup.passwordPlaceholder")}
-						className="mt-2 w-full rounded-lg border border-border bg-field-background px-3 py-2 font-normal"
+						className="mt-2 w-full px-3 py-2 font-normal"
 					/>
 				</label>
 				<HeroSwitch className="mt-4" isSelected={override} onChange={setOverride}>

@@ -67,7 +67,7 @@ function PageSizeSelect({ pageSize, onChange }: { pageSize: number; onChange: (s
 			<select
 				value={serializePageSize(pageSize)}
 				onChange={(event) => onChange(parsePageSize(event.target.value))}
-				className="rounded-lg border border-border bg-field-background px-2 py-1 text-xs text-foreground outline-none focus:border-focus"
+				className="px-2 py-1 text-xs"
 			>
 				{PAGE_SIZE_OPTIONS.map((size) => (
 					<option key={size} value={serializePageSize(size)}>

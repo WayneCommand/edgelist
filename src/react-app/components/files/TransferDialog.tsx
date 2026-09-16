@@ -100,7 +100,10 @@ export function TransferDialog({ mode, srcDir, names, mounts, onClose, onTransfe
 			<form className="space-y-4" onSubmit={submit}>
 				<div>
 					<p className="mb-2 text-sm text-muted">{t("transfer.destination")}</p>
-					<div className="max-h-64 overflow-auto rounded-lg border border-border bg-field-background p-2">
+					{/* A picker box, so it takes the field's radius and background —
+					    `bg-field` is the real token; `bg-field-background` was dropped
+					    by Tailwind and left this transparent. */}
+					<div className="max-h-64 overflow-auto rounded-field border border-border bg-field p-2">
 						<DirectoryTree value={destination} onChange={setDestination} />
 					</div>
 					<p className="mt-2 truncate text-xs text-muted" title={destination}>

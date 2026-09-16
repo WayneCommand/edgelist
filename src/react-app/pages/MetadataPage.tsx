@@ -98,7 +98,7 @@ export function MetadataPage() {
 							value={editing.path}
 							onChange={(event) => setEditing({ ...editing, path: event.target.value })}
 							placeholder={t("meta.pathPlaceholder")}
-							className="w-full rounded-lg border border-border bg-field-background px-3 py-2"
+							className="w-full px-3 py-2"
 						/>
 						<HeroSwitch
 							isSelected={Boolean(editing.write)}
@@ -111,13 +111,13 @@ export function MetadataPage() {
 							onChange={(event) => setEditing({ ...editing, password: event.target.value })}
 							type="password"
 							placeholder={t("meta.passwordPlaceholder")}
-							className="w-full rounded-lg border border-border bg-field-background px-3 py-2"
+							className="w-full px-3 py-2"
 						/>
 						<input
 							value={editing.hide ?? ""}
 							onChange={(event) => setEditing({ ...editing, hide: event.target.value })}
 							placeholder={t("meta.hidePlaceholder")}
-							className="w-full rounded-lg border border-border bg-field-background px-3 py-2"
+							className="w-full px-3 py-2"
 						/>
 						{/* `h_sub` is the subfolder flag, so without this switch a `hide`
 						    rule only ever covers its own directory — and until this control
@@ -133,7 +133,7 @@ export function MetadataPage() {
 							onChange={(event) => setEditing({ ...editing, header: event.target.value })}
 							rows={3}
 							placeholder={t("meta.headerPlaceholder")}
-							className="w-full rounded-lg border border-border bg-field-background px-3 py-2"
+							className="w-full px-3 py-2"
 						/>
 						<HeroSwitch
 							isSelected={Boolean(editing.header_sub)}
@@ -146,7 +146,7 @@ export function MetadataPage() {
 							onChange={(event) => setEditing({ ...editing, readme: event.target.value })}
 							rows={3}
 							placeholder={t("meta.readmePlaceholder")}
-							className="w-full rounded-lg border border-border bg-field-background px-3 py-2"
+							className="w-full px-3 py-2"
 						/>
 						<HeroSwitch
 							isSelected={Boolean(editing.r_sub)}

@@ -15,7 +15,6 @@
 	--default: oklch(94% 0.0015 253.83);
 	--default-foreground: oklch(21.03% 0.0059 253.83);
 	--field-background: oklch(100% 0.0008 253.83);
-	--field-border: transparent;
 	--field-foreground: oklch(21.03% 0.0015 253.83);
 	--field-placeholder: oklch(55.17% 0.003 253.83);
 	--focus: oklch(62.04% 0.195 253.83);
@@ -37,8 +36,11 @@
 	--surface-tertiary-foreground: oklch(21.03% 0.0015 253.83);
 	--warning: oklch(78.19% 0.159 72.33);
 	--warning-foreground: oklch(21.03% 0.0059 72.33);
+	/* The one knob the radii scale from. `--field-radius` and `--field-border`
+	   are the library's own tokens (`calc(var(--radius) * 1.5)` and
+	   `transparent`), so this block no longer restates them — they were
+	   duplicates that read as if the project owned them. */
 	--radius: 0.5rem;
-	--field-radius: 0.75rem;
 	--font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -103,29 +105,67 @@ input {
 	font: inherit;
 }
 
-input:not([type="file"]),
-select,
-textarea {
-	border-color: var(--border);
+/* One recipe for the app's own form controls.
+ *
+ * Every field used to carry the same dozen classes in its `className`, which is
+ * how four slightly different versions of one control came to exist — two of
+ * them with no focus style at all. The classes also named a background that is
+ * not a theme colour (`bg-field-background`; the library's token is `bg-field`),
+ * so Tailwind dropped it and the real appearance came from the rule below
+ * anyway. Stated once here instead, components keep only their layout.
+ *
+ * The values are the library's, so a hand-written field and a HeroUI `Input`
+ * are the same field: its `.input` is `rounded-field bg-field
+ * text-field-foreground shadow-field`, hover is `bg-field-hover`, and focus is
+ * `status-focused-field` — a 2px ring in `--focus`.
+ *
+ * `:where()` keeps the specificity at zero, so anything that names what it is
+ * styling — a HeroUI component, a widget's own stylesheet — can still override
+ * one property without having to restate the other eight. Checkboxes and radios
+ * are excluded: they are not text fields, and a 12px radius plus a field
+ * background would redraw the control's own box.
+ */
+:where(input:not([type="file"], [type="checkbox"], [type="radio"]), select, textarea) {
+	background-color: var(--field-background);
+	border: 1px solid var(--border);
 	border-radius: var(--field-radius);
-	background: var(--field-background);
+	box-shadow: var(--field-shadow);
 	color: var(--field-foreground);
-}
-
-input:not([type="file"])::placeholder,
-textarea::placeholder {
-	color: var(--field-placeholder);
-}
-
-input:not([type="file"]):focus,
-select:focus,
-textarea:focus {
-	border-color: var(--focus);
-	outline: 2px solid color-mix(in oklch, var(--focus) 20%, transparent);
-	outline-offset: 1px;
-	transition-property: border-color, box-shadow, outline;
+	outline: none;
+	/* Only what changes. A bare `transition` would subscribe to twenty
+	   properties, `scale` and `transform` among them. */
+	transition-property: background-color, border-color, box-shadow;
 	transition-duration: 150ms;
-	transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+	transition-timing-function: ease-out;
+
+	&::placeholder {
+		color: var(--field-placeholder);
+	}
+
+	@media (hover: hover) {
+		&:hover:not(:focus) {
+			background-color: var(--field-hover);
+			border-color: var(--field-border-hover, var(--border));
+		}
+	}
+
+	/* A solid 2px accent ring rather than the 20%-opacity outline this used to
+	   draw: the old one was a hint, and focus has to be unmistakable. */
+	&:focus {
+		border-color: var(--focus);
+		box-shadow:
+			var(--field-shadow),
+			0 0 0 2px var(--focus);
+	}
+
+	&:disabled {
+		cursor: var(--cursor-disabled);
+		opacity: var(--disabled-opacity);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		transition-duration: 0ms;
+	}
 }
 
 input[type="checkbox"] {

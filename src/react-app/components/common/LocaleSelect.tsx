@@ -20,7 +20,7 @@ export function LocaleSelect({ className = "" }: { className?: string }) {
 			onChange={(event) => {
 				if (isLocale(event.target.value)) setLocale(event.target.value);
 			}}
-			className={`rounded-lg border border-border bg-field-background px-2 py-1 text-xs text-foreground outline-none focus:border-focus ${className}`}
+			className={`px-2 py-1 text-xs ${className}`}
 		>
 			{LOCALES.map((option) => (
 				<option key={option} value={option}>
