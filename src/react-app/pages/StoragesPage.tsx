@@ -8,6 +8,7 @@ import { ROUTES } from "../routes";
 import { useConfirm } from "../hooks/useConfirm";
 import { useT } from "../hooks/useLocale";
 import { useNotify } from "../hooks/useNotify";
+import { EmptyState } from "../components/common/EmptyState";
 import { StorageForm } from "../components/storage/StorageForm";
 import { StorageJsonDialog } from "../components/storage/StorageJsonDialog";
 import { StorageTable, StorageTableSkeleton } from "../components/storage/StorageTable";
@@ -209,9 +210,9 @@ export function StoragesPage() {
 				{loading ? (
 					<StorageTableSkeleton />
 				) : !items.length ? (
-					<p className="p-8 text-sm text-muted">{t("storages.empty")}</p>
+					<EmptyState message={t("storages.empty")} />
 				) : !visible.length ? (
-					<p className="p-8 text-sm text-muted">{t("storages.emptyFiltered")}</p>
+					<EmptyState message={t("storages.emptyFiltered")} />
 				) : (
 					<StorageTable
 						items={visible}

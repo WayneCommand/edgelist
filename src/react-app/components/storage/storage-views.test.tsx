@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { DriverInfo } from "../../lib/drivers";
 import type { Storage } from "../../lib/types";
 import { StorageFields } from "./StorageFields";
-import { StorageTable } from "./StorageTable";
+import { StorageTable, StorageTableSkeleton } from "./StorageTable";
 
 /**
  * Render smoke tests, in the same spirit as the file views: `react-dom/server`
@@ -88,6 +88,40 @@ describe("storage table", () => {
 	it("disables the row actions while that storage is busy", () => {
 		const html = renderToStaticMarkup(<StorageTable items={[storage()]} {...tableProps} busyId={1} />);
 		expect(html.match(/disabled=""/g)).toHaveLength(3);
+	});
+});
+
+describe("storage table skeleton", () => {
+	it("lays out the same columns as the table it stands in for", () => {
+		const skeleton = renderToStaticMarkup(<StorageTableSkeleton />);
+		const header = renderToStaticMarkup(
+			<StorageTable
+				items={[]}
+				drivers={DRIVERS}
+				busyId={null}
+				onOpen={noop}
+				onEdit={noop}
+				onToggle={noop}
+				onDelete={noop}
+			/>,
+		);
+		// Column for column, at every breakpoint. A skeleton that is not the shape
+		// of what replaces it is the layout jump it was added to prevent; the
+		// version before this had three columns against the table's six, so the
+		// header labels arrived and pushed the rows down.
+		for (const column of [
+			"min-w-0 flex-1",
+			"hidden w-24 shrink-0 sm:block",
+			"hidden w-16 shrink-0 md:block",
+			"w-24 shrink-0",
+			"hidden w-40 shrink-0 lg:block",
+			"w-56 shrink-0",
+		]) {
+			expect(header).toContain(column);
+			expect(skeleton).toContain(column);
+		}
+		// And the header band itself is there, rather than appearing at load.
+		expect(skeleton).toContain("bg-surface-secondary");
 	});
 });
 

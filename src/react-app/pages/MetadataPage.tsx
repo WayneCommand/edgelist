@@ -1,10 +1,11 @@
 import { type FormEvent, useCallback, useEffect, useState } from "react";
-import { Button as HeroButton, Card as HeroCard, Switch as HeroSwitch } from "@heroui/react";
+import { Button as HeroButton, Card as HeroCard, Skeleton, Switch as HeroSwitch } from "@heroui/react";
 import { api } from "../lib/api";
 import type { Meta } from "../lib/types";
 import { useConfirm } from "../hooks/useConfirm";
 import { useT } from "../hooks/useLocale";
 import { useNotify } from "../hooks/useNotify";
+import { EmptyState } from "../components/common/EmptyState";
 import { Modal } from "../components/common/Modal";
 
 export function MetadataPage() {
@@ -66,9 +67,9 @@ export function MetadataPage() {
 			<HeroCard className="overflow-hidden p-0" variant="default">
 				<div>
 					{loading ? (
-						<p className="p-8 text-sm text-muted">{t("action.loading")}</p>
+						<MetadataListSkeleton />
 					) : !items.length ? (
-						<p className="p-8 text-sm text-muted">{t("meta.empty")}</p>
+						<EmptyState message={t("meta.empty")} />
 					) : (
 						items.map((item) => (
 							<div key={item.id} className="flex items-center gap-4 border-b border-separator px-5 py-4 last:border-0">
@@ -161,5 +162,27 @@ export function MetadataPage() {
 				</Modal>
 			)}
 		</section>
+	);
+}
+
+/**
+ * Shaped like a rule row, down to the two action buttons, so the list does not
+ * jump when the rules arrive. The buttons are `h-9 md:h-8` because that is what
+ * a HeroUI button is at `size="sm"`.
+ */
+function MetadataListSkeleton() {
+	return (
+		<div className="divide-y divide-separator">
+			{Array.from({ length: 3 }, (_, index) => (
+				<div key={index} className="flex items-center gap-4 px-5 py-4">
+					<div className="flex min-w-0 flex-1 flex-col gap-2">
+						<Skeleton className="h-4 w-2/5 rounded-md" />
+						<Skeleton className="h-3 w-1/4 rounded-md" />
+					</div>
+					<Skeleton className="h-9 w-16 rounded-3xl md:h-8" />
+					<Skeleton className="h-9 w-16 rounded-3xl md:h-8" />
+				</div>
+			))}
+		</div>
 	);
 }

@@ -48,6 +48,7 @@ import { useT } from "../hooks/useLocale";
 import { useNotify } from "../hooks/useNotify";
 import { useSelection } from "../hooks/useSelection";
 import { useStoredState } from "../hooks/useStoredState";
+import { EmptyState } from "../components/common/EmptyState";
 import { Modal } from "../components/common/Modal";
 import { ContextMenu } from "../components/files/ContextMenu";
 import { DirectoryReadme } from "../components/files/DirectoryReadme";
@@ -683,7 +684,7 @@ export function FilesPage() {
 					{loading ? (
 						<FileListSkeleton view={view} />
 					) : !items.length ? (
-						<div className="p-16 text-center text-sm text-muted">{t("files.noFiles")}</div>
+						<EmptyState message={t("files.noFiles")} />
 					) : view === "grid" ? (
 						<FileGrid
 							items={items}

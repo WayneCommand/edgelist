@@ -110,17 +110,62 @@ export function StorageTable({ items, drivers, busyId, onOpen, onEdit, onToggle,
 	);
 }
 
-/** Placeholder shaped like the table, so the layout does not jump on load. */
+/**
+ * Placeholder shaped like the table.
+ *
+ * It mirrors the real header, column for column and breakpoint for breakpoint,
+ * the way `FileListSkeleton` mirrors the file list. The previous version had
+ * three columns that did not line up with the table's six, so the header labels
+ * appeared as the rows settled and pushed everything down — the jump a skeleton
+ * exists to prevent.
+ */
 export function StorageTableSkeleton() {
 	return (
-		<div className="divide-y divide-separator">
-			{Array.from({ length: 4 }, (_, index) => (
-				<div key={index} className="flex items-center gap-4 px-5 py-4">
-					<Skeleton className="h-4 w-1/4 rounded-md" />
-					<Skeleton className="hidden h-5 w-16 rounded-md sm:block" />
-					<Skeleton className="ml-auto h-4 w-32 rounded-md" />
-				</div>
-			))}
+		<div>
+			<div className="flex items-center gap-4 border-b border-separator bg-surface-secondary px-5 py-2">
+				<span className="min-w-0 flex-1">
+					<Skeleton className="h-3 w-20 rounded-md" />
+				</span>
+				<span className="hidden w-24 shrink-0 sm:block">
+					<Skeleton className="h-3 w-12 rounded-md" />
+				</span>
+				<span className="hidden w-16 shrink-0 md:block">
+					<Skeleton className="h-3 w-8 rounded-md" />
+				</span>
+				<span className="w-24 shrink-0">
+					<Skeleton className="h-3 w-10 rounded-md" />
+				</span>
+				<span className="hidden w-40 shrink-0 lg:block">
+					<Skeleton className="h-3 w-16 rounded-md" />
+				</span>
+				<span className="w-56 shrink-0" />
+			</div>
+			<div className="divide-y divide-separator">
+				{Array.from({ length: 4 }, (_, index) => (
+					<div key={index} className="flex items-center gap-4 px-5 py-4">
+						<span className="min-w-0 flex-1">
+							<Skeleton className="h-4 w-2/5 rounded-md" />
+						</span>
+						<span className="hidden w-24 shrink-0 sm:block">
+							<Skeleton className="h-5 w-16 rounded-md" />
+						</span>
+						<span className="hidden w-16 shrink-0 md:block">
+							<Skeleton className="h-4 w-8 rounded-md" />
+						</span>
+						<span className="w-24 shrink-0">
+							<Skeleton className="h-4 w-14 rounded-md" />
+						</span>
+						<span className="hidden w-40 shrink-0 lg:block">
+							<Skeleton className="h-4 w-24 rounded-md" />
+						</span>
+						<span className="flex w-56 shrink-0 justify-end gap-1">
+							<Skeleton className="h-6 w-10 rounded" />
+							<Skeleton className="h-6 w-12 rounded" />
+							<Skeleton className="h-6 w-12 rounded" />
+						</span>
+					</div>
+				))}
+			</div>
 		</div>
 	);
 }
