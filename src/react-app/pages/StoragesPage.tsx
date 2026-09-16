@@ -183,7 +183,7 @@ export function StoragesPage() {
 								type="button"
 								aria-pressed={active}
 								onClick={() => toggleFilter(driver.key)}
-								className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+								className={`tap rounded-full border px-3 py-1 text-xs ${
 									active
 										? "border-accent bg-accent-soft text-accent-soft-foreground"
 										: "border-border text-muted hover:text-foreground"
@@ -194,7 +194,11 @@ export function StoragesPage() {
 						);
 					})}
 					{filter.length > 0 && (
-						<button type="button" className="text-xs text-muted hover:text-foreground" onClick={() => setFilter([])}>
+						<button
+							type="button"
+							className="tint text-xs text-muted hover:text-foreground"
+							onClick={() => setFilter([])}
+						>
 							{t("action.clear")}
 						</button>
 					)}

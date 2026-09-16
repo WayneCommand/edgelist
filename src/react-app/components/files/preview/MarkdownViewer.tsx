@@ -87,7 +87,7 @@ function ModeSwitch({ mode, onChange }: { mode: MarkdownMode; onChange: (mode: M
 					type="button"
 					aria-pressed={mode === option.mode}
 					onClick={() => onChange(option.mode)}
-					className={`rounded-md px-2 py-1 text-xs transition-colors ${
+					className={`tap rounded-md px-2 py-1 text-xs ${
 						mode === option.mode ? "bg-accent-soft text-accent" : "text-muted hover:text-foreground"
 					}`}
 				>

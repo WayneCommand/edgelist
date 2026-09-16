@@ -45,7 +45,7 @@ function FileTile({ item, index, selection, onOpen, onContextMenu }: FileTilePro
 			role="row"
 			tabIndex={0}
 			aria-selected={selected}
-			className={`group relative flex cursor-default flex-col items-center gap-2 rounded-lg border p-3 text-center outline-none ${
+			className={`tint group relative flex cursor-default flex-col items-center gap-2 rounded-lg border p-3 text-center outline-none ${
 				selected ? "border-accent bg-accent-soft" : "border-transparent hover:bg-surface-secondary"
 			}`}
 			onClick={() => selection.selectOnly(item, index)}

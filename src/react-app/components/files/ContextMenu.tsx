@@ -52,7 +52,7 @@ export function ContextMenu({ position, items, onClose }: ContextMenuProps) {
 								item.onSelect();
 								onClose();
 							}}
-							className={`block w-full px-3 py-2 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+							className={`tap block w-full px-3 py-2 text-left text-sm disabled:cursor-not-allowed disabled:opacity-40 ${
 								item.danger ? "text-danger enabled:hover:bg-danger-soft" : "enabled:hover:bg-surface-secondary"
 							}`}
 						>

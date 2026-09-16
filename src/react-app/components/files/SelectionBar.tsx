@@ -53,8 +53,7 @@ export function SelectionBar({
 	);
 }
 
-const BASE =
-	"rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40";
+const BASE = "tap rounded-lg px-2.5 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40";
 
 type ActionProps = {
 	label: string;

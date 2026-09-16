@@ -83,7 +83,7 @@ function SortableHeader({ field, label, className, align = "start", sort, onSort
 				<button
 					type="button"
 					onClick={() => onSort(field)}
-					className={`flex items-center gap-1 rounded px-1 py-0.5 hover:text-foreground ${
+					className={`tint flex items-center gap-1 rounded px-1 py-0.5 hover:text-foreground ${
 						active ? "font-semibold text-foreground" : ""
 					}`}
 				>
@@ -115,7 +115,7 @@ function FileRow({ item, index, selection, onOpen, onContextMenu }: FileRowProps
 			role="row"
 			tabIndex={0}
 			aria-selected={selected}
-			className={`flex cursor-default items-center gap-4 border-b border-separator px-5 py-4 outline-none transition-colors last:border-0 ${
+			className={`tint flex cursor-default items-center gap-4 border-b border-separator px-5 py-4 outline-none last:border-0 ${
 				selected ? "bg-accent-soft" : "hover:bg-surface-secondary"
 			}`}
 			onClick={() => selection.selectOnly(item, index)}

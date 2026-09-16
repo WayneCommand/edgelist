@@ -76,7 +76,7 @@ function TreeNode({ path, label, depth, value, onChange }: TreeNodeProps) {
 					onClick={() => void toggle()}
 					aria-expanded={expanded}
 					aria-label={expanded ? t("tree.collapse", { name: label }) : t("tree.expand", { name: label })}
-					className="w-5 shrink-0 rounded text-muted hover:text-foreground"
+					className="tap w-5 shrink-0 rounded text-muted hover:text-foreground"
 				>
 					{expanded ? "▾" : "▸"}
 				</button>
@@ -84,7 +84,7 @@ function TreeNode({ path, label, depth, value, onChange }: TreeNodeProps) {
 					type="button"
 					onClick={() => onChange(path)}
 					title={path}
-					className={`min-w-0 flex-1 truncate rounded px-2 py-1 text-left ${
+					className={`tap min-w-0 flex-1 truncate rounded px-2 py-1 text-left ${
 						selected ? "bg-accent-soft font-medium text-accent-soft-foreground" : "hover:bg-surface-secondary"
 					}`}
 				>

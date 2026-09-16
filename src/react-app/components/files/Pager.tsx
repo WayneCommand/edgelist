@@ -46,7 +46,7 @@ export function Pager({ mode, page, pageSize, total, loading, onPage, onPageSize
 								type="button"
 								disabled={loading}
 								onClick={onLoadMore}
-								className="rounded-lg border border-border px-3 py-1 text-xs transition-colors hover:bg-surface-secondary disabled:opacity-50"
+								className="tap rounded-lg border border-border px-3 py-1 text-xs hover:bg-surface-secondary disabled:opacity-50"
 							>
 								{loading ? t("action.loading") : t("pager.showMore")}
 							</button>
@@ -101,7 +101,7 @@ function ModeSwitch({ mode, onChange }: { mode: PageMode; onChange: (mode: PageM
 					type="button"
 					aria-pressed={mode === option.mode}
 					onClick={() => onChange(option.mode)}
-					className={`rounded-md px-2 py-1 text-xs transition-colors ${
+					className={`tap rounded-md px-2 py-1 text-xs ${
 						mode === option.mode ? "bg-accent-soft text-accent" : "text-muted hover:text-foreground"
 					}`}
 				>
@@ -132,7 +132,7 @@ function PageButtons({ page, pages, onPage }: { page: number; pages: number; onP
 						// `aria-current` is how a pager marks the active page.
 						aria-current={item === page ? "page" : undefined}
 						onClick={() => onPage(item)}
-						className={`min-w-7 rounded-md px-2 py-1 text-xs transition-colors ${
+						className={`tap min-w-7 rounded-md px-2 py-1 text-xs ${
 							item === page
 								? "bg-accent text-accent-foreground"
 								: "text-muted hover:bg-surface-secondary hover:text-foreground"
@@ -166,7 +166,7 @@ function PageStep({
 			aria-label={label}
 			disabled={disabled}
 			onClick={onPress}
-			className="min-w-7 rounded-md px-2 py-1 text-xs text-muted transition-colors hover:bg-surface-secondary hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
+			className="tap min-w-7 rounded-md px-2 py-1 text-xs text-muted hover:bg-surface-secondary hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
 		>
 			{children}
 		</button>

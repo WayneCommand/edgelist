@@ -228,9 +228,44 @@ input[type="checkbox"] {
 	transition: none !important;
 }
 
-/* Scale on press for interactive elements */
-button:active:not(:disabled),
-a:active {
-	transform: scale(0.96);
-	transition: transform 100ms cubic-bezier(0.2, 0, 0, 1);
+/* Press feedback for the app's own controls.
+ *
+ * HeroUI's `Button` already ships a press scale tuned per size — 0.97 by
+ * default, 0.98 for `sm`, 0.96 for `lg` — on a 250ms transform transition. A
+ * blanket `button:active` selector outranks `.button:active` on specificity, so
+ * it would override both the library's chosen scale and its timing. These are
+ * opt-in classes for the plain `<button>`s HeroUI does not style instead.
+ *
+ * The transition belongs to the base state, never to `:active`: declared only
+ * while pressed, the press animates and the release snaps back.
+ */
+@utility tap {
+	transition-property: background-color, border-color, color, scale;
+	transition-duration: 150ms;
+	transition-timing-function: ease-out;
+
+	&:active:not(:disabled):not([aria-disabled="true"]) {
+		scale: 0.96;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		transition-property: background-color, border-color, color;
+
+		&:active:not(:disabled):not([aria-disabled="true"]) {
+			scale: none;
+		}
+	}
+}
+
+/* Colour-only feedback, for elements where a press scale would be noise: a
+ * column header re-sorts the whole listing and a row click replaces the
+ * selection, so the click already has a loud result of its own. */
+@utility tint {
+	transition-property: background-color, border-color, color;
+	transition-duration: 150ms;
+	transition-timing-function: ease-out;
+
+	@media (prefers-reduced-motion: reduce) {
+		transition-duration: 0ms;
+	}
 }

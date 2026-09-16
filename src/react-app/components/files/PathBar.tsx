@@ -62,13 +62,13 @@ export function PathBar({ path, crumbs, searching = false, onNavigate }: PathBar
 	return (
 		<div className="mb-4 flex flex-wrap items-center gap-2 text-sm text-muted">
 			{searching && <span className="text-xs">{t("files.searchResultsIn")}</span>}
-			<button type="button" onClick={() => onNavigate("/")} className="hover:text-accent">
+			<button type="button" onClick={() => onNavigate("/")} className="tint hover:text-accent">
 				{t("files.root")}
 			</button>
 			{crumbs.map((crumb) => (
 				<span key={crumb.path}>
 					/{" "}
-					<button type="button" onClick={() => onNavigate(crumb.path)} className="hover:text-accent">
+					<button type="button" onClick={() => onNavigate(crumb.path)} className="tint hover:text-accent">
 						{crumb.name}
 					</button>
 				</span>
@@ -78,7 +78,7 @@ export function PathBar({ path, crumbs, searching = false, onNavigate }: PathBar
 				aria-label={t("files.editPath")}
 				title={t("files.editPath")}
 				onClick={() => setDraft(path)}
-				className="rounded-md px-1.5 py-0.5 text-xs text-muted transition-colors hover:bg-surface-secondary hover:text-foreground"
+				className="tap rounded-md px-1.5 py-0.5 text-xs text-muted hover:bg-surface-secondary hover:text-foreground"
 			>
 				✎
 			</button>

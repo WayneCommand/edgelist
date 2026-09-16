@@ -139,7 +139,7 @@ function ViewSwitch({ view, onChange }: { view: ViewMode; onChange: (view: ViewM
 					type="button"
 					aria-pressed={view === option.mode}
 					onClick={() => onChange(option.mode)}
-					className={`rounded-md px-2 py-1 text-xs transition-colors ${
+					className={`tap rounded-md px-2 py-1 text-xs ${
 						view === option.mode ? "bg-accent-soft text-accent" : "text-muted hover:text-foreground"
 					}`}
 				>

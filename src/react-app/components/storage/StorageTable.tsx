@@ -15,7 +15,7 @@ type StorageTableProps = {
 };
 
 const ACTION_CLASS =
-	"rounded px-2 py-1 text-xs text-muted transition-colors hover:bg-surface-secondary hover:text-foreground disabled:opacity-50";
+	"tap rounded px-2 py-1 text-xs text-muted hover:bg-surface-secondary hover:text-foreground disabled:opacity-50";
 
 /**
  * The disk-manager view of the mounts: what is mounted where, which driver
@@ -57,12 +57,12 @@ export function StorageTable({ items, drivers, busyId, onOpen, onEdit, onToggle,
 					<div
 						key={item.id}
 						role="row"
-						className="flex items-center gap-4 border-b border-separator px-5 py-4 transition-colors last:border-0 hover:bg-surface-secondary"
+						className="tint flex items-center gap-4 border-b border-separator px-5 py-4 last:border-0 hover:bg-surface-secondary"
 					>
 						<span role="cell" className="min-w-0 flex-1">
 							<button
 								type="button"
-								className="truncate font-medium text-foreground hover:text-accent"
+								className="tint truncate font-medium text-foreground hover:text-accent"
 								onClick={() => onOpen(item)}
 							>
 								{item.mount_path}
