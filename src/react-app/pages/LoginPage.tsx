@@ -5,6 +5,7 @@ import type { LoginResponse } from "../lib/types";
 import { ROUTES } from "../routes";
 import { useT } from "../hooks/useLocale";
 import { LocaleSelect } from "../components/common/LocaleSelect";
+import { LogoMark } from "../components/common/LogoMark";
 
 export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void }) {
 	const t = useT();
@@ -45,8 +46,8 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 			</div>
 			<HeroCard className="w-full max-w-md" variant="default">
 				<div className="mb-8 text-center">
-					<div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-2xl font-bold text-accent-foreground">
-						E
+					<div className="mb-5 flex justify-center">
+						<LogoMark size="lg" />
 					</div>
 					<h1 className="text-2xl font-semibold tracking-tight">{t("login.title")}</h1>
 					<p className="mt-2 text-sm text-muted">{t("login.subtitle")}</p>

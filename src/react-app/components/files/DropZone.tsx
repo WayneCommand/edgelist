@@ -78,7 +78,7 @@ export function DropZone({ onDrop, disabled = false, children }: DropZoneProps) 
 			<div
 				aria-hidden={!active}
 				data-open={active}
-				className={`pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-xl border-2 border-dashed border-accent bg-accent-soft/80 transition-opacity duration-150 ease-out motion-reduce:transition-none ${
+				className={`pointer-events-none absolute inset-0 z-drop flex items-center justify-center rounded-xl border-2 border-dashed border-accent bg-accent-soft/80 transition-opacity duration-150 ease-out motion-reduce:transition-none ${
 					active ? "opacity-100" : "opacity-0"
 				}`}
 			>

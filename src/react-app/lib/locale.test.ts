@@ -97,6 +97,40 @@ describe("setLocale", () => {
 	});
 });
 
+describe("the document language", () => {
+	/**
+	 * `lib/locale.ts` writes `lang` onto `<html>` at import and on every change.
+	 * The stub has to be in place *before* the import, because the first write
+	 * happens as the module is evaluated.
+	 */
+	it("marks the starting language on the document", async () => {
+		const root = { lang: "" };
+		vi.stubGlobal("document", { documentElement: root });
+		const store = await freshStore("zh", "en-US");
+		expect(root.lang).toBe("zh");
+		expect(store.getLocale()).toBe("zh");
+	});
+
+	it("follows the language as it changes", async () => {
+		// A page marked `lang="en"` around Chinese text is mispronounced, and the
+		// attribute is what the browser reads for line breaking and font fallback.
+		const root = { lang: "" };
+		vi.stubGlobal("document", { documentElement: root });
+		const store = await freshStore(undefined, "en-US");
+
+		store.setLocale("zh");
+
+		expect(root.lang).toBe("zh");
+	});
+
+	it("is content to have no document at all", async () => {
+		// The Node test environment has none, and neither does any other importer
+		// that is not a browser.
+		const store = await freshStore(undefined, "en-US");
+		expect(() => store.setLocale("zh")).not.toThrow();
+	});
+});
+
 describe("the module translator", () => {
 	it("follows the language in effect", async () => {
 		const store = await freshStore(undefined, "en-US");

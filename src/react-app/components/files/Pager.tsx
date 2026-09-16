@@ -4,6 +4,7 @@ import type { MessageKey } from "../../lib/i18n";
 import { PAGE_SIZE_OPTIONS, parsePageSize, serializePageSize, type PageMode } from "../../lib/preferences";
 import { pageCount, pageNumbers, pageRange } from "../../lib/pagination";
 import { ChevronLeftIcon, ChevronRightIcon, type IconProps } from "../common/icons";
+import { SegmentedControl } from "../common/SegmentedControl";
 
 type PagerProps = {
 	mode: PageMode;
@@ -92,25 +93,12 @@ const MODES: ReadonlyArray<{ mode: PageMode; label: MessageKey }> = [
 function ModeSwitch({ mode, onChange }: { mode: PageMode; onChange: (mode: PageMode) => void }) {
 	const t = useT();
 	return (
-		<div
-			role="group"
-			aria-label={t("pager.pagingMode")}
-			className="flex items-center gap-0.5 rounded-lg border border-border p-0.5"
-		>
-			{MODES.map((option) => (
-				<button
-					key={option.mode}
-					type="button"
-					aria-pressed={mode === option.mode}
-					onClick={() => onChange(option.mode)}
-					className={`tap rounded-md px-2 py-1 text-xs ${
-						mode === option.mode ? "bg-accent-soft text-accent" : "text-muted hover:text-foreground"
-					}`}
-				>
-					{t(option.label)}
-				</button>
-			))}
-		</div>
+		<SegmentedControl
+			ariaLabel={t("pager.pagingMode")}
+			value={mode}
+			onChange={onChange}
+			options={MODES.map((option) => ({ value: option.mode, label: t(option.label) }))}
+		/>
 	);
 }
 

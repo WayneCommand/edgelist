@@ -5,6 +5,7 @@ import type { MessageKey } from "../../../lib/i18n";
 import { renderMarkdown } from "../../../lib/markdown";
 import { previewCaption } from "../../../lib/preview";
 import type { FileItem } from "../../../lib/types";
+import { SegmentedControl } from "../../common/SegmentedControl";
 import { LazyTextViewer } from "./lazyTextViewer";
 import { FRAME, PAD, PAGE, PANEL } from "./metrics";
 
@@ -84,24 +85,11 @@ const MODES: ReadonlyArray<{ mode: MarkdownMode; label: MessageKey }> = [
 function ModeSwitch({ mode, onChange }: { mode: MarkdownMode; onChange: (mode: MarkdownMode) => void }) {
 	const t = useT();
 	return (
-		<div
-			role="group"
-			aria-label={t("preview.markdownView")}
-			className="flex items-center gap-0.5 rounded-lg border border-border p-0.5"
-		>
-			{MODES.map((option) => (
-				<button
-					key={option.mode}
-					type="button"
-					aria-pressed={mode === option.mode}
-					onClick={() => onChange(option.mode)}
-					className={`tap rounded-md px-2 py-1 text-xs ${
-						mode === option.mode ? "bg-accent-soft text-accent" : "text-muted hover:text-foreground"
-					}`}
-				>
-					{t(option.label)}
-				</button>
-			))}
-		</div>
+		<SegmentedControl
+			ariaLabel={t("preview.markdownView")}
+			value={mode}
+			onChange={onChange}
+			options={MODES.map((option) => ({ value: option.mode, label: t(option.label) }))}
+		/>
 	);
 }

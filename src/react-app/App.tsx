@@ -6,6 +6,7 @@ import { useAuth } from "./hooks/useAuth";
 import { useT } from "./hooks/useLocale";
 import { ConfirmProvider } from "./components/common/ConfirmDialog";
 import { LocaleSelect } from "./components/common/LocaleSelect";
+import { LogoMark } from "./components/common/LogoMark";
 import { ThemeSelect } from "./components/common/ThemeSelect";
 import { BackupPage } from "./pages/BackupPage";
 import { FilesPage } from "./pages/FilesPage";
@@ -34,12 +35,10 @@ function Shell() {
 	return (
 		<main className="min-h-screen bg-background text-foreground">
 			<Toast.Provider placement="bottom end" />
-			<header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-separator/80 bg-surface/95 px-6 backdrop-blur">
+			<header className="sticky top-0 z-header flex h-16 items-center justify-between border-b border-separator/80 bg-surface/95 px-6 backdrop-blur">
 				<div className="flex items-center gap-3">
 					<button className="flex items-center gap-3" onClick={() => navigate(ROUTES.files())}>
-						<div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent font-bold text-accent-foreground">
-							E
-						</div>
+						<LogoMark />
 						<span className="font-semibold">EdgeList</span>
 					</button>
 				</div>

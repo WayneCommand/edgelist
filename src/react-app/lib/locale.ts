@@ -40,6 +40,20 @@ function initialLocale(): Locale {
 let locale: Locale = initialLocale();
 const listeners = new Set<() => void>();
 
+/**
+ * Tell the document which language it is in.
+ *
+ * The `lang` attribute is how a screen reader picks a pronunciation, and how a
+ * browser picks line-breaking, hyphenation and font fallback for CJK. It has to
+ * be on `<html>` rather than on any element React renders, and `index.html` can
+ * only hard-code one value — so it is corrected here, once on load and again
+ * whenever the language changes.
+ */
+function applyLang(next: Locale): void {
+	if (typeof document === "undefined") return;
+	document.documentElement.lang = next;
+}
+
 export function getLocale(): Locale {
 	return locale;
 }
@@ -48,8 +62,13 @@ export function setLocale(next: Locale): void {
 	if (next === locale) return;
 	locale = next;
 	writePreference(LOCALE_KEY, next);
+	applyLang(next);
 	for (const listener of listeners) listener();
 }
+
+// The stored language has to reach the document too, not only the components:
+// a page marked `lang="en"` around Chinese text is mispronounced.
+applyLang(locale);
 
 export function subscribe(listener: () => void): () => void {
 	listeners.add(listener);

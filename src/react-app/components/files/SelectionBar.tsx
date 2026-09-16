@@ -41,7 +41,7 @@ export function SelectionBar({
 		// conditionally rendered has no frame to animate from, so it could only
 		// ever cut in — and picking the first file is the moment worth showing,
 		// since it is the one that turns the list into something actionable.
-		<div className="pointer-events-none fixed inset-x-0 bottom-4 z-20 flex justify-center px-4">
+		<div className="pointer-events-none fixed inset-x-0 bottom-4 z-bar flex justify-center px-4">
 			{/* Same surface as the context menu — a 24px panel with a 4px inset and a
 			    shadow for the edge — because the two carry the same actions and a
 			    button that changes shape between them reads as a different button.

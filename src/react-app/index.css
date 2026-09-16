@@ -268,6 +268,27 @@ input[type="checkbox"] {
 	transition: none !important;
 }
 
+/* The app's stacking order, stated once.
+ *
+ * Four loose literals used to carry this: 10, 20, 20, 30. Two different
+ * overlays shared 20, which left which one was on top to be decided by where
+ * they happened to sit in the DOM — and a fifth overlay would have had to guess
+ * a number. A named ladder makes the answer readable and visible in one place.
+ *
+ * Tailwind's `z` utility reads the `--z-index-*` namespace, so these are the
+ * `z-header`, `z-drop`, `z-bar` and `z-menu` classes.
+ */
+@theme {
+	/* The sticky header sits under everything that floats. */
+	--z-index-header: 10;
+	/* The drag-and-drop target, which covers the content area. */
+	--z-index-drop: 20;
+	/* The selection bar, which floats over the list the drop target covers. */
+	--z-index-bar: 30;
+	/* The context menu, which has to be above whatever opened it. */
+	--z-index-menu: 40;
+}
+
 /* A picture gets a 1px ring just inside its edge, because the frame behind it is
  * a surface and a white screenshot would otherwise dissolve into it. The colour
  * is pure black or pure white at 10% — never a tinted neutral from the palette,

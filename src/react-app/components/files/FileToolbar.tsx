@@ -7,6 +7,7 @@ import type { MessageKey } from "../../lib/i18n";
 import type { ViewMode } from "../../lib/preferences";
 import { progressPercent, type UploadProgress } from "../../lib/upload";
 import { FolderPlusIcon, FolderUpIcon, RefreshIcon, UploadIcon } from "../common/icons";
+import { SegmentedControl } from "../common/SegmentedControl";
 
 type FileToolbarProps = {
 	selection: Selection;
@@ -133,24 +134,11 @@ const VIEW_OPTIONS: ReadonlyArray<{ mode: ViewMode; label: MessageKey }> = [
 function ViewSwitch({ view, onChange }: { view: ViewMode; onChange: (view: ViewMode) => void }) {
 	const t = useT();
 	return (
-		<div
-			role="group"
-			aria-label={t("toolbar.viewMode")}
-			className="flex items-center gap-0.5 rounded-lg border border-border p-0.5"
-		>
-			{VIEW_OPTIONS.map((option) => (
-				<button
-					key={option.mode}
-					type="button"
-					aria-pressed={view === option.mode}
-					onClick={() => onChange(option.mode)}
-					className={`tap rounded-md px-2 py-1 text-xs ${
-						view === option.mode ? "bg-accent-soft text-accent" : "text-muted hover:text-foreground"
-					}`}
-				>
-					{t(option.label)}
-				</button>
-			))}
-		</div>
+		<SegmentedControl
+			ariaLabel={t("toolbar.viewMode")}
+			value={view}
+			onChange={onChange}
+			options={VIEW_OPTIONS.map((option) => ({ value: option.mode, label: t(option.label) }))}
+		/>
 	);
 }

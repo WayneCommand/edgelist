@@ -53,7 +53,7 @@ export function ContextMenu({ position, items, onClose }: ContextMenuProps) {
 
 	return (
 		<div
-			className="fixed inset-0 z-30"
+			className="fixed inset-0 z-menu"
 			onClick={close}
 			onContextMenu={(event) => {
 				event.preventDefault();
