@@ -6,6 +6,7 @@ import { renderMarkdown } from "../../../lib/markdown";
 import { previewCaption } from "../../../lib/preview";
 import type { FileItem } from "../../../lib/types";
 import { LazyTextViewer } from "./lazyTextViewer";
+import { FRAME, PAD, PAGE, PANEL } from "./metrics";
 
 type MarkdownMode = "rendered" | "source";
 
@@ -34,7 +35,7 @@ export function MarkdownViewer({ item, text, dirty, saving, onChange, onSave }: 
 
 	if (mode === "source") {
 		return (
-			<Suspense fallback={<Skeleton className="h-[min(68vh,640px)] min-h-[360px] w-full rounded-lg" />}>
+			<Suspense fallback={<Skeleton className={`${PANEL} w-full rounded-lg`} />}>
 				<LazyTextViewer
 					item={item}
 					text={text}
@@ -57,12 +58,19 @@ export function MarkdownViewer({ item, text, dirty, saving, onChange, onSave }: 
 			{text.trim() ? (
 				// `renderMarkdown` escapes its input before adding anything, so the
 				// only markup here is the markup it wrote itself.
+				//
+				// On the page surface rather than in a well: this is prose, and the
+				// code blocks inside it are drawn on `surface-tertiary`, which needs
+				// the white behind it to read as a block at all.
 				<div
-					className="markdown-body max-h-[min(68vh,640px)] overflow-auto rounded-lg border border-border bg-surface p-5 text-sm"
+					className={`markdown-body ${PANEL} overflow-auto ${FRAME} ${PAGE} ${PAD} text-sm`}
 					dangerouslySetInnerHTML={{ __html: html }}
 				/>
 			) : (
-				<p className="rounded-lg border border-border bg-surface p-5 text-sm text-muted">{t("preview.empty")}</p>
+				// No panel height here: "This file is empty." is a sentence, and the
+				// same rule already applies to the audio player and the
+				// no-previewer notice.
+				<p className={`${FRAME} ${PAGE} ${PAD} text-sm text-muted`}>{t("preview.empty")}</p>
 			)}
 		</div>
 	);

@@ -8,6 +8,7 @@ import { ImageViewer } from "./ImageViewer";
 import { LazyTextViewer } from "./lazyTextViewer";
 import { MarkdownViewer } from "./MarkdownViewer";
 import { MediaViewer } from "./MediaViewer";
+import { PANEL } from "./metrics";
 import { PdfViewer } from "./PdfViewer";
 import { UnsupportedViewer } from "./UnsupportedViewer";
 
@@ -30,7 +31,7 @@ export type PreviewActions = {
 	onDownload: () => void;
 };
 
-const editorFallback = <Skeleton className="h-[min(68vh,640px)] min-h-[360px] w-full rounded-lg" />;
+const editorFallback = <Skeleton className={`${PANEL} w-full rounded-lg`} />;
 
 /**
  * Picks the previewer for a file. The choice is made from the extension alone

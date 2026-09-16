@@ -1,4 +1,5 @@
 import type { FileItem } from "../../../lib/types";
+import { FRAME, PAD, PANEL, WELL } from "./metrics";
 
 /**
  * The bytes arrive as an object URL built from an authenticated fetch — `/d/*`
@@ -6,8 +7,11 @@ import type { FileItem } from "../../../lib/types";
  */
 export function ImageViewer({ item, url }: { item: FileItem; url: string }) {
 	return (
-		<div className="flex max-h-[min(68vh,640px)] min-h-[240px] items-center justify-center overflow-auto rounded-lg border border-border bg-surface-secondary p-4">
-			<img src={url} alt={item.name} className="max-h-full max-w-full object-contain" />
+		<div className={`flex ${PANEL} items-center justify-center overflow-auto ${FRAME} ${WELL} ${PAD}`}>
+			{/* `image-outline` keeps a white screenshot from dissolving into the frame
+			    behind it. It is a 1px ring drawn just inside the edge, so it never
+			    changes the image's size. */}
+			<img src={url} alt={item.name} className="image-outline max-h-full max-w-full object-contain" />
 		</div>
 	);
 }

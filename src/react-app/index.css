@@ -268,6 +268,30 @@ input[type="checkbox"] {
 	transition: none !important;
 }
 
+/* A picture gets a 1px ring just inside its edge, because the frame behind it is
+ * a surface and a white screenshot would otherwise dissolve into it. The colour
+ * is pure black or pure white at 10% — never a tinted neutral from the palette,
+ * which picks up the surrounding surface and reads as dirt along the edge.
+ *
+ * The dark value waits here with the rest of the dark tokens; it applies once
+ * `data-theme="dark"` reaches the document. */
+:root,
+.light,
+.default,
+[data-theme="light"] {
+	--image-outline: oklch(0 0 0 / 0.1);
+}
+
+.dark,
+[data-theme="dark"] {
+	--image-outline: oklch(1 0 0 / 0.1);
+}
+
+@utility image-outline {
+	outline: 1px solid var(--image-outline);
+	outline-offset: -1px;
+}
+
 /* Press feedback for the app's own controls.
  *
  * HeroUI's `Button` already ships a press scale tuned per size — 0.97 by

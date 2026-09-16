@@ -1,4 +1,5 @@
 import { useT } from "../../../hooks/useLocale";
+import { FRAME, PANEL, WELL } from "./metrics";
 
 /**
  * The browser's own PDF viewer, fed an object URL. That is the whole feature:
@@ -14,11 +15,7 @@ export function PdfViewer({ title, url }: { title: string; url: string }) {
 	const t = useT();
 	return (
 		<div className="space-y-2">
-			<iframe
-				src={url}
-				title={title}
-				className="h-[min(68vh,640px)] min-h-[360px] w-full rounded-lg border border-border bg-surface-secondary"
-			/>
+			<iframe src={url} title={title} className={`${PANEL} w-full ${FRAME} ${WELL}`} />
 			<p className="text-xs text-muted">{t("preview.pdfNote")}</p>
 		</div>
 	);

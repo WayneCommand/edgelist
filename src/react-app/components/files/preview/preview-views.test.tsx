@@ -92,6 +92,48 @@ describe("preview dispatch", () => {
 	});
 });
 
+/**
+ * The viewers share one frame and one panel height (see `metrics.ts`). Stepping
+ * through a folder used to resize the dialog on every file, because each viewer
+ * had picked its own numbers; these assertions are what stops that coming back.
+ */
+describe("preview geometry", () => {
+	const height = "h-[min(68vh,640px)]";
+
+	it("gives a picture a ring so it cannot dissolve into the frame", () => {
+		const html = body("photo.png", { url: "blob:mock-1" });
+		// The ring is drawn inside the edge, so it must not be a border.
+		expect(html).toContain("image-outline");
+		expect(html).not.toContain("ring-");
+	});
+
+	it("sizes every panel-shaped viewer from the same height", () => {
+		for (const [name, extra] of [
+			["photo.png", { url: "blob:mock" }],
+			["clip.mp4", { url: "blob:mock" }],
+			["paper.pdf", { url: "blob:mock" }],
+		] as const) {
+			expect(body(name, extra)).toContain(height);
+		}
+	});
+
+	it("does not force a panel height onto a control or a sentence", () => {
+		// A 640px well around a 40px player, or around two lines of prose, is a
+		// worse answer than a dialog the size of its contents.
+		expect(body("song.mp3", { url: "blob:mock" })).not.toContain(height);
+		expect(body("budget.docx")).not.toContain(height);
+	});
+
+	it("still gives the short viewers the shared frame", () => {
+		for (const [name, extra] of [
+			["song.mp3", { url: "blob:mock" }],
+			["budget.docx", undefined],
+		] as const) {
+			expect(body(name, extra)).toContain("rounded-lg border border-border");
+		}
+	});
+});
+
 describe("markdown viewer", () => {
 	function markdown(text: string, extra: { dirty?: boolean; saving?: boolean } = {}) {
 		return renderToStaticMarkup(
@@ -127,5 +169,16 @@ describe("markdown viewer", () => {
 		const html = markdown("# <script>alert(1)</script>");
 		expect(html).toContain("&lt;script&gt;");
 		expect(html).not.toContain("<script>");
+	});
+
+	it("reads prose on the page surface at the shared panel size", () => {
+		const html = markdown("# Title");
+		expect(html).toContain("bg-surface p-5");
+		expect(html).toContain("h-[min(68vh,640px)]");
+	});
+
+	it("does not wrap the empty notice in a panel", () => {
+		// One sentence should not claim 640 pixels of dialog.
+		expect(markdown("")).not.toContain("h-[min(68vh,640px)]");
 	});
 });
