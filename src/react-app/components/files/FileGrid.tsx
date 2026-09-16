@@ -45,7 +45,10 @@ function FileTile({ item, index, selection, onOpen, onContextMenu }: FileTilePro
 			role="row"
 			tabIndex={0}
 			aria-selected={selected}
-			className={`tint group relative flex cursor-default flex-col items-center gap-2 rounded-lg border p-3 text-center outline-none ${
+			// The tile sits on the card's surface, not on the page background, so
+			// the ring is drawn without an offset rather than borrowing HeroUI's
+			// `status-focused`, whose offset colour would show as a halo here.
+			className={`tint group relative flex cursor-default flex-col items-center gap-2 rounded-lg border p-3 text-center outline-none focus-visible:ring-2 focus-visible:ring-focus ${
 				selected ? "border-accent bg-accent-soft" : "border-transparent hover:bg-surface-secondary"
 			}`}
 			onClick={() => selection.selectOnly(item, index)}
@@ -62,14 +65,20 @@ function FileTile({ item, index, selection, onOpen, onContextMenu }: FileTilePro
 				}
 			}}
 		>
-			{/* Kept out of the way until the tile is hovered, selected or tabbed to. */}
+			{/* Kept out of the way until the tile is hovered, selected or tabbed to.
+			    `group-focus-within` rather than `focus`: the tile is what takes the
+			    tab stop, so a `focus:` on the checkbox itself only ever fired for
+			    the mouse. Opacity and scale only, because a tile is hovered
+			    constantly and a 300ms blur-in would charge that cost every time. */}
 			<input
 				type="checkbox"
 				checked={selected}
 				readOnly
 				aria-label={t("table.select", { name: item.name })}
-				className={`absolute top-2 left-2 h-4 w-4 transition-opacity ${
-					selected ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus:opacity-100"
+				className={`absolute top-2 left-2 h-4 w-4 transition-[opacity,scale] duration-150 ease-out motion-reduce:transition-none ${
+					selected
+						? "scale-100 opacity-100"
+						: "scale-[0.25] opacity-0 group-hover:scale-100 group-hover:opacity-100 group-focus-within:scale-100 group-focus-within:opacity-100"
 				}`}
 				onClick={(event) => {
 					event.stopPropagation();

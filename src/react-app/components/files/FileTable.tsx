@@ -115,7 +115,10 @@ function FileRow({ item, index, selection, onOpen, onContextMenu }: FileRowProps
 			role="row"
 			tabIndex={0}
 			aria-selected={selected}
-			className={`tint flex cursor-default items-center gap-4 border-b border-separator px-5 py-4 outline-none last:border-0 ${
+			// A ring rather than an outline, drawn inside the row: the card that
+			// holds this list clips its overflow, so anything painted outside the
+			// row's own box loses its edges at the first and last row.
+			className={`tint flex cursor-default items-center gap-4 border-b border-separator px-5 py-4 outline-none last:border-0 focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset ${
 				selected ? "bg-accent-soft" : "hover:bg-surface-secondary"
 			}`}
 			onClick={() => selection.selectOnly(item, index)}

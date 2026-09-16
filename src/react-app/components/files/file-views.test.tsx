@@ -113,6 +113,23 @@ describe("file views", () => {
 		expect(html).toContain('aria-selected="true"');
 	});
 
+	it("draws a focus ring on a row and on a tile", () => {
+		const table = renderToStaticMarkup(<FileTable items={items} {...viewProps} />);
+		const grid = renderToStaticMarkup(<FileGrid items={items} {...viewProps} />);
+		expect(table).toContain("focus-visible:ring-2");
+		// The row is inset: the card around the list clips whatever a row tries
+		// to paint outside its own box, so an offset ring would lose its edges.
+		expect(table).toContain("focus-visible:ring-inset");
+		expect(grid).toContain("focus-visible:ring-2");
+	});
+
+	it("reveals a tile's checkbox when the tile itself takes the tab", () => {
+		const html = renderToStaticMarkup(<FileGrid items={items} {...viewProps} />);
+		// The tile is the tab stop, so the reveal has to hang off the tile being
+		// focused; a `focus:` on the checkbox only ever answered the mouse.
+		expect(html).toContain("group-focus-within:opacity-100");
+	});
+
 	it("marks the active view in the toolbar", () => {
 		const html = renderToStaticMarkup(
 			<FileToolbar
