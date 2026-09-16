@@ -97,4 +97,23 @@ describe("context menu", () => {
 		expect(html).toContain("shadow-overlay");
 		expect(html).not.toContain("border-border");
 	});
+
+	it("arrives with HeroUI's own overlay motion", () => {
+		const html = renderToStaticMarkup(
+			<ContextMenu position={{ x: 10, y: 10 }} items={fileActions(permissionsFor([file]), handlers)} onClose={noop} />,
+		);
+		// The library's popover recipe: 150ms in, 100ms out, and the zoom is
+		// anchored at the corner the menu opened from rather than at its centre.
+		expect(html).toContain("animate-in");
+		expect(html).toContain("duration-150");
+		expect(html).toContain("zoom-in-90");
+		expect(html).toContain("fade-in-0");
+		expect(html).toContain("origin-top-left");
+		// The exit is swapped in over the enter, never alongside it, and it holds
+		// its last frame until the timeout removes the menu.
+		expect(html).not.toContain("animate-out");
+		expect(html).not.toContain("animate-in fill-mode-forwards");
+		// Motion is never the only feedback channel, and never forced.
+		expect(html).toContain("motion-reduce:animate-none");
+	});
 });
