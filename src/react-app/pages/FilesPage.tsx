@@ -1,5 +1,5 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Button as HeroButton, Skeleton } from "@heroui/react";
+import { Button as HeroButton, Card as HeroCard, Skeleton } from "@heroui/react";
 import { useLocation, useNavigate } from "react-router";
 import { api, fetchFileResponse } from "../lib/api";
 import { collectRemovals, groupByParent, summarizeBatch, type RemoveOutcome } from "../lib/batch";
@@ -670,7 +670,11 @@ export function FilesPage() {
 					onCopyLink={() => single && void copyLink(single)}
 				/>
 				<DirectoryReadme slot="header" items={items} metaValue={header} />
-				<section className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+				{/* The surface is HeroUI's card, the same one the other pages use, so
+				    the corners and the edge come from one place. `p-0` because the rows
+				    bring their own padding and `gap-0` because the error banner has to
+				    sit flush against the list it explains. */}
+				<HeroCard className="gap-0 overflow-hidden p-0" variant="default">
 					{error && (
 						<p className="border-b border-danger/20 bg-danger-soft px-5 py-3 text-sm text-danger-soft-foreground">
 							{"key" in error ? t(error.key) : error.text}
@@ -697,7 +701,7 @@ export function FilesPage() {
 							onContextMenu={openMenu}
 						/>
 					)}
-				</section>
+				</HeroCard>
 				<Pager
 					mode={pageMode}
 					page={page}

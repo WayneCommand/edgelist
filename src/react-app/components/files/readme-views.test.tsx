@@ -47,4 +47,15 @@ describe("DirectoryReadme", () => {
 		// A name from the other slot is not a source at all, so the rule shows.
 		expect(render("readme", [entry("header.md")], "# rule")).toContain("<h1>rule</h1>");
 	});
+
+	it("wears the same card as the listing, not a surface of its own", () => {
+		const html = render("readme", [], "# Welcome");
+		// HeroUI's `card` class is where the 24px radius and the shadow live. The
+		// readme sits directly above and below the file list, so a hand-written
+		// surface here would put two different corner radii side by side.
+		expect(html).toContain("card--default");
+		expect(html).not.toContain("border-border");
+		// The rendered markup still gets the markdown styles, on its own element.
+		expect(html).toContain("markdown-body");
+	});
 });

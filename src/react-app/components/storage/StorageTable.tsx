@@ -77,8 +77,10 @@ export function StorageTable({ items, drivers, busyId, onOpen, onEdit, onToggle,
 							{item.order ?? 0}
 						</span>
 						<span role="cell" className="w-24 shrink-0">
+							{/* One colour, declared once: the dot takes the status colour
+							    from the text beside it through `currentColor`. */}
 							<span className={`inline-flex items-center gap-1.5 text-xs ${enabled ? "text-success" : "text-muted"}`}>
-								<span aria-hidden="true" className={`h-2 w-2 rounded-full ${enabled ? "bg-success" : "bg-muted"}`} />
+								<span aria-hidden="true" className="h-2 w-2 rounded-full bg-current" />
 								{enabled ? t("storages.enabled") : t("storages.disabled")}
 							</span>
 						</span>

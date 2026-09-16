@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Skeleton } from "@heroui/react";
+import { Card as HeroCard, Skeleton } from "@heroui/react";
 import { fetchFileResponse } from "../../lib/api";
 import { renderMarkdown } from "../../lib/markdown";
 import { readmeSourceFor, type ReadmeSlot } from "../../lib/readme";
@@ -58,15 +58,18 @@ export function DirectoryReadme({ slot, items, metaValue }: DirectoryReadmeProps
 	const text = source.kind === "inline" ? source.text : fetched;
 	const html = useMemo(() => (text.trim() ? renderMarkdown(text) : ""), [text]);
 
-	if (loading) return <Skeleton className="h-24 w-full rounded-xl" />;
+	if (loading) return <Skeleton className="h-24 w-full rounded-3xl" />;
 	if (!html) return null;
 
 	return (
+		// The same card as the listing beside it, so the two surfaces cannot drift
+		// apart. `dangerouslySetInnerHTML` needs its own element, which is why the
+		// padding moves inside rather than sitting on the card.
+		//
 		// `renderMarkdown` escapes its input before adding anything, so the only
 		// markup reaching the DOM is the markup it wrote itself.
-		<div
-			className="markdown-body rounded-xl border border-border bg-surface p-5 text-sm"
-			dangerouslySetInnerHTML={{ __html: html }}
-		/>
+		<HeroCard className="p-0" variant="default">
+			<div className="markdown-body p-5 text-sm" dangerouslySetInnerHTML={{ __html: html }} />
+		</HeroCard>
 	);
 }

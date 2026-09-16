@@ -35,10 +35,13 @@ export function ContextMenu({ position, items, onClose }: ContextMenuProps) {
 				onClose();
 			}}
 		>
+			{/* The surface follows HeroUI's own menu: a 24px panel with a 4px inset,
+			    so a highlighted row ends inside the corner instead of slicing
+			    through it, and a shadow rather than a border carries the edge. */}
 			<ul
 				role="menu"
 				style={{ left, top }}
-				className="fixed max-h-80 w-56 overflow-auto rounded-xl border border-border bg-overlay py-1 shadow-lg"
+				className="fixed flex max-h-80 w-56 flex-col gap-1 overflow-auto rounded-3xl bg-overlay p-1 shadow-overlay"
 			>
 				{items.map((item) => (
 					<li key={item.label} role="none">
@@ -52,7 +55,7 @@ export function ContextMenu({ position, items, onClose }: ContextMenuProps) {
 								item.onSelect();
 								onClose();
 							}}
-							className={`tap block w-full px-3 py-2 text-left text-sm disabled:cursor-not-allowed disabled:opacity-40 ${
+							className={`tap flex min-h-9 w-full items-center rounded-2xl px-3 py-1.5 text-left text-sm disabled:cursor-not-allowed disabled:opacity-40 ${
 								item.danger ? "text-danger enabled:hover:bg-danger-soft" : "enabled:hover:bg-surface-secondary"
 							}`}
 						>

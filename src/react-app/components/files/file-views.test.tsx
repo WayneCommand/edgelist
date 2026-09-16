@@ -364,6 +364,18 @@ describe("selection bar", () => {
 		expect(html).toContain('title="Copy needs entries from a single folder"');
 		expect(html).toContain('title="Move needs entries from a single folder"');
 	});
+
+	it("wears the same surface as the context menu", () => {
+		const html = renderToStaticMarkup(<SelectionBar {...barProps([items[1]])} />);
+		// 24px panel, 4px inset, 16px rows — HeroUI's own menu geometry, so the
+		// highlight of a pressed action ends inside the corner rather than slicing
+		// through it. The edge is a shadow so it adapts to whatever it floats over,
+		// which a fixed `border-border` does not.
+		expect(html).toContain("rounded-3xl");
+		expect(html).toContain("rounded-2xl");
+		expect(html).toContain("shadow-overlay");
+		expect(html).not.toContain("border-border");
+	});
 });
 
 const pagerHandlers = { onPage: noop, onPageSize: noop, onMode: noop, onLoadMore: noop };

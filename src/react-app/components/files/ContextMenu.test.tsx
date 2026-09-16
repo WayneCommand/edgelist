@@ -81,4 +81,20 @@ describe("context menu", () => {
 		expect(html).toContain("<hr");
 		expect(html).not.toContain('disabled=""');
 	});
+
+	it("insets its rows so a highlight stays inside the rounded corner", () => {
+		const html = renderToStaticMarkup(
+			<ContextMenu position={{ x: 10, y: 10 }} items={fileActions(permissionsFor([file]), handlers)} onClose={noop} />,
+		);
+		// HeroUI's own menu geometry: a 24px panel with a 4px inset and 16px rows.
+		// Without the inset a full-width highlight is a square band that cuts into
+		// the corner, and `overflow-auto` then lets it spill past the radius.
+		expect(html).toContain("rounded-3xl");
+		expect(html).toContain("rounded-2xl");
+		expect(html).toContain("min-h-9");
+		// The edge is a shadow, not a fixed border colour, so it adapts to whatever
+		// the menu is drawn over.
+		expect(html).toContain("shadow-overlay");
+		expect(html).not.toContain("border-border");
+	});
 });

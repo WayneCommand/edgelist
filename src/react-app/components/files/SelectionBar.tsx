@@ -37,7 +37,12 @@ export function SelectionBar({
 
 	return (
 		<div className="pointer-events-none fixed inset-x-0 bottom-4 z-20 flex justify-center px-4">
-			<div className="pointer-events-auto flex max-w-full flex-wrap items-center gap-1 rounded-xl border border-border bg-overlay/95 px-2 py-2 shadow-lg backdrop-blur">
+			{/* Same surface as the context menu — a 24px panel with a 4px inset and a
+			    shadow for the edge — because the two carry the same actions and a
+			    button that changes shape between them reads as a different button.
+			    The translucency and blur stay: this one floats over a scrolling list
+			    rather than over the page. */}
+			<div className="pointer-events-auto flex max-w-full flex-wrap items-center gap-1 rounded-3xl bg-overlay/95 p-1 shadow-overlay backdrop-blur">
 				<span className="max-w-48 truncate px-2 text-sm text-muted">
 					{selection.count === 1 ? single?.name : t("toolbar.selectedCount", { count: selection.count })}
 				</span>
@@ -53,7 +58,13 @@ export function SelectionBar({
 	);
 }
 
-const BASE = "tap rounded-lg px-2.5 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40";
+/**
+ * The same geometry as a HeroUI menu item — 36px tall, 16px corners — so an
+ * action is the same shape here and in the context menu. The height is what
+ * keeps the 16px radius reading as a corner rather than collapsing into a pill.
+ */
+const BASE =
+	"tap flex min-h-9 items-center rounded-2xl px-3 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40";
 
 type ActionProps = {
 	label: string;
