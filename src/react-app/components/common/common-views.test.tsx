@@ -1,11 +1,13 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { setLocale } from "../../lib/locale";
 import { EmptyState } from "./EmptyState";
+import { ThemeSelect } from "./ThemeSelect";
 
 /**
- * A render smoke test for the shared empty state. It is presentational, so
- * there is no behaviour to pin — what is worth pinning is that the icon stays
- * decorative, since three pages now depend on this one copy of it.
+ * Render smoke tests. Both components go through `react-dom/server`, so the
+ * wording they render is English: `ThemeSelect` reads the language through the
+ * hook, which gets `DEFAULT_LOCALE` from the server snapshot.
  */
 describe("EmptyState", () => {
 	it("draws the message and a decorative icon", () => {
@@ -29,5 +31,32 @@ describe("EmptyState", () => {
 		// the second one holds its invisible start state until its turn.
 		expect(html.match(/class="arrive/g)).toHaveLength(2);
 		expect(html).toContain("[--arrive-delay:100ms]");
+	});
+});
+
+describe("ThemeSelect", () => {
+	beforeEach(() => {
+		setLocale("en");
+	});
+
+	it("offers the system alongside the two explicit themes", () => {
+		// A two-way switch cannot express "follow the system", and guessing on the
+		// user's behalf would stop following it the moment the OS changed.
+		const html = renderToStaticMarkup(<ThemeSelect />);
+		expect(html).toContain("<select");
+		for (const value of ["system", "light", "dark"]) expect(html).toContain(`value="${value}"`);
+		expect(html).toContain("System");
+		expect(html).toContain("Light");
+		expect(html).toContain("Dark");
+	});
+
+	it("starts on the system preference when nothing has been chosen", () => {
+		// Server rendering has no stored value, which is the same state as a first
+		// visit: "not chosen" and "chosen as system" are one preference.
+		expect(renderToStaticMarkup(<ThemeSelect />)).toContain('value="system" selected');
+	});
+
+	it("names itself for a screen reader", () => {
+		expect(renderToStaticMarkup(<ThemeSelect />)).toContain('aria-label="Theme"');
 	});
 });

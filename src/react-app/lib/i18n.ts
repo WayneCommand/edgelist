@@ -41,6 +41,10 @@ export const EN = {
 	"nav.signOut": "Sign out",
 	"nav.language": "Language",
 	"nav.switchLanguage": "Switch language",
+	"nav.theme": "Theme",
+	"nav.theme.system": "System",
+	"nav.theme.light": "Light",
+	"nav.theme.dark": "Dark",
 
 	// Sign in
 	"login.title": "Sign in to EdgeList",
@@ -364,6 +368,10 @@ export const ZH: Partial<Record<MessageKey, string>> = {
 	"nav.signOut": "退出登录",
 	"nav.language": "语言",
 	"nav.switchLanguage": "切换语言",
+	"nav.theme": "主题",
+	"nav.theme.system": "跟随系统",
+	"nav.theme.light": "浅色",
+	"nav.theme.dark": "深色",
 
 	"login.title": "登录 EdgeList",
 	"login.subtitle": "兼容 OpenList 的文件管理",

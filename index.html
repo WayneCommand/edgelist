@@ -5,6 +5,25 @@
 		<link rel="icon" type="image/svg+xml" href="/vite.svg" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>Vite + React + TS</title>
+		<!--
+			The stored theme has to be on <html> before the browser paints, or a
+			dark-theme user sees a white canvas flash on every single load. That is
+			earlier than any module can run, so the lookup is repeated here — the
+			one place in the app that cannot import `lib/theme.ts`. The key and
+			prefix are `lib/preferences.ts`'s; keep the three in step.
+		-->
+		<script>
+			try {
+				var stored = localStorage.getItem("edgelist:theme");
+				var dark =
+					stored === "dark" ||
+					(stored !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+				document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+			} catch (error) {
+				// No storage, or no matchMedia: the stylesheet's own light default
+				// stands, and `initTheme` gets another go once it loads.
+			}
+		</script>
 	</head>
 
 	<body>

@@ -26,6 +26,12 @@ export const VIEW_MODE_KEY = "view-mode";
  */
 export const LOCALE_KEY = "locale";
 
+/**
+ * Key holding the chosen theme. Absent means "not chosen yet", which reads as
+ * following the operating system — see `lib/theme.ts`.
+ */
+export const THEME_KEY = "theme";
+
 /** `list` renders the table, `grid` renders tiles. */
 export type ViewMode = "list" | "grid";
 

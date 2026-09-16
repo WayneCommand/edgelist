@@ -6,6 +6,7 @@ import { useAuth } from "./hooks/useAuth";
 import { useT } from "./hooks/useLocale";
 import { ConfirmProvider } from "./components/common/ConfirmDialog";
 import { LocaleSelect } from "./components/common/LocaleSelect";
+import { ThemeSelect } from "./components/common/ThemeSelect";
 import { BackupPage } from "./pages/BackupPage";
 import { FilesPage } from "./pages/FilesPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -55,6 +56,7 @@ function Shell() {
 				</nav>
 				<div className="flex items-center gap-2">
 					<LocaleSelect />
+					<ThemeSelect />
 					<HeroButton size="sm" variant="ghost" onPress={signOut}>
 						{t("nav.signOut")}
 					</HeroButton>
