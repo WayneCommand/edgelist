@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from "react";
 import { useT } from "../../hooks/useLocale";
 import { normalizeInputPath } from "../../lib/paths";
+import { PencilIcon } from "../common/icons";
 
 type PathBarProps = {
 	/** The directory being browsed, shown as crumbs and used to seed the editor. */
@@ -78,9 +79,9 @@ export function PathBar({ path, crumbs, searching = false, onNavigate }: PathBar
 				aria-label={t("files.editPath")}
 				title={t("files.editPath")}
 				onClick={() => setDraft(path)}
-				className="tap rounded-md px-1.5 py-0.5 text-xs text-muted hover:bg-surface-secondary hover:text-foreground"
+				className="tap rounded-md px-1.5 py-0.5 text-muted hover:bg-surface-secondary hover:text-foreground"
 			>
-				✎
+				<PencilIcon className="size-4" />
 			</button>
 		</div>
 	);

@@ -6,6 +6,7 @@ import { pickedTree, type DroppedTree } from "../../lib/dropUpload";
 import type { MessageKey } from "../../lib/i18n";
 import type { ViewMode } from "../../lib/preferences";
 import { progressPercent, type UploadProgress } from "../../lib/upload";
+import { FolderPlusIcon, FolderUpIcon, RefreshIcon, UploadIcon } from "../common/icons";
 
 type FileToolbarProps = {
 	selection: Selection;
@@ -102,15 +103,19 @@ export function FileToolbar({
 				)}
 				<ViewSwitch view={view} onChange={onViewChange} />
 				<HeroButton size="sm" variant="outline" isDisabled={locked} onPress={onNewFolder}>
+					<FolderPlusIcon />
 					{t("files.newFolder")}
 				</HeroButton>
 				<HeroButton size="sm" variant="outline" isDisabled={locked} onPress={() => folderRef.current?.click()}>
+					<FolderUpIcon />
 					{t("toolbar.uploadFolder")}
 				</HeroButton>
 				<HeroButton size="sm" variant="secondary" isDisabled={locked} onPress={() => fileRef.current?.click()}>
+					<UploadIcon />
 					{t("toolbar.upload")}
 				</HeroButton>
 				<HeroButton size="sm" variant="ghost" onPress={onRefresh}>
+					<RefreshIcon />
 					{t("action.refresh")}
 				</HeroButton>
 			</div>

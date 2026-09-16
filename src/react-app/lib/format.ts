@@ -9,19 +9,6 @@ export function formatSize(size: number) {
 }
 
 /**
- * The glyph a listing shows for an entry.
- *
- * A mount point gets its own symbol rather than the folder glyph, because the
- * two behave differently: rename, move and remove are refused on a mount point
- * and allowed on a folder. An emoji is the only icon vocabulary this UI has, so
- * this is where that distinction has to live.
- */
-export function fileGlyph(item: FileItem) {
-	if (isMountPoint(item)) return "💾";
-	return item.is_dir ? "📁" : "📄";
-}
-
-/**
  * The line of secondary text beside an entry's name.
  *
  * Shared so the table and the grid cannot drift apart on what a mount point is

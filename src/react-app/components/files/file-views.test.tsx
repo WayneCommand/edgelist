@@ -90,7 +90,18 @@ describe("file views", () => {
 			<FileTable items={items} {...viewProps} sort={{ field: "size", direction: "desc" }} onSort={noop} />,
 		);
 		expect(html).toContain('aria-sort="descending"');
-		expect(html).toContain("↓");
+		// The direction is an arrow glyph rather than a typed arrow, so it can
+		// inherit the header's colour in every state.
+		expect(html).toContain('data-icon="arrow-down"');
+		expect(html).not.toContain('data-icon="arrow-up"');
+	});
+
+	it("points the sort arrow the other way when the order flips", () => {
+		const html = renderToStaticMarkup(
+			<FileTable items={items} {...viewProps} sort={{ field: "size", direction: "asc" }} onSort={noop} />,
+		);
+		expect(html).toContain('data-icon="arrow-up"');
+		expect(html).not.toContain('data-icon="arrow-down"');
 	});
 
 	it("renders plain header labels when sorting is off", () => {
@@ -449,24 +460,27 @@ describe("path bar", () => {
 // intermediate level a nested mount needs is *not* a mount point — it has no
 // storage of its own — and must keep looking like the folder it is.
 describe("mount points in the listing", () => {
-	it("gives a mount point a disk glyph and its own label in the table", () => {
+	it("gives a mount point a storage glyph and its own label in the table", () => {
 		const html = renderToStaticMarkup(<FileTable items={mountItems} {...viewProps} />);
-		expect(html).toContain("💾");
+		expect(html).toContain('data-icon="database"');
 		expect(html).toContain("Mount point");
 		// `layer` and `docs` are folders, so exactly two keep the folder glyph.
-		expect(html.match(/📁/g)).toHaveLength(2);
+		expect(html.match(/data-icon="folder"/g)).toHaveLength(2);
 	});
 
-	it("gives a mount point a disk glyph and its own label in the grid", () => {
+	it("gives a mount point a storage glyph and its own label in the grid", () => {
 		const html = renderToStaticMarkup(<FileGrid items={mountItems} {...viewProps} />);
-		expect(html).toContain("💾");
+		expect(html).toContain('data-icon="database"');
 		expect(html).toContain("Mount point");
-		expect(html.match(/📁/g)).toHaveLength(2);
+		expect(html.match(/data-icon="folder"/g)).toHaveLength(2);
 	});
 
-	it("keeps the plain listing free of the disk glyph", () => {
+	it("keeps the plain listing free of the storage glyph", () => {
 		const html = renderToStaticMarkup(<FileTable items={items} {...viewProps} />);
-		expect(html).not.toContain("💾");
+		expect(html).not.toContain('data-icon="database"');
 		expect(html).not.toContain("Mount point");
+		// The ordinary pair still gets its glyph: one folder, one file.
+		expect(html).toContain('data-icon="folder"');
+		expect(html).toContain('data-icon="file"');
 	});
 });

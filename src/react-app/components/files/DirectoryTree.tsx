@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useT } from "../../hooks/useLocale";
 import { api } from "../../lib/api";
 import type { DirectoryNode } from "../../lib/types";
+import { ChevronRightIcon } from "../common/icons";
 
 type DirectoryTreeProps = {
 	/** Currently chosen destination. */
@@ -76,9 +77,16 @@ function TreeNode({ path, label, depth, value, onChange }: TreeNodeProps) {
 					onClick={() => void toggle()}
 					aria-expanded={expanded}
 					aria-label={expanded ? t("tree.collapse", { name: label }) : t("tree.expand", { name: label })}
-					className="tap w-5 shrink-0 rounded text-muted hover:text-foreground"
+					className="tap flex w-5 shrink-0 items-center justify-center rounded text-muted hover:text-foreground"
 				>
-					{expanded ? "▾" : "▸"}
+					{/* One chevron that rotates, rather than two glyphs swapping places.
+					    The two states keep the same shape, and it is the rotation that
+					    moves rather than the artwork. */}
+					<ChevronRightIcon
+						className={`size-4 transition-[rotate] duration-150 ease-out motion-reduce:transition-none ${
+							expanded ? "rotate-90" : ""
+						}`}
+					/>
 				</button>
 				<button
 					type="button"

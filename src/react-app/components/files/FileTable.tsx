@@ -1,9 +1,11 @@
 import { useT } from "../../hooks/useLocale";
-import { fileDescription, fileGlyph } from "../../lib/format";
+import { fileDescription } from "../../lib/format";
 import type { MenuPosition } from "../../lib/menu";
 import { DEFAULT_SORT_STATE } from "../../lib/preferences";
 import type { FileItem, SortField, SortState } from "../../lib/types";
 import type { Selection } from "../../hooks/useSelection";
+import { ArrowDownIcon, ArrowUpIcon } from "../common/icons";
+import { FileGlyph } from "./FileGlyph";
 
 type FileTableProps = {
 	items: FileItem[];
@@ -75,8 +77,9 @@ type SortableHeaderProps = {
 function SortableHeader({ field, label, className, align = "start", sort, onSort }: SortableHeaderProps) {
 	const state = sort ?? DEFAULT_SORT_STATE;
 	const active = sort?.field === field;
-	const arrow = active ? (state.direction === "asc" ? "↑" : "↓") : "";
-	const ariaSort = active ? (state.direction === "asc" ? "ascending" : "descending") : "none";
+	const ascending = state.direction === "asc";
+	const Arrow = ascending ? ArrowUpIcon : ArrowDownIcon;
+	const ariaSort = active ? (ascending ? "ascending" : "descending") : "none";
 	return (
 		<span role="columnheader" aria-sort={ariaSort} className={`${className} ${align === "end" ? "justify-end" : ""}`}>
 			{onSort ? (
@@ -88,9 +91,10 @@ function SortableHeader({ field, label, className, align = "start", sort, onSort
 					}`}
 				>
 					{label}
-					<span aria-hidden="true" className="w-3">
-						{arrow}
-					</span>
+					{/* The box is reserved whether or not an arrow is drawn, so re-sorting
+					    never shifts the columns. The stroke thickens to 2px to match the
+					    label, which goes semibold while it is the active header. */}
+					<span className="flex w-3 justify-center">{active && <Arrow className="size-3" strokeWidth={2} />}</span>
 				</button>
 			) : (
 				<span className="px-1 py-0.5">{label}</span>
@@ -146,8 +150,8 @@ function FileRow({ item, index, selection, onOpen, onContextMenu }: FileRowProps
 					selection.toggle(item, index, event.shiftKey);
 				}}
 			/>
-			<span className="w-8 shrink-0 text-center text-2xl" aria-hidden="true">
-				{fileGlyph(item)}
+			<span className="w-8 shrink-0 text-center">
+				<FileGlyph item={item} />
 			</span>
 			<span role="gridcell" className="min-w-0 flex-1 truncate text-sm font-medium">
 				{item.name}

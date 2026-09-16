@@ -1,7 +1,9 @@
+import type { ComponentType } from "react";
 import { useT } from "../../hooks/useLocale";
 import type { MessageKey } from "../../lib/i18n";
 import { PAGE_SIZE_OPTIONS, parsePageSize, serializePageSize, type PageMode } from "../../lib/preferences";
 import { pageCount, pageNumbers, pageRange } from "../../lib/pagination";
+import { ChevronLeftIcon, ChevronRightIcon, type IconProps } from "../common/icons";
 
 type PagerProps = {
 	mode: PageMode;
@@ -116,9 +118,12 @@ function PageButtons({ page, pages, onPage }: { page: number; pages: number; onP
 	const t = useT();
 	return (
 		<div className="flex items-center gap-0.5">
-			<PageStep label={t("pager.previous")} disabled={page <= 1} onPress={() => onPage(page - 1)}>
-				‹
-			</PageStep>
+			<PageStep
+				label={t("pager.previous")}
+				disabled={page <= 1}
+				onPress={() => onPage(page - 1)}
+				icon={ChevronLeftIcon}
+			/>
 			{pageNumbers(page, pages).map((item, index) =>
 				item === "gap" ? (
 					// Keyed by position: the gaps themselves are not identifiable.
@@ -142,9 +147,12 @@ function PageButtons({ page, pages, onPage }: { page: number; pages: number; onP
 					</button>
 				),
 			)}
-			<PageStep label={t("pager.next")} disabled={page >= pages} onPress={() => onPage(page + 1)}>
-				›
-			</PageStep>
+			<PageStep
+				label={t("pager.next")}
+				disabled={page >= pages}
+				onPress={() => onPage(page + 1)}
+				icon={ChevronRightIcon}
+			/>
 		</div>
 	);
 }
@@ -153,12 +161,12 @@ function PageStep({
 	label,
 	disabled,
 	onPress,
-	children,
+	icon: Icon,
 }: {
 	label: string;
 	disabled: boolean;
 	onPress: () => void;
-	children: string;
+	icon: ComponentType<IconProps>;
 }) {
 	return (
 		<button
@@ -168,7 +176,8 @@ function PageStep({
 			onClick={onPress}
 			className="tap min-w-7 rounded-md px-2 py-1 text-xs text-muted hover:bg-surface-secondary hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
 		>
-			{children}
+			{/* A chevron is direction-bearing, so it mirrors with the writing direction. */}
+			<Icon className="size-4 rtl:-scale-x-100" />
 		</button>
 	);
 }

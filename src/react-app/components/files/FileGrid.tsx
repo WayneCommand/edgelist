@@ -1,8 +1,9 @@
 import { useT } from "../../hooks/useLocale";
-import { fileDescription, fileGlyph } from "../../lib/format";
+import { fileDescription } from "../../lib/format";
 import type { FileItem } from "../../lib/types";
 import type { Selection } from "../../hooks/useSelection";
 import type { MenuPosition } from "../../lib/menu";
+import { FileGlyph } from "./FileGlyph";
 
 type FileGridProps = {
 	items: FileItem[];
@@ -85,7 +86,7 @@ function FileTile({ item, index, selection, onOpen, onContextMenu }: FileTilePro
 					selection.toggle(item, index, event.shiftKey);
 				}}
 			/>
-			<span className="text-4xl">{fileGlyph(item)}</span>
+			<FileGlyph item={item} className="size-8" />
 			<span className="w-full truncate text-sm font-medium">{item.name}</span>
 			<span className="text-xs text-muted">{fileDescription(item, t)}</span>
 		</div>
