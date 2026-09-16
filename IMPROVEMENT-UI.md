@@ -200,10 +200,11 @@
 
 ## 5. 验收缺口（必须补的验证）
 
-1. 本机 `node_modules` 未安装，**HeroUI 的 `Card` / `Button` 实际样式未能读取**：§1.4 的 LOW（HeroCard 圆角）与 §1.1 的 MEDIUM（`isDisabled` 是否真的渲染 `disabled`）需要装完依赖后确认。
-2. 无浏览器，**所有动效只做了代码级审查，没有在 Animations 面板按 10% 速度回放**。UI-1 / UI-8 落地时必须补这一步。
-3. `--accent` 与 `--*-soft` 的对比度未测量。
-4. UI-3 会改变多处测试里对字形/文案的断言（`file-views.test.tsx`、`preview-views.test.tsx`），需同步修改后再提交。
+1. ~~本机 `node_modules` 未安装，HeroUI 的 `Card` / `Button` 实际样式未能读取~~ → **已解决**，结论见 §6.1。
+2. 无浏览器，**所有动效只做了代码级审查，没有在 Animations 面板按 10% 速度回放**。UI-1 已在此前提下提交（按压缩放只动了 `scale` 与过渡归属，风险已降到最低），**UI-8 落地前必须补这一步**。
+3. `--accent` 与 `--*-soft` 的对比度未测量（`accent-soft` 上的选中文字、`disabled:opacity-40` 叠在 `text-muted` 上）。UI-5 会把分段控件的选中态切到 `--accent-soft-foreground`，届时一并实测。
+4. ~~UI-3 会改变多处测试里对字形/文案的断言~~ → **已解决**，UI-3 已同步 `file-views.test.tsx` 的断言（emoji → `data-icon`）。
+5. **环境陷阱（与代码无关，但会让验收命令假失败）**：工作区的删除操作会把文件移入仓库根的 `.Trash-0/`。当它里面装着 `dist/client/assets` 的产物时，`pnpm lint`（即 `eslint .`）会在 Node 默认 2GB 堆上 **OOM 崩溃**（`FATAL ERROR: Ineffective mark-compacts near heap limit`，约 30s 后 abort），而 `eslint src` 却完全正常——因为 `.Trash-0` 不在 `eslint.config.js` 的 `ignores` 里，ESLint 会去读那 7.6MB 的 `TextViewer-*.js`。**遇到这个问题先 `ls -la` 看有没有 `.Trash-0/`，清掉再跑，不要去改 `eslint.config.js` 的 `dist` 忽略项。**
 
 ---
 
@@ -237,10 +238,20 @@
 | §1.10「`--field-border` 从未被使用，且暗色没定义」 | `--field-border` 也是 HeroUI 的 token（默认 `transparent`） | 是重复声明，不是死代码 |
 | 新增 | `bg-field-background` **不是主题色名**，`--color-field-background` 不存在 → 该 class 被 Tailwind 静默丢弃。输入框实际背景来自 `index.css` 的全局规则，所以在亮/暗两色下都"碰巧"看不出问题 | 全站 12 处都在用；改名 `bg-field` 或删掉 |
 | 新增 | 分段控件选中态用 `text-accent` 压在 `accent-soft` 上，而库专门提供了 `--accent-soft-foreground` 就是给这种场合的；本仓 `App.tsx`、`DirectoryTree`、`StorageTable` 用的是后者，三处分段控件用的是前者 | 同一个语义两种取值，且前者对比度更低 |
+| 新增 | §1.4 的"阴影代替边框"**不适用于有意画出的描边控件**：库自己的 `button--outline` 就是 `@apply border border-border` | 所以 `BackupPage.tsx:74` 那个带边框的"选择文件"label **保持不动**。规则针对的是"用边框表达层级"，不是"所有边框"——别把它一路清到按钮上 |
 
 ### 6.3 执行记录
 
 | 步骤 | 状态 | 实际改动 |
 | --- | --- | --- |
-| UI-1 | ✅ | `index.css` 删掉全局按下缩放规则，新增 `@utility tap`（背景/边框/文字/`scale` 过渡 + `:active:not(:disabled):not([aria-disabled])` 时 `scale: .96`）与 `@utility tint`（仅颜色），两者都带 `prefers-reduced-motion` 兜底；12 个组件里的 `transition-colors` 换成 `tap` / `tint`，并把过渡属性写成会变的那几个。构建产物确认 `.tap{transition-property:...}` 与嵌套的 `:active`、`@media` 都正确生成 |
+| UI-1 | ✅ | `index.css` 删掉全局按下缩放规则，新增 `@utility tap`（背景/边框/文字/`scale` 过渡 + `:active:not(:disabled):not([aria-disabled])` 时 `scale: .96`）与 `@utility tint`（仅颜色），两者都带 `prefers-reduced-motion` 兜底；12 个组件里的 `transition-colors` 换成 `tap` / `tint`，并把过渡属性写成会变的那几个。构建产物确认 `.tap{transition-property:...}` 与嵌套的 `:active`、`@media` 都正确生成。commit `9c7406b` |
+| UI-2 | ✅ | `FileTable.tsx` 行加 `focus-visible:ring-2 focus-visible:ring-inset`（**inset 而非 offset**：卡片裁切 `overflow-hidden`，offset 环会在首/末行丢掉左右边），`FileGrid.tsx` 瓦片加 `focus-visible:ring-2`；勾选框的露出条件从 `focus:`（作用在 checkbox 自身）改成 `group-focus-within:opacity-100 group-focus-within:scale-100`。补 3 条断言。commit `df32801` |
+| UI-3 | ✅ | 新增 `components/common/icons.tsx`（13 个手写 24 网格、`stroke="currentColor"`、默认 1.5px 描边的图标，每个带 `data-icon` 供测试断言）；新增 `FileGlyph.tsx` 接管列表字形（挂载点＝`database` + `text-accent`，文件夹/文件共用中性色），`format.ts` 的 emoji `fileGlyph` 删除；排序箭头换成 `ArrowUp/Down`（激活列 `strokeWidth={2}` 配半粗标签）、分页换 chevron（`rtl:-scale-x-100`）、路径编辑换 `pencil`、目录树改成**同一个 chevron 旋转 90°**、工具栏四个动作加图标。测试断言从 emoji 改为 `data-icon`。**偏离原计划**：原计划还列了 `App.tsx`、`LoginPage.tsx` 的品牌块（§1.7 LOW），未做——那是同一个标识两种圆角的独立问题，与图标体系无关，留给 UI-10 的收尾。commit `33106ae` |
+| UI-4 | ✅ | `FilesPage.tsx` 的手写卡片换成 `HeroCard variant="default"`（`p-0 gap-0`：行自带内边距；错误横幅必须与列表贴齐）；`DirectoryReadme.tsx` 同样换成 `HeroCard className="p-0"`——它就在列表卡片上下方，改完列表卡片后两者圆角不一致会**比改之前更明显**，所以必须一起改（§1.4 把它漏了）；`ContextMenu.tsx` / `SelectionBar.tsx` 采用库的菜单配方 `rounded-3xl` + `p-1` + `rounded-2xl`（见 §6.2），去掉 `border border-border`，`shadow-lg`→`shadow-overlay`；`StorageTable.tsx` 状态点改 `bg-current`。补 3 条断言（菜单/浮条的面、readme 用 `card--default`）。commit `8955481` |
+| UI-5 ~ UI-10 | ⬜ | 未开始 |
+
+**实施中新增的两条经验**（原计划未预见）：
+
+1. **`focus-visible:ring-inset` 不是风格选择**：列表卡片现在由 `HeroCard` 提供 `overflow-hidden`，任何画在行盒子之外的环都会在首/末行被切掉。改用 inset 环是唯一可行方案。
+2. **`SelectionBar` 的按钮高度是被 16px 圆角反推出来的**：`px-2.5 py-1.5` + `text-xs` 只有 28px 高，16px 圆角会被浏览器夹到 14px，视觉上变成胶囊——与库配方"16px 是一个角"的意图相反。给到 `min-h-9`（= 库的菜单项高度）后，浮条总高度仍是 44px（内边距从 8px 减到 4px 正好抵消），形状与右键菜单完全一致。
 
