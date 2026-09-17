@@ -12,12 +12,18 @@
  * the arithmetic re-run after `--radius` dropped to 5px: `rounded-lg` (5px) less
  * the `p-0.5` inset (2px) leaves 3px, so the inner corner is `rounded-[3px]`.
  * It used to be `rounded-md`, which was right when `--radius-lg` was 8px and
- * `--radius-md` was 6px; after the change `rounded-md` is 3.75px and would spill
- * 0.75px past the inner arc.
+ * `--radius-md` was 6px; after the change `rounded-md` is 3.75px, i.e. 0.75px
+ * deeper than the inset leaves room for.
  *
- * Stated as a rule rather than two numbers: the inner corner may be *smaller*
- * than outer-minus-inset, never larger. Smaller only reads as a slightly tighter
- * corner; larger cuts into the outer curve.
+ * The two ways to miss are not equal. Deeper than outer-minus-inset is a
+ * near-miss at being concentric, and a near-miss reads as "not lined up" where
+ * a clear difference reads as "deliberately inset" — and carried far enough it
+ * stops being subtle, which is what the library's old button was (15px on a
+ * 36px control, clamped by CSS to a capsule). Shallower is the conventional
+ * direction and is fine in small doses: the library's own menu row sits 1px
+ * under its own panel and reads as its own shape, inset. What neither direction
+ * does is cross the panel's arc — the inset alone rules that out — so this is a
+ * question of the band being even, not of overlapping.
  *
  * The label weight is deliberately uniform. Making the selected option
  * semibold would be a nicer emphasis and would also widen it by a pixel or two,
