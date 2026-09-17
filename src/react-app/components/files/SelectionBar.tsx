@@ -42,7 +42,7 @@ export function SelectionBar({
 		// ever cut in — and picking the first file is the moment worth showing,
 		// since it is the one that turns the list into something actionable.
 		<div className="pointer-events-none fixed inset-x-0 bottom-4 z-bar flex justify-center px-4">
-			{/* Same surface as the context menu — a 15px panel, a 4px inset, 10px
+			{/* Same surface as the context menu — an 18px panel, a 6px inset, 12px
 			    actions, and a shadow for the edge — because the two carry the same
 			    actions and a button that changes shape between them reads as a
 			    different button.
@@ -61,7 +61,7 @@ export function SelectionBar({
 				// without this it would swallow clicks on the last row of the list and
 				// be reachable by Tab while nothing is selected.
 				inert={!open}
-				className={`pointer-events-auto flex max-w-full flex-wrap items-center gap-1 rounded-3xl bg-overlay/95 p-1 shadow-overlay backdrop-blur transition-[opacity,translate] ease-out motion-reduce:transition-none ${
+				className={`pointer-events-auto flex max-w-full flex-wrap items-center gap-1 rounded-3xl bg-overlay/95 p-1.5 shadow-overlay backdrop-blur transition-[opacity,translate] ease-out motion-reduce:transition-none ${
 					open ? "translate-y-0 opacity-100 duration-300" : "translate-y-3 opacity-0 duration-150"
 				}`}
 			>
@@ -81,9 +81,10 @@ export function SelectionBar({
 }
 
 /**
- * The same geometry as a HeroUI menu item — 36px tall, 16px corners — so an
+ * The same geometry as a HeroUI menu item — 36px tall, 12px corners — so an
  * action is the same shape here and in the context menu. The height is what
- * keeps the 16px radius reading as a corner rather than collapsing into a pill.
+ * keeps the 12px radius reading as a corner rather than collapsing into a pill:
+ * a fourth of the height is a corner, half of it is a capsule.
  */
 const BASE =
 	"tap flex min-h-9 items-center rounded-2xl px-3 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40";

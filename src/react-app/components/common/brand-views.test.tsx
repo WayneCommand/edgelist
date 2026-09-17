@@ -40,12 +40,13 @@ describe("SegmentedControl", () => {
 	});
 
 	it("keeps the concentric geometry all three copies had agreed on", () => {
-		// The shell rounds at `--radius-lg` (5px) and insets by `p-0.5` (2px), so
-		// the inner corner has 3px to live in and takes it as an arbitrary value:
-		// the ladder's `rounded-md` is 3.75px, which spills 0.75px past the inner
-		// arc. Only the pair is asserted here — the numbers are in the component's
-		// header, next to the classes they describe, because a render test can see
-		// class names but not what they resolve to.
+		// The shell rounds at `--radius-lg` (6px) and insets by `p-0.5` (2px)
+		// *inside a 1px border*, so the inner corner has 6 − 1 − 2 = 3px to live in
+		// and takes it as an arbitrary value: the ladder's `rounded-md` is 4.5px,
+		// which is deeper than that leaves room for. The border is the term that is
+		// easiest to drop from the sum. Only the pair is asserted here — the numbers
+		// are in the component's header, next to the classes they describe, because
+		// a render test can see class names but not what they resolve to.
 		const html = render("list");
 		expect(html).toContain("rounded-lg");
 		// `\b` rather than a bare substring: the shell also carries `gap-0.5`, which

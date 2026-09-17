@@ -392,12 +392,16 @@ describe("selection bar", () => {
 
 	it("wears the same surface as the context menu", () => {
 		const html = renderToStaticMarkup(<SelectionBar {...barProps([items[1]])} />);
-		// 15px panel, 4px inset, 10px rows — HeroUI's own menu geometry, so the
+		// 18px panel, 6px inset, 12px actions — HeroUI's own menu geometry, so the
 		// highlight of a pressed action ends inside the corner rather than slicing
 		// through it. The edge is a shadow so it adapts to whatever it floats over,
 		// which a fixed `border-border` does not.
+		// The inset travels with the corners and is pinned with them: the guard in
+		// geometry.test.ts reads it from a table, so a drift here would leave it
+		// checking a shape nothing renders.
 		expect(html).toContain("rounded-3xl");
 		expect(html).toContain("rounded-2xl");
+		expect(html).toMatch(/\bp-1\.5\b/);
 		expect(html).toContain("shadow-overlay");
 		expect(html).not.toContain("border-border");
 	});

@@ -13,11 +13,12 @@
  * the frame without a height, because a 640px box around a 40px control, or
  * around one sentence, is worse than a dialog that resizes.
  *
- * The radius is stated once too. It has not changed here — `rounded-lg` is the
- * same class it always was, though it now resolves to 5px rather than 8px — and
- * the point is that a frame which always appears beside another frame cannot
- * drift away from it. It lives in `FRAME_RADIUS` rather than inside `FRAME`
- * because the two skeleton fallbacks draw a frame's corner without its border.
+ * The radius is stated once too, and it has never been a value of its own: it is
+ * the `lg` step of the ladder, so it follows `--radius` with everything else —
+ * 6px now, 5px before the knob moved. The point is that a frame which always
+ * appears beside another frame cannot drift away from it. It lives in
+ * `FRAME_RADIUS` rather than inside `FRAME` because the two skeleton fallbacks
+ * draw a frame's corner without its border.
  */
 
 /** A panel sized by the dialog rather than by the file. */

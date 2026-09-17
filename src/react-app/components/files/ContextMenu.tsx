@@ -60,13 +60,20 @@ export function ContextMenu({ position, items, onClose }: ContextMenuProps) {
 				close();
 			}}
 		>
-			{/* The surface follows HeroUI's own menu: a 15px panel with a 4px inset
-			    and 10px rows, so a highlighted row ends inside the corner instead of
+			{/* The surface follows HeroUI's own menu: an 18px panel, a 6px inset and
+			    12px rows, so a highlighted row ends inside the corner instead of
 			    slicing through it, and a shadow rather than a border carries the
-			    edge. 15 less the 4px inset leaves 11, so the 10px row is inside the
-			    inner arc — which is the direction the rule allows. An inner radius
-			    may be *smaller* than outer-minus-inset and only reads as a slightly
-			    tighter corner; larger is what cuts into the outer curve.
+			    edge.
+			
+			    The inset is the knob. With the ladder's 3xl panel and 2xl row the corner
+			    band comes out even exactly when `inset = --radius`
+			    (band = outer − inset − inner = 3r − r − 2r), which is where the 6px comes
+			    from — it replaced a fixed 4px when the radius went up, because an inset
+			    that does not follow the knob widens the band by exactly what the knob
+			    moved. On the two ways to miss: smaller than outer-minus-inset only reads
+			    as a slightly tighter corner, while larger widens the band — and a
+			    near-miss at concentric reads as "did not line up" where a clear
+			    difference reads as deliberate.
 
 			    `fill-mode-forwards` holds the faded-out state until the timeout
 			    unmounts the menu. Without it the exit animation ends by snapping
@@ -74,7 +81,7 @@ export function ContextMenu({ position, items, onClose }: ContextMenuProps) {
 			<ul
 				role="menu"
 				style={{ left, top }}
-				className={`fixed flex max-h-80 w-56 origin-top-left flex-col gap-1 overflow-auto rounded-3xl bg-overlay p-1 shadow-overlay motion-reduce:animate-none ${
+				className={`fixed flex max-h-80 w-56 origin-top-left flex-col gap-1 overflow-auto rounded-3xl bg-overlay p-1.5 shadow-overlay motion-reduce:animate-none ${
 					exiting
 						? "animate-out fill-mode-forwards duration-100 ease-smooth zoom-out-95 fade-out"
 						: "animate-in duration-150 ease-smooth fade-in-0 zoom-in-90"

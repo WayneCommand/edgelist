@@ -86,11 +86,17 @@ describe("context menu", () => {
 		const html = renderToStaticMarkup(
 			<ContextMenu position={{ x: 10, y: 10 }} items={fileActions(permissionsFor([file]), handlers)} onClose={noop} />,
 		);
-		// HeroUI's own menu geometry: a 15px panel, a 4px inset, 10px rows.
+		// HeroUI's own menu geometry: an 18px panel, a 6px inset, 12px rows.
 		// Without the inset a full-width highlight is a square band that cuts into
 		// the corner, and `overflow-auto` then lets it spill past the radius.
+		// The inset is pinned alongside the corners because the guard in
+		// geometry.test.ts reads it from a table rather than from the component —
+		// an inset that drifted here would leave it measuring a shape nobody
+		// renders. `\b` rather than a bare substring, since the rows carry `py-1.5`
+		// and the panel carries `gap-1`.
 		expect(html).toContain("rounded-3xl");
 		expect(html).toContain("rounded-2xl");
+		expect(html).toMatch(/\bp-1\.5\b/);
 		expect(html).toContain("min-h-9");
 		// The edge is a shadow, not a fixed border colour, so it adapts to whatever
 		// the menu is drawn over.
