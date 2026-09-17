@@ -139,11 +139,19 @@
 	--text-title: 1.0625rem;
 	--text-title--line-height: 1.375rem;
 	--text-title--letter-spacing: -0.01em;
-	/* 28px is for the login card — the one screen that is a page rather than a
-	   toolbar. */
+	/* 28px is for the sign-in screen — the one screen that is a page rather
+	   than a toolbar. */
 	--text-large-title: 1.75rem;
 	--text-large-title--line-height: 2.125rem;
 	--text-large-title--letter-spacing: -0.022em;
+	/* 13px, for the label above a form field. It is one step below `text-sm`
+	   and it is a step of its own rather than an arbitrary `text-[13px]`
+	   because every form in the app labels its fields this way — the sign-in
+	   form now and the storage, backup and metadata forms when they are
+	   regrouped — so the value has to be stated once. 12px was the
+	   alternative and is too small to hold a CJK label. */
+	--text-label: 0.8125rem;
+	--text-label--line-height: 1.125rem;
 }
 
 .dark,
@@ -416,6 +424,41 @@ input[type="checkbox"] {
 
 @utility material-popover {
 	backdrop-filter: blur(32px) saturate(180%);
+}
+
+/* The backdrop of the one screen that has no app shell around it.
+ *
+ * Apple's sign-in pages are not a panel on a flat field: the window is lifted
+ * a few points toward white at the top, so the mark and the heading sit *in*
+ * light rather than on the page, and the form below sits on the plain window
+ * colour. That is the whole effect — it has no edge, because it is 3.6 points
+ * of delta in the light theme and 8 in the dark one, where a step needs to be
+ * bigger to register at all.
+ *
+ * A token pair plus one utility rather than a `bg-[radial-gradient(...)]` at
+ * the call site: an arbitrary value cannot be themed, so the dark version
+ * would need a second class and the two would drift apart. It is co-located
+ * with itself the same way `--image-outline` is, rather than sitting with the
+ * other dark tokens.
+ */
+:root,
+.light,
+.default,
+[data-theme="light"] {
+	--page-glow: oklch(100% 0 0);
+}
+
+.dark,
+[data-theme="dark"] {
+	--page-glow: oklch(20% 0.003 253.83);
+}
+
+@utility page-glow {
+	/* Falls off to the window colour just past half the page, so only the top
+	   is lifted and there is no radius at which a seam could be found. The
+	   ellipse is wider than the window on purpose: the horizontal falloff
+	   should be off-screen at every viewport, leaving a vertical wash. */
+	background-image: radial-gradient(120% 80% at 50% 0%, var(--page-glow), var(--background) 72%);
 }
 
 /* Values that change in place — file sizes, dates, "showing 1-20 of 300",
