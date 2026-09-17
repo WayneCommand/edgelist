@@ -49,7 +49,7 @@ export function Pager({ mode, page, pageSize, total, loading, onPage, onPageSize
 								type="button"
 								disabled={loading}
 								onClick={onLoadMore}
-								className="tap rounded-lg border border-border px-3 py-1 text-xs hover:bg-surface-secondary disabled:opacity-50"
+								className="tap rounded-control border border-border px-3 py-1 text-xs hover:bg-surface-secondary disabled:opacity-50"
 							>
 								{loading ? t("action.loading") : t("pager.showMore")}
 							</button>
@@ -125,7 +125,7 @@ function PageButtons({ page, pages, onPage }: { page: number; pages: number; onP
 						// `aria-current` is how a pager marks the active page.
 						aria-current={item === page ? "page" : undefined}
 						onClick={() => onPage(item)}
-						className={`tap min-w-7 rounded-md px-2 py-1 text-xs ${
+						className={`tap min-w-7 rounded-control px-2 py-1 text-xs ${
 							item === page
 								? "bg-accent text-accent-foreground"
 								: "text-muted hover:bg-surface-secondary hover:text-foreground"
@@ -162,7 +162,7 @@ function PageStep({
 			aria-label={label}
 			disabled={disabled}
 			onClick={onPress}
-			className="tap min-w-7 rounded-md px-2 py-1 text-xs text-muted hover:bg-surface-secondary hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
+			className="tap min-w-7 rounded-control px-2 py-1 text-xs text-muted hover:bg-surface-secondary hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
 		>
 			{/* A chevron is direction-bearing, so it mirrors with the writing direction. */}
 			<Icon className="size-4 rtl:-scale-x-100" />

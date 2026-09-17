@@ -50,7 +50,7 @@ describe("DirectoryReadme", () => {
 
 	it("wears the same card as the listing, not a surface of its own", () => {
 		const html = render("readme", [], "# Welcome");
-		// HeroUI's `card` class is where the 24px radius and the shadow live. The
+		// HeroUI's `card` class is where the panel radius and the shadow live. The
 		// readme sits directly above and below the file list, so a hand-written
 		// surface here would put two different corner radii side by side.
 		expect(html).toContain("card--default");

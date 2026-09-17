@@ -392,7 +392,7 @@ describe("selection bar", () => {
 
 	it("wears the same surface as the context menu", () => {
 		const html = renderToStaticMarkup(<SelectionBar {...barProps([items[1]])} />);
-		// 24px panel, 4px inset, 16px rows — HeroUI's own menu geometry, so the
+		// 15px panel, 4px inset, 10px rows — HeroUI's own menu geometry, so the
 		// highlight of a pressed action ends inside the corner rather than slicing
 		// through it. The edge is a shadow so it adapts to whatever it floats over,
 		// which a fixed `border-border` does not.

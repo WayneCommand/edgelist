@@ -86,7 +86,7 @@ function SortableHeader({ field, label, className, align = "start", sort, onSort
 				<button
 					type="button"
 					onClick={() => onSort(field)}
-					className={`tint flex items-center gap-1 rounded px-1 py-0.5 hover:text-foreground ${
+					className={`tint flex items-center gap-1 rounded-md px-1 py-0.5 hover:text-foreground ${
 						active ? "font-semibold text-foreground" : ""
 					}`}
 				>

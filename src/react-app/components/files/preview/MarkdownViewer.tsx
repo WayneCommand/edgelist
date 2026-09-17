@@ -7,7 +7,7 @@ import { previewCaption } from "../../../lib/preview";
 import type { FileItem } from "../../../lib/types";
 import { SegmentedControl } from "../../common/SegmentedControl";
 import { LazyTextViewer } from "./lazyTextViewer";
-import { FRAME, PAD, PAGE, PANEL } from "./metrics";
+import { FRAME, FRAME_RADIUS, PAD, PAGE, PANEL } from "./metrics";
 
 type MarkdownMode = "rendered" | "source";
 
@@ -36,7 +36,7 @@ export function MarkdownViewer({ item, text, dirty, saving, onChange, onSave }: 
 
 	if (mode === "source") {
 		return (
-			<Suspense fallback={<Skeleton className={`${PANEL} w-full rounded-lg`} />}>
+			<Suspense fallback={<Skeleton className={`${PANEL} w-full ${FRAME_RADIUS}`} />}>
 				<LazyTextViewer
 					item={item}
 					text={text}

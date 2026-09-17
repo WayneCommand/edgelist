@@ -40,11 +40,20 @@ describe("SegmentedControl", () => {
 	});
 
 	it("keeps the concentric geometry all three copies had agreed on", () => {
-		// 8px panel + 2px inset leaves 6px for the inner corner.
+		// The shell rounds at `--radius-lg` (5px) and insets by `p-0.5` (2px), so
+		// the inner corner has 3px to live in and takes it as an arbitrary value:
+		// the ladder's `rounded-md` is 3.75px, which spills 0.75px past the inner
+		// arc. Only the pair is asserted here — the numbers are in the component's
+		// header, next to the classes they describe, because a render test can see
+		// class names but not what they resolve to.
 		const html = render("list");
 		expect(html).toContain("rounded-lg");
-		expect(html).toContain("rounded-md");
-		expect(html).toContain("p-0.5");
+		// `\b` rather than a bare substring: the shell also carries `gap-0.5`, which
+		// contains `p-0.5`, so the old assertion here passed without the inset
+		// being there at all.
+		expect(html).toMatch(/\bp-0\.5\b/);
+		expect(html).toContain("rounded-[3px]");
+		expect(html).not.toContain("rounded-md");
 	});
 
 	it("marks the chosen option with the token the library provides for it", () => {

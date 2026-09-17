@@ -179,8 +179,11 @@ function MetadataListSkeleton() {
 						<Skeleton className="h-4 w-2/5 rounded-md" />
 						<Skeleton className="h-3 w-1/4 rounded-md" />
 					</div>
-					<Skeleton className="h-9 w-16 rounded-3xl md:h-8" />
-					<Skeleton className="h-9 w-16 rounded-3xl md:h-8" />
+					{/* Two button-shaped placeholders: `--radius-control`, the same
+					    corner the real `HeroButton` gets, and the same heights the
+					    library's `size="sm"` uses (`h-9`, `h-8` from `md`). */}
+					<Skeleton className="h-9 w-16 rounded-control md:h-8" />
+					<Skeleton className="h-9 w-16 rounded-control md:h-8" />
 				</div>
 			))}
 		</div>

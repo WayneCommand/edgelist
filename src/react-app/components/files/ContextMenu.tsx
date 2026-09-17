@@ -60,9 +60,13 @@ export function ContextMenu({ position, items, onClose }: ContextMenuProps) {
 				close();
 			}}
 		>
-			{/* The surface follows HeroUI's own menu: a 24px panel with a 4px inset,
-			    so a highlighted row ends inside the corner instead of slicing
-			    through it, and a shadow rather than a border carries the edge.
+			{/* The surface follows HeroUI's own menu: a 15px panel with a 4px inset
+			    and 10px rows, so a highlighted row ends inside the corner instead of
+			    slicing through it, and a shadow rather than a border carries the
+			    edge. 15 less the 4px inset leaves 11, so the 10px row is inside the
+			    inner arc — which is the direction the rule allows. An inner radius
+			    may be *smaller* than outer-minus-inset and only reads as a slightly
+			    tighter corner; larger is what cuts into the outer curve.
 
 			    `fill-mode-forwards` holds the faded-out state until the timeout
 			    unmounts the menu. Without it the exit animation ends by snapping

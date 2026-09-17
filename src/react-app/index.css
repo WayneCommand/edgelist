@@ -110,6 +110,25 @@
  * `--radius-3xl`, the same knob that rounds panels and popovers. One knob
  * cannot be both a 15px panel and an 8px button, so the button gets its own
  * value plus an override below, instead of a second full radius ladder.
+ *
+ * It is the radius of a *free-standing* control — a button, a select, a field:
+ * the things that came out at 8-12px before the change and would have become
+ * pills at 15px. Hand-written ones take the utility (`rounded-control`) so a
+ * plain `<button>` and a HeroUI `Button` in the same row are the same shape.
+ *
+ * Deliberately not, and the reason is never the size on its own:
+ *
+ * - a control nested inside a rounded panel — a context-menu row, a
+ *   selection-bar action. Those follow the panel's concentric pairing
+ *   (`rounded-2xl`, the corner the library's own `.menu-item` uses): that is
+ *   what keeps a highlight inside the panel's curve, and the same action is in
+ *   both places, so it has to be the same shape in both.
+ * - an inline button inside a row — the breadcrumb's pencil, a table header's
+ *   sort target, a storage row's own actions. ~20-26px tall, no box until they
+ *   are hovered, and a driver chip sits beside them in the same row; 8px there
+ *   would be a pebble and would not match the chip it stands next to. They take
+ *   the small ladder step, so the row keeps one corner for all its small boxes.
+ * - a chip, which is a tag and stays a pill.
  */
 @theme {
 	--color-hairline: oklch(0% 0 0 / 0.08);
@@ -136,8 +155,12 @@
  * 15px after it, which is still a capsule on a 36px-tall control. Apple's
  * controls are 6-8px rectangles, so the button takes `--radius-control`.
  * This file is unlayered, so the rule outranks the library's layered output on
- * its own; the computed value is still checked by hand, because "the rule is
- * in the bundle" is not the same as "the rule won" (IMPROVEMENT-UI.md §5.8). */
+ * its own — measured from the bundle rather than assumed: the library's
+ * `.button` sits inside `@layer components` (bytes 33024-400121) and this rule
+ * comes after `@layer utilities` has also closed (454785), so there is no layer
+ * between them for it to lose to. A `HeroButton` therefore needs no
+ * `rounded-control` class, and would not take one: the override beats the
+ * utility. */
 .button {
 	border-radius: var(--radius-control);
 }
@@ -278,14 +301,14 @@ input[type="checkbox"] {
 
 .markdown-body code {
 	background: var(--surface-tertiary);
-	border-radius: 0.25rem;
+	border-radius: var(--radius-md);
 	padding: 0.1rem 0.3rem;
 	font-size: 0.875em;
 }
 
 .markdown-body pre {
 	background: var(--surface-tertiary);
-	border-radius: 0.5rem;
+	border-radius: var(--radius-lg);
 	overflow-x: auto;
 	padding: 0.75rem 1rem;
 }

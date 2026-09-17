@@ -77,7 +77,7 @@ function TreeNode({ path, label, depth, value, onChange }: TreeNodeProps) {
 					onClick={() => void toggle()}
 					aria-expanded={expanded}
 					aria-label={expanded ? t("tree.collapse", { name: label }) : t("tree.expand", { name: label })}
-					className="tap flex w-5 shrink-0 items-center justify-center rounded text-muted hover:text-foreground"
+					className="tap flex w-5 shrink-0 items-center justify-center rounded-md text-muted hover:text-foreground"
 				>
 					{/* One chevron that rotates, rather than two glyphs swapping places.
 					    The two states keep the same shape, and it is the rotation that
@@ -92,7 +92,7 @@ function TreeNode({ path, label, depth, value, onChange }: TreeNodeProps) {
 					type="button"
 					onClick={() => onChange(path)}
 					title={path}
-					className={`tap min-w-0 flex-1 truncate rounded px-2 py-1 text-left ${
+					className={`tap min-w-0 flex-1 truncate rounded-md px-2 py-1 text-left ${
 						selected ? "bg-accent-soft font-medium text-accent-soft-foreground" : "hover:bg-surface-secondary"
 					}`}
 				>

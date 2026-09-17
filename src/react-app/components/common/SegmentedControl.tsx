@@ -8,9 +8,16 @@
  * the value the nav and the directory tree already use. So the same state was
  * drawn two ways, and the segmented version was the lower-contrast one.
  *
- * The geometry is the concentric one the three copies already agreed on:
- * `rounded-lg` and a 2px inset leaves 6px for the inner corner, which is
- * `rounded-md`. That pairing was called out as correct and is kept as-is.
+ * The geometry is the concentric one the three copies already agreed on, with
+ * the arithmetic re-run after `--radius` dropped to 5px: `rounded-lg` (5px) less
+ * the `p-0.5` inset (2px) leaves 3px, so the inner corner is `rounded-[3px]`.
+ * It used to be `rounded-md`, which was right when `--radius-lg` was 8px and
+ * `--radius-md` was 6px; after the change `rounded-md` is 3.75px and would spill
+ * 0.75px past the inner arc.
+ *
+ * Stated as a rule rather than two numbers: the inner corner may be *smaller*
+ * than outer-minus-inset, never larger. Smaller only reads as a slightly tighter
+ * corner; larger cuts into the outer curve.
  *
  * The label weight is deliberately uniform. Making the selected option
  * semibold would be a nicer emphasis and would also widen it by a pixel or two,
@@ -40,7 +47,7 @@ export function SegmentedControl<T extends string>({ ariaLabel, value, options, 
 					type="button"
 					aria-pressed={value === option.value}
 					onClick={() => onChange(option.value)}
-					className={`tap rounded-md px-2 py-1 text-xs ${
+					className={`tap rounded-[3px] px-2 py-1 text-xs ${
 						value === option.value ? "bg-accent-soft text-accent-soft-foreground" : "text-muted hover:text-foreground"
 					}`}
 				>

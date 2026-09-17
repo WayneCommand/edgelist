@@ -14,8 +14,11 @@ type StorageTableProps = {
 	onDelete: (item: Storage) => void;
 };
 
+/* Row actions: `rounded-md` rather than `rounded-control`, because the driver
+   chip in the same row is one, and two small boxes in one row with different
+   corners is the drift this pass is for. See `--radius-control` in index.css. */
 const ACTION_CLASS =
-	"tap rounded px-2 py-1 text-xs text-muted hover:bg-surface-secondary hover:text-foreground disabled:opacity-50";
+	"tap rounded-md px-2 py-1 text-xs text-muted hover:bg-surface-secondary hover:text-foreground disabled:opacity-50";
 
 /**
  * The disk-manager view of the mounts: what is mounted where, which driver
@@ -159,9 +162,10 @@ export function StorageTableSkeleton() {
 							<Skeleton className="h-4 w-24 rounded-md" />
 						</span>
 						<span className="flex w-56 shrink-0 justify-end gap-1">
-							<Skeleton className="h-6 w-10 rounded" />
-							<Skeleton className="h-6 w-12 rounded" />
-							<Skeleton className="h-6 w-12 rounded" />
+							{/* Three action-sized boxes, so `rounded-md` like `ACTION_CLASS`. */}
+							<Skeleton className="h-6 w-10 rounded-md" />
+							<Skeleton className="h-6 w-12 rounded-md" />
+							<Skeleton className="h-6 w-12 rounded-md" />
 						</span>
 					</div>
 				))}

@@ -71,7 +71,10 @@ export function BackupPage() {
 					<HeroButton isDisabled={loading} onPress={() => void backup()}>
 						{t("backup.download")}
 					</HeroButton>
-					<label className="tint inline-flex cursor-pointer items-center rounded-lg border border-border px-4 py-2.5 text-sm font-medium hover:bg-surface-secondary">
+					{/* A `<label>` dressing as a button, so it takes the control corner:
+					    it sits beside a real `HeroButton` and the two have to look like
+					    the same family. */}
+					<label className="tint inline-flex cursor-pointer items-center rounded-control border border-border px-4 py-2.5 text-sm font-medium hover:bg-surface-secondary">
 						{t("backup.choose")}
 						<input
 							hidden

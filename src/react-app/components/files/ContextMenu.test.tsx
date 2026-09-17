@@ -86,7 +86,7 @@ describe("context menu", () => {
 		const html = renderToStaticMarkup(
 			<ContextMenu position={{ x: 10, y: 10 }} items={fileActions(permissionsFor([file]), handlers)} onClose={noop} />,
 		);
-		// HeroUI's own menu geometry: a 24px panel with a 4px inset and 16px rows.
+		// HeroUI's own menu geometry: a 15px panel, a 4px inset, 10px rows.
 		// Without the inset a full-width highlight is a square band that cuts into
 		// the corner, and `overflow-auto` then lets it spill past the radius.
 		expect(html).toContain("rounded-3xl");
