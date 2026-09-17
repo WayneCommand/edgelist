@@ -28,5 +28,12 @@ Thumbs.db
 .idea/
 .vscode/
 
+# Agent tooling and local notes: not project source. `.codebuddy/` holds
+# installed skill packs and `.workbuddy/` holds per-project memory, both
+# rewritten by the tooling on their own schedule — tracking either means a
+# permanent stream of diffs that has nothing to do with an application change.
+.codebuddy/
+.workbuddy/
+
 # Local overrides
 *.local
