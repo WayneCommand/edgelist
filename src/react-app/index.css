@@ -6,9 +6,18 @@
 .default,
 [data-theme="light"],
 [data-theme="default"] {
-	--accent: oklch(62.04% 0.195 253.83);
+	/* Apple's light-mode systemBlue (#007AFF). `--accent-soft`,
+	   `--accent-soft-foreground`, `--accent-hover` and `--focus` are all
+	   derived from this one value by the library, so the whole accent family
+	   moves together. Measured white-on-accent contrast is 4.02:1 — below the
+	   4.5:1 this project holds text to, and kept anyway because it is the
+	   value Apple itself puts white button labels on. See R11. */
+	--accent: oklch(60.28% 0.2177 257.42);
 	--accent-foreground: oklch(99.11% 0 0);
-	--background: oklch(97.02% 0.0015 253.83);
+	/* 96.4% is iCloud's window grey (#F5F5F7). The gap to `--surface` (100%)
+	   is what lets a flat page and a form group read as two levels without a
+	   border. */
+	--background: oklch(96.4% 0.002 253.83);
 	--border: oklch(90% 0.0015 253.83);
 	--danger: oklch(65.32% 0.2335 25.74);
 	--danger-foreground: oklch(99.11% 0 0);
@@ -17,7 +26,6 @@
 	--field-background: oklch(100% 0.0008 253.83);
 	--field-foreground: oklch(21.03% 0.0015 253.83);
 	--field-placeholder: oklch(55.17% 0.003 253.83);
-	--focus: oklch(62.04% 0.195 253.83);
 	--foreground: oklch(21.03% 0.0015 253.83);
 	--muted: oklch(55.17% 0.003 253.83);
 	--overlay: oklch(100% 0.0004 253.83);
@@ -36,18 +44,28 @@
 	--surface-tertiary-foreground: oklch(21.03% 0.0015 253.83);
 	--warning: oklch(78.19% 0.159 72.33);
 	--warning-foreground: oklch(21.03% 0.0059 72.33);
-	/* The one knob the radii scale from. `--field-radius` and `--field-border`
-	   are the library's own tokens (`calc(var(--radius) * 1.5)` and
-	   `transparent`), so this block no longer restates them — they were
-	   duplicates that read as if the project owned them. */
-	--radius: 0.5rem;
-	--font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+	/* The one knob the radii scale from (originally 0.5rem, which put a 24px
+	   radius on every panel and on a 36px-tall button). 0.3125rem = 5px puts
+	   the whole ladder where Apple keeps it: panels at 15px (`--radius-3xl`),
+	   menu rows and chips at 10px, the segmented-control shell at 5px. The one
+	   thing this knob cannot fix is the button, which the library rounds with
+	   `--radius-3xl` — see `--radius-control` below.
+	   `--field-radius` and `--field-border` are the library's own tokens
+	   (`calc(var(--radius) * 1.5)` and `transparent`), so this block no longer
+	   restates them — they were duplicates that read as if the project owned
+	   them. `--focus` was removed for the same reason: the library already
+	   derives it from `--accent`. */
+	--radius: 0.3125rem;
+	--font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, ui-sans-serif, system-ui, sans-serif;
 }
 
 .dark,
 [data-theme="dark"] {
 	color-scheme: dark;
-	--accent: oklch(62.04% 0.195 253.83);
+	/* Apple's dark-mode systemBlue (#0A84FF). Apple lightens the accent on a
+	   dark canvas so it reads at the same weight; this is that value, not a
+	   typo for the light one. */
+	--accent: oklch(62.43% 0.2056 255.49);
 	--accent-foreground: oklch(99.11% 0 0);
 	--background: oklch(12% 0.0015 253.83);
 	--border: oklch(28% 0.0015 253.83);
@@ -58,7 +76,6 @@
 	--field-background: oklch(21.03% 0.003 253.83);
 	--field-foreground: oklch(99.11% 0.0015 253.83);
 	--field-placeholder: oklch(70.5% 0.003 253.83);
-	--focus: oklch(62.04% 0.195 253.83);
 	--foreground: oklch(99.11% 0.0015 253.83);
 	--muted: oklch(70.5% 0.003 253.83);
 	--overlay: oklch(21.03% 0.003 253.83);
@@ -79,15 +96,61 @@
 	--warning-foreground: oklch(21.03% 0.0059 72.33);
 }
 
+/* Tokens this round adds. Four of them land in Tailwind namespaces, so they
+ * come with utilities: `border-hairline` / `divide-hairline`,
+ * `rounded-control`, `text-title`, `text-large-title`.
+ *
+ * `--color-hairline` is pure black at 8% (white at 12% in the dark), never a
+ * tinted neutral: a tinted line picks up the surface it sits on and reads as
+ * dirt along the edge. Same reasoning as `--image-outline` below. It replaces
+ * `--separator` on list rows — where a line is the right answer — and nowhere
+ * else: controls are told apart by fill, not by a stroke.
+ *
+ * `--radius-control` exists because the library rounds `.button` with
+ * `--radius-3xl`, the same knob that rounds panels and popovers. One knob
+ * cannot be both a 15px panel and an 8px button, so the button gets its own
+ * value plus an override below, instead of a second full radius ladder.
+ */
+@theme {
+	--color-hairline: oklch(0% 0 0 / 0.08);
+	--radius-control: 0.5rem;
+	/* 17px/22px semibold is what a macOS toolbar titles things at. The 24px
+	   page heading it replaces said the same thing the toolbar already says,
+	   only louder, and cost a 88px band on four pages. */
+	--text-title: 1.0625rem;
+	--text-title--line-height: 1.375rem;
+	--text-title--letter-spacing: -0.01em;
+	/* 28px is for the login card — the one screen that is a page rather than a
+	   toolbar. */
+	--text-large-title: 1.75rem;
+	--text-large-title--line-height: 2.125rem;
+	--text-large-title--letter-spacing: -0.022em;
+}
+
+.dark,
+[data-theme="dark"] {
+	--color-hairline: oklch(1 0 0 / 0.12);
+}
+
+/* The library's `.button` is `rounded-3xl` — 24px before the radius change,
+ * 15px after it, which is still a capsule on a 36px-tall control. Apple's
+ * controls are 6-8px rectangles, so the button takes `--radius-control`.
+ * This file is unlayered, so the rule outranks the library's layered output on
+ * its own; the computed value is still checked by hand, because "the rule is
+ * in the bundle" is not the same as "the rule won" (IMPROVEMENT-UI.md §5.8). */
+.button {
+	border-radius: var(--radius-control);
+}
+
+/* The same list as `--font-sans` above, and it has to stay that way — these
+ * were two different stacks, so `font-sans` and the document default disagreed
+ * about whether `-apple-system` existed at all. The system font comes first
+ * because no webfont is loaded (there is no font package and no `<link>`), so
+ * on macOS this resolves to SF Pro, which is the whole point; naming
+ * `-apple-system` ahead of `Inter` means a machine that happens to have Inter
+ * installed no longer takes the whole UI over. */
 :root {
-	font-family:
-		Inter,
-		ui-sans-serif,
-		system-ui,
-		-apple-system,
-		BlinkMacSystemFont,
-		"Segoe UI",
-		sans-serif;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, ui-sans-serif, system-ui, sans-serif;
 	font-synthesis: none;
 	text-rendering: optimizeLegibility;
 	-webkit-font-smoothing: antialiased;
@@ -135,8 +198,8 @@ input {
 	/* Only what changes. A bare `transition` would subscribe to twenty
 	   properties, `scale` and `transform` among them. */
 	transition-property: background-color, border-color, box-shadow;
-	transition-duration: 150ms;
-	transition-timing-function: ease-out;
+	transition-duration: 200ms;
+	transition-timing-function: var(--ease-out-fluid);
 
 	&::placeholder {
 		color: var(--field-placeholder);
@@ -313,6 +376,32 @@ input[type="checkbox"] {
 	outline-offset: -1px;
 }
 
+/* Materials, so a toolbar is one class instead of a hand-written
+ * `backdrop-blur` per call site.
+ *
+ * The toolbar used to be `bg-surface/95 backdrop-blur`: at 95% opacity there
+ * was almost nothing left behind it for the blur to work with, which is why it
+ * looked flat. 80% is what makes a bar read as glass — the blur needs
+ * something to move. `saturate` is there because a blurred backdrop otherwise
+ * looks washed out next to what is behind it; it is the same pair of
+ * properties macOS uses, at the same rough values.
+ *
+ * `prefers-reduced-motion` is not involved: a material is not motion. */
+@utility material-bar {
+	backdrop-filter: blur(24px) saturate(180%);
+}
+
+@utility material-popover {
+	backdrop-filter: blur(32px) saturate(180%);
+}
+
+/* Values that change in place — file sizes, dates, "showing 1-20 of 300",
+ * an upload percentage — get tabular figures so the column does not shift when
+ * a digit changes width. */
+@utility numeric {
+	font-variant-numeric: tabular-nums;
+}
+
 /* Press feedback for the app's own controls.
  *
  * HeroUI's `Button` already ships a press scale tuned per size — 0.97 by
@@ -323,11 +412,15 @@ input[type="checkbox"] {
  *
  * The transition belongs to the base state, never to `:active`: declared only
  * while pressed, the press animates and the release snaps back.
+ *
+ * Curve and duration are the library's own `--ease-out-fluid` (the comment
+ * next to it calls the curve "Apple style") at 200ms — the same pair the fields
+ * use, so two controls never move differently from each other.
  */
 @utility tap {
 	transition-property: background-color, border-color, color, scale;
-	transition-duration: 150ms;
-	transition-timing-function: ease-out;
+	transition-duration: 200ms;
+	transition-timing-function: var(--ease-out-fluid);
 
 	&:active:not(:disabled):not([aria-disabled="true"]) {
 		scale: 0.96;
@@ -347,8 +440,8 @@ input[type="checkbox"] {
  * selection, so the click already has a loud result of its own. */
 @utility tint {
 	transition-property: background-color, border-color, color;
-	transition-duration: 150ms;
-	transition-timing-function: ease-out;
+	transition-duration: 200ms;
+	transition-timing-function: var(--ease-out-fluid);
 
 	@media (prefers-reduced-motion: reduce) {
 		transition-duration: 0ms;
@@ -379,7 +472,7 @@ input[type="checkbox"] {
 }
 
 @utility arrive {
-	animation: arrive var(--arrive-duration, 200ms) ease-out both;
+	animation: arrive var(--arrive-duration, 200ms) var(--ease-out-fluid) both;
 	animation-delay: var(--arrive-delay, 0ms);
 
 	/* The end state is the element's own, so dropping the animation leaves it
