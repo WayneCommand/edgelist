@@ -66,6 +66,28 @@ describe("SegmentedControl", () => {
 		expect(html).not.toContain("bg-accent-soft text-accent ");
 	});
 
+	it("changes the option box with the size and nothing else", () => {
+		// The arithmetic above is computed once, for the shell, and the guard in
+		// `geometry.test.ts` holds a single row for it. A size tier that moved the
+		// shell's radius or its inset would leave that row describing only the size
+		// it was written for, and nothing else in the suite would notice. So the
+		// shell's opening tag has to be byte-identical at both sizes — everything
+		// before the first `>`, which is that tag, since no attribute contains one.
+		const sized = (size: "sm" | "md") =>
+			renderToStaticMarkup(
+				<SegmentedControl ariaLabel="View mode" value="list" options={options} onChange={() => {}} size={size} />,
+			);
+		const openingTag = (html: string) => html.split(">")[0];
+
+		const small = sized("sm");
+		const medium = sized("md");
+		expect(openingTag(medium)).toBe(openingTag(small));
+
+		expect(small).toContain("px-2 py-1 text-xs");
+		expect(medium).toContain("h-7");
+		expect(medium).not.toContain("text-xs");
+	});
+
 	it("does not change the label weight with the selection", () => {
 		// A semibold label would widen the button by a pixel or two, so the row
 		// would twitch every time it was used.

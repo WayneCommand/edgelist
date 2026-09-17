@@ -29,9 +29,31 @@
  * The label weight is deliberately uniform. Making the selected option
  * semibold would be a nicer emphasis and would also widen it by a pixel or two,
  * so the row would twitch every time it was used.
+ *
+ * There are two sizes and one shell. `size` changes the option's height and
+ * type — `sm` is the inline size the original three callers already had, `md`
+ * is what the app shell's navigation takes — and deliberately touches neither
+ * the shell's radius nor its inset. So the concentric pair above is the same
+ * arithmetic at both sizes, and the guard in `geometry.test.ts` needs one row
+ * for it rather than one per size. A size tier that moved the inset would make
+ * that row describe only the size it was written for, which is the kind of
+ * silent divergence nothing else here would catch; `brand-views.test.tsx` pins
+ * the shell's opening tag against it.
  */
 
 type SegmentedOption<T extends string> = { value: T; label: string };
+
+type SegmentedControlSize = "sm" | "md";
+
+/**
+ * The option's own box: height and type only. The padding *inside* the shell
+ * belongs to the shell, not to the option, which is what keeps the concentric
+ * pair fixed across sizes.
+ */
+const OPTION_SIZE: Record<SegmentedControlSize, string> = {
+	sm: "px-2 py-1 text-xs",
+	md: "h-7 px-3 text-[13px]",
+};
 
 type SegmentedControlProps<T extends string> = {
 	/** Names the group for a screen reader, since there is no visible label. */
@@ -39,9 +61,17 @@ type SegmentedControlProps<T extends string> = {
 	value: T;
 	options: ReadonlyArray<SegmentedOption<T>>;
 	onChange: (value: T) => void;
+	/** `sm` is the inline size; `md` is the toolbar one. Defaults to `sm`. */
+	size?: SegmentedControlSize;
 };
 
-export function SegmentedControl<T extends string>({ ariaLabel, value, options, onChange }: SegmentedControlProps<T>) {
+export function SegmentedControl<T extends string>({
+	ariaLabel,
+	value,
+	options,
+	onChange,
+	size = "sm",
+}: SegmentedControlProps<T>) {
 	return (
 		<div
 			role="group"
@@ -54,7 +84,7 @@ export function SegmentedControl<T extends string>({ ariaLabel, value, options, 
 					type="button"
 					aria-pressed={value === option.value}
 					onClick={() => onChange(option.value)}
-					className={`tap rounded-[3px] px-2 py-1 text-xs ${
+					className={`tap rounded-[3px] ${OPTION_SIZE[size]} ${
 						value === option.value ? "bg-accent-soft text-accent-soft-foreground" : "text-muted hover:text-foreground"
 					}`}
 				>

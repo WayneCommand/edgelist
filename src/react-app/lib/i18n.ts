@@ -34,6 +34,7 @@ export const DEFAULT_LOCALE: Locale = "en";
 /** The English catalogue. Every other language is keyed against this one. */
 export const EN = {
 	// Chrome
+	"nav.label": "Main navigation",
 	"nav.files": "Files",
 	"nav.storages": "Storages",
 	"nav.metadata": "Metadata",
@@ -361,6 +362,7 @@ export type Translate = (key: MessageKey, params?: MessageParams) => string;
  * test is what keeps it honest at review time.
  */
 export const ZH: Partial<Record<MessageKey, string>> = {
+	"nav.label": "主导航",
 	"nav.files": "文件",
 	"nav.storages": "存储",
 	"nav.metadata": "元数据",

@@ -81,6 +81,12 @@ type Pair = {
  * with a 3xl panel and a 2xl row, `outer − inset − inner = 3r − r − 2r`. Both
  * insets were 4px when the knob was 5px, and stepping them with it is the point
  * — an inset that stays put widens the band by exactly what the knob moved.
+ *
+ * The segmented control has two option sizes and one shell, so it is one row and
+ * not two: the size tier moves the option's height and type only, and both sizes
+ * resolve to the same 6 − 1 − 2 = 3px. A size tier that moved the shell's inset
+ * would leave this row describing just the size it was written for, and no table
+ * can see that — `brand-views.test.tsx` pins the shell's opening tag against it.
  */
 const PAIRS: Pair[] = [
 	{ where: "SegmentedControl shell ↔ option", outer: "lg", inset: 0.5, border: 1, inner: { px: 3 } },
