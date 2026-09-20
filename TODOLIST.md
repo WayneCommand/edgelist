@@ -663,6 +663,7 @@
   - `LocaleSelect` 在导航栏与登录卡片各一处；`lib/locale.ts` 的记忆 + `lib/i18n.ts` 的回落各有单测覆盖。
 - [x] `App.tsx` 只剩路由壳；`pnpm lint` 无超长行报错。
 - [x] `pnpm test` / `pnpm lint` / `pnpm build` 全绿。
+- [x] 登录卡片加宽到 480px，登录与通行密钥按钮放在同一行；英文文案改为 `Use a passkey` 以保证单行展示。
 
 ## 待办（验收后剩下的）
 

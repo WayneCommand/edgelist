@@ -51,8 +51,12 @@ describe("sign-in page", () => {
 		expect(html.match(/<input/g)).toHaveLength(2);
 		expect(html.match(/type="password"/g)).toHaveLength(1);
 		// The autocomplete hints are what let a password manager fill both.
-		expect(html).toContain('autocomplete="username"');
-		expect(html).toContain('autocomplete="current-password"');
+		// Matched case-insensitively on purpose: `autoComplete` is the DOM name
+		// React writes through and a hand-written `<input>` would spell it
+		// lowercase, and the assertion is about the attribute being there,
+		// not about which of the two spellings produced it.
+		expect(html).toMatch(/autocomplete="username"/i);
+		expect(html).toMatch(/autocomplete="current-password"/i);
 		// Both are required, so the browser refuses an empty submit before the
 		// Worker has to.
 		expect(html.match(/\brequired\b/g)).toHaveLength(2);
@@ -74,6 +78,10 @@ describe("sign-in page", () => {
 		// is justified by being lifted, so that is the property pinned here.
 		const tag = cardTag(render());
 		expect(tag).toContain("signin-card");
+		// The width is its own token, not a `max-w-*` step: 30rem is the
+		// sheet's own 480px, and the point of the token is that the value can
+		// be *reasoned* about rather than inferred from a class name. See
+		// `--container-signin`.
 		expect(tag).toContain("max-w-signin");
 		// The radius is the card's own token, not a ladder step: the sheet names
 		// 18–24px for this card, and a ladder step would walk out of that range
@@ -88,14 +96,22 @@ describe("sign-in page", () => {
 		// loads the dark theme — and then reads as a missing shadow rather than
 		// as a missing *declaration*.
 		const css = readFileSync(new URL("../index.css", import.meta.url), "utf8");
-		const lightBlocks = css.slice(0, css.indexOf('--signin-card-shadow', css.indexOf("dark")));
-		expect(lightBlocks).toContain("--signin-card-shadow");
+		// The light declaration has to come *before* the dark one: the two are
+		// in equal-specificity blocks, so the later one wins for anything that
+		// is under `[data-theme="dark"]` — which is the point of the order, and
+		// is worth pinning rather than assuming. Counting the declarations
+		// alone would pass on a stylesheet with them the other way round.
+		const [lightShadow, darkShadow] = [...css.matchAll(/--signin-card-shadow:\s*([^;]+);/g)].map((match) =>
+			match[1].trim(),
+		);
+		expect(css.indexOf("--signin-card-shadow:")).toBeLessThan(css.lastIndexOf("--signin-card-shadow:"));
+		expect(lightShadow).toBeTruthy();
+		expect(darkShadow).toBeTruthy();
 		// Two declarations: the light `:root` group and the dark override.
 		expect(css.match(/--signin-card-shadow:/g)).toHaveLength(2);
 		// The dark value is not the light one: black at 5% under a `oklch(21%)`
 		// card is invisible, so a copy-paste of the light pair is the bug.
-		const values = [...css.matchAll(/--signin-card-shadow:\s*([^;]+);/g)].map((match) => match[1].trim());
-		expect(values[0]).not.toBe(values[1]);
+		expect(lightShadow).not.toBe(darkShadow);
 		expect(css).toContain("@utility signin-card");
 	});
 
@@ -104,7 +120,12 @@ describe("sign-in page", () => {
 		// Not disabled: a greyed-out call to action on a sign-in page reads as
 		// "your account is broken", and the button's *claim* is not false — this
 		// deployment simply has no passkey endpoint.
-		const button = /<button[^>]*>/.exec(html.slice(html.indexOf("Sign in with a passkey") - 400))?.[0] ?? "";
+		// Found from the label *forwards*, through the icon's markup to the
+		// button's own opening tag. Backwards is the tempting direction and it
+		// is the wrong one now that the two buttons share a row: a slice wide
+		// enough to clear the icon reaches back into the previous button, and
+		// the regex then describes the submit button instead of this one.
+		const button = /<button[^>]*>[\s\S]*?Use a passkey/.exec(html)?.[0].replace(/[\s\S]*<button/, "<button") ?? "";
 		expect(button).toContain('type="button"');
 		expect(button).not.toContain("disabled");
 		// And it is not a second submit: pressing it must not post the form with
@@ -113,6 +134,36 @@ describe("sign-in page", () => {
 		// The sheet's own hint line is kept, because it is the honest reason the
 		// feature needs a recent device.
 		expect(html).toContain("Requires a device running iOS 17 or later.");
+	});
+
+	it("puts the two buttons in one row, and lets the row decide their width", () => {
+		// Both buttons are still there — the layout changed, the pair did not.
+		// The row is what makes them a pair: a submit button with a secondary
+		// action stacked under it reads as one action and an aside, which is a
+		// different offer from two ways in.
+		const html = render();
+		const row = /<div class="mt-6 flex items-stretch gap-3">[\s\S]*?<\/div>/.exec(html)?.[0] ?? "";
+		expect(row, "the two buttons are not in one row").not.toBe("");
+		expect(row.match(/<button/g)).toHaveLength(2);
+		// Both take an equal share of the row (`flex-1 basis-0`), rather than a
+		// fixed half each: with `basis-0` the split is the row's width split in
+		// two, so the longer passkey label cannot take the wider half and turn
+		// the pair into a pair of unequal buttons.
+		expect(row.match(/\bflex-1\b/g)).toHaveLength(2);
+		expect(row.match(/\bbasis-0\b/g)).toHaveLength(2);
+		// `items-stretch` is what keeps the two the same height — one carries a
+		// 20px icon and the other only text, so without it the row's halves
+		// differ by a couple of pixels and stop reading as one shape.
+		expect(row).toContain("items-stretch");
+		// The passkey label is the longest string in the row, and it is also
+		// the one a narrow card would wrap first. `whitespace-nowrap` is the
+		// honest way to keep it on one line: if the row ever gets too narrow,
+		// it overflows visibly instead of quietly turning one call to action
+		// into a three-line button.
+		expect(row).toContain("whitespace-nowrap");
+		// The row sits at the end of the form, and both buttons are inside it.
+		const form = /<form[\s\S]*?<\/form>/.exec(html)?.[0] ?? "";
+		expect(form).toContain(row);
 	});
 
 	it("draws the halo as decoration", () => {
@@ -136,7 +187,7 @@ describe("sign-in page", () => {
 			"Access Key",
 			"Secret Key",
 			"Sign in",
-			"Sign in with a passkey",
+			"Use a passkey",
 			"Learn how your data is managed",
 			"System status",
 			"Privacy policy",

@@ -25,11 +25,13 @@ import { Wordmark } from "../components/common/Wordmark";
  *
  * **The form is still an AK/SK pair.** The design sheet has one field, because
  * it is a page for one Apple ID. This app authenticates a key pair, so the
- * sheet's single field would have to be split back into two anyway; the card's
- * geometry carries over unchanged and the second field costs the page a row.
- * The labels stay where they were, above their fields, now with a placeholder
- * that repeats them — the sheet's field has no label, and the plainer reading
- * for a two-field form is to keep naming them.
+ * sheet's single field would have to be split back into two anyway; the second
+ * field costs the page a row, and the card is a step wider than the form needs
+ * so the *bottom* row can be the two buttons side by side — the arrangement the
+ * sheet itself draws, which a 384px column cannot hold. The labels stay where
+ * they were, above their fields, now with a placeholder that repeats them — the
+ * sheet's field has no label, and the plainer reading for a two-field form is
+ * to keep naming them.
  *
  * **The passkey button is a real button that says what is true.** It cannot
  * sign anyone in: this deployment has no WebAuthn endpoint and no credential
@@ -99,8 +101,8 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 				    before they can find anything else. */}
 				<div className="flex items-center gap-2">
 					<LocaleSelect />
-					{/* The design sheet's "三点图标（更多/设置选项）". It is the page's
-					    least important control and is drawn as such. */}
+					{/* The design sheet's three-dot icon: the page's least important
+				    control, and drawn as such. */}
 					<button
 						type="button"
 						aria-label={t("login.moreOptions")}
@@ -127,10 +129,7 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 						{/* Bloom first, then the ring on top of it: the ring's dots are
 						    crisp points and the haze has to sit behind them. */}
 						<div aria-hidden="true" className="signin-halo-bloom absolute inset-0 rounded-full" />
-						<div
-							aria-hidden="true"
-							className="signin-halo absolute inset-0 rounded-full [--halo-radius:40px]"
-						/>
+						<div aria-hidden="true" className="signin-halo absolute inset-0 rounded-full [--halo-radius:40px]" />
 						{/* The mark itself. `size-10` and centred, so the ring's 40px radius
 						    leaves it clear on every side. It is a rounded square rather than
 						    the sheet's circular glyph — the shape carries the mapping back to
@@ -150,9 +149,7 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 
 					<form className="mt-7 text-left" onSubmit={submit}>
 						<label className="block">
-							<span className="mb-1.5 block text-label font-medium text-signin-secondary">
-								{t("login.accessKey")}
-							</span>
+							<span className="mb-1.5 block text-label font-medium text-signin-secondary">{t("login.accessKey")}</span>
 							<input
 								required
 								value={accessKey}
@@ -163,9 +160,7 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 							/>
 						</label>
 						<label className="mt-4 block">
-							<span className="mb-1.5 block text-label font-medium text-signin-secondary">
-								{t("login.secretKey")}
-							</span>
+							<span className="mb-1.5 block text-label font-medium text-signin-secondary">{t("login.secretKey")}</span>
 							<input
 								required
 								type="password"
@@ -189,39 +184,64 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 							</p>
 						)}
 
-						{/* The submit button is the app's own accent rather than the sheet's
-						    dark grey, and the reason is the sheet itself: it draws two
-						    buttons, and the *dark* one is the passkey action — which here
-						    cannot sign anyone in. The button that actually works is the one
-						    that should carry the emphasis, so the emphasis moves to it and
-						    the passkey button takes the secondary weight. Same two-button
-						    layout, same contrast between them; the roles are the app's. */}
-						<button
-							type="submit"
-							disabled={loading}
-							className="tap mt-6 w-full rounded-signin-control bg-accent px-4 py-2.5 font-medium text-accent-foreground disabled:opacity-50"
-						>
-							{loading ? t("login.signingIn") : t("login.signIn")}
-						</button>
+						{/* The two buttons share one row, because side by side is the
+						    layout the sheet itself draws — it stacks them only at a
+						    phone's width, where a 384px column has no room for both.
+						    The card is wide enough for the pair now, and a form that
+						    ends in two half-width buttons reads as the pair of choices
+						    it is, rather than as one action with an aside under it.
+
+						    `items-stretch` is load-bearing: the passkey button carries
+						    a 20px icon and the submit button only text, so the row's
+						    two buttons would otherwise differ in height by a couple of
+						    px and the pair would read as mismatched rather than as
+						    equal. Stretching makes the row's own height the height of
+						    both, which is what "same shape, different weight" needs.
+
+						    `flex-1 basis-0` rather than `w-1/2` on each: equal shares of
+						    what is actually there, and with `basis-0` the two split by
+						    the *row* rather than by their own contents — otherwise the
+						    longer passkey label would take the wider half and the pair
+						    would stop looking like a pair. At 480px each button gets
+						    ~216px, against the 132px the shortened passkey label plus
+						    its icon needs, so neither label wraps. */}
+						<div className="mt-6 flex items-stretch gap-3">
+							{/* The submit button is the app's own accent rather than the
+							    sheet's dark grey, and the reason is the sheet itself: it
+							    draws two buttons, and the *dark* one is the passkey
+							    action — which here cannot sign anyone in. The button that
+							    actually works is the one that should carry the emphasis,
+							    so the emphasis moves to it and the passkey button takes
+							    the secondary weight. Same two-button layout, same
+							    contrast between them; the roles are the app's. */}
+							<button
+								type="submit"
+								disabled={loading}
+								className="tap flex-1 basis-0 rounded-signin-control bg-accent px-4 py-2.5 font-medium text-accent-foreground disabled:opacity-50"
+							>
+								{loading ? t("login.signingIn") : t("login.signIn")}
+							</button>
+							{/* The sheet's dark pill, kept at the full pill radius it asks
+							    for: a capsule among rounded rectangles is the one shape in
+							    this card that reads as "a different kind of thing", and
+							    that is exactly what this button is. `bg-foreground` is the
+							    near-black the sheet names, which is a token the dark theme
+							    already flips. */}
+							<button
+								type="button"
+								onClick={() => {
+									setError("");
+									setPasskeyNote(t("login.passkeyUnsupported"));
+								}}
+								className="tap flex flex-1 basis-0 items-center justify-center gap-1.5 rounded-full bg-foreground px-4 py-2.5 font-medium whitespace-nowrap text-background"
+							>
+								<PasskeyIcon className="size-5 shrink-0" />
+								{t("login.passkey")}
+							</button>
+						</div>
 					</form>
 
-					{/* The sheet's dark pill, kept at the full pill radius it asks for:
-					    a capsule among rounded rectangles is the one shape in this card
-					    that reads as "a different kind of thing", and that is exactly
-					    what this button is. `bg-foreground` is the near-black the sheet
-					    names, which is a token the dark theme already flips. */}
-					<button
-						type="button"
-						onClick={() => {
-							setError("");
-							setPasskeyNote(t("login.passkeyUnsupported"));
-						}}
-						className="tap mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-foreground px-4 py-2.5 font-medium text-background"
-					>
-						<PasskeyIcon className="size-5" />
-						{t("login.passkey")}
-					</button>
-					<p className="mt-2 text-xs text-signin-muted">{t("login.passkeyHint")}</p>
+					<p className="mt-3 text-xs text-signin-muted">{t("login.passkeyHint")}</p>
 					{passkeyNote && (
 						<p role="status" className="arrive mt-2 text-xs text-signin-muted">
 							{passkeyNote}

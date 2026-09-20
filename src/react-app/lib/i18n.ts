@@ -65,7 +65,7 @@ export const EN = {
 	"login.privacy":
 		"Your Access Key and Secret Key are checked by this deployment's own Worker and are never sent anywhere else.",
 	"login.privacyLink": "Learn how your data is managed…",
-	"login.passkey": "Sign in with a passkey",
+	"login.passkey": "Use a passkey",
 	"login.passkeyHint": "Requires a device running iOS 17 or later.",
 	"login.passkeyUnsupported": "This deployment has no passkey sign-in. Use your keys above.",
 	"login.needKeys": "Enter both the Access Key and the Secret Key",

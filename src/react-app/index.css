@@ -185,13 +185,17 @@
 	   cascade to lose (see the note below). */
 	--radius-signin: 1.125rem;
 	--radius-signin-control: 0.75rem;
-	/* The card's width, 384px. This is `max-w-sm`'s value and it is spelled as
-	   its own token so the two can part company: the sheet gives the card a
-	   "max-width: 480px" and this is the narrower reading of it, because 480px
-	   held a two-field form at UI-19's proportions and read as sparse. 384 is
-	   also what `max-w-sm` is, so if the two ever disagree the *reason* has to
-	   be written here rather than inferred from a class name. */
-	--container-signin: 24rem;
+	/* The card's width, 480px. Third value this token has had, and the two
+	   earlier ones both lost *height*, which is the only axis a two-field form
+	   can spend: 384px was UI-19's, which took the sheet's 480 down to
+	   `max-w-sm` because 480 held the fields at proportions that read as
+	   sparse. 384 is also the point where the two buttons stop fitting side by
+	   side — and that row is what changed the arithmetic. The English passkey
+	   label needs about 139px beside its icon, so a 480px card is the smallest
+	   1rem step that leaves it on one line in a Chrome render; the wider form
+	   reads as a deliberate sheet rather than sparse because the bottom row is
+	   now the longest row in it. */
+	--container-signin: 30rem;
 	/* Apple's link blue, `#0071E3` — the design sheet's "品牌/主交互色" and the
 	   one blue on the sign-in page. It is text (the "了解数据的管理方式…"
 	   link), so it takes the sheet's *link* blue rather than `--accent`: the
@@ -615,8 +619,7 @@ input[type="checkbox"] {
 
 .dark,
 [data-theme="dark"] {
-	--signin-card-shadow:
-		0 1px 2px oklch(0% 0 0 / 0.3), 0 6px 16px oklch(0% 0 0 / 0.28), 0 24px 48px oklch(0% 0 0 / 0.2);
+	--signin-card-shadow: 0 1px 2px oklch(0% 0 0 / 0.3), 0 6px 16px oklch(0% 0 0 / 0.28), 0 24px 48px oklch(0% 0 0 / 0.2);
 }
 
 @utility signin-card {
