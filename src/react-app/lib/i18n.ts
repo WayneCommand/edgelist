@@ -47,15 +47,37 @@ export const EN = {
 	"nav.theme.light": "Light",
 	"nav.theme.dark": "Dark",
 
-	// Sign in
+	// Sign in. The screen is drawn to Apple's iCloud sign-in layout, and the
+	// copy deliberately is not Apple's: the credential this form takes is an
+	// AK/SK pair, so the marketing sentence ("通过 Apple 账户登录") is replaced
+	// by what the page actually does. The two field labels are OpenList's own
+	// words, unchanged.
 	"login.title": "Sign in to EdgeList",
 	"login.subtitle": "OpenList-compatible file management",
 	"login.accessKey": "Access Key",
 	"login.secretKey": "Secret Key",
+	"login.accessKeyPlaceholder": "Access Key",
+	"login.secretKeyPlaceholder": "Secret Key",
 	"login.signIn": "Sign in",
 	"login.signingIn": "Signing in…",
 	"login.failed": "Login failed",
 	"login.verified": "Credentials are verified securely by the Worker.",
+	"login.privacy":
+		"Your Access Key and Secret Key are checked by this deployment's own Worker and are never sent anywhere else.",
+	"login.privacyLink": "Learn how your data is managed…",
+	"login.passkey": "Sign in with a passkey",
+	"login.passkeyHint": "Requires a device running iOS 17 or later.",
+	"login.passkeyUnsupported": "This deployment has no passkey sign-in. Use your keys above.",
+	"login.needKeys": "Enter both the Access Key and the Secret Key",
+	"login.moreOptions": "More options",
+	// The sign-in footer. The three links are named for what they are rather
+	// than for whose policy they point at, because two of the three leave for
+	// apple.com and one for Cloudflare's status page — and a footer that says
+	// "Privacy Policy" without saying *whose* is the usual way these mislead.
+	"nav.status": "System status",
+	"nav.privacy": "Privacy policy",
+	"nav.terms": "Terms & conditions",
+	"login.copyright": "Copyright © 2026 EdgeList. All rights reserved.",
 
 	// Shared action labels, used by the toolbar, the action bar and the menu
 	"action.open": "Open",
@@ -379,10 +401,23 @@ export const ZH: Partial<Record<MessageKey, string>> = {
 	"login.subtitle": "兼容 OpenList 的文件管理",
 	"login.accessKey": "访问密钥",
 	"login.secretKey": "私密密钥",
+	"login.accessKeyPlaceholder": "访问密钥",
+	"login.secretKeyPlaceholder": "私密密钥",
 	"login.signIn": "登录",
 	"login.signingIn": "登录中…",
 	"login.failed": "登录失败",
 	"login.verified": "凭据由 Worker 安全校验。",
+	"login.privacy": "访问密钥与私密密钥只会由本部署自己的 Worker 校验，不会发送到任何其他地方。",
+	"login.privacyLink": "了解数据的管理方式…",
+	"login.passkey": "通过通行密钥登录",
+	"login.passkeyHint": "需要安装 iOS 17 或更高版本的设备。",
+	"login.passkeyUnsupported": "本部署未配置通行密钥登录，请使用上方的密钥。",
+	"login.needKeys": "请填写访问密钥与私密密钥",
+	"login.moreOptions": "更多选项",
+	"nav.status": "系统状态",
+	"nav.privacy": "隐私政策",
+	"nav.terms": "条款与条件",
+	"login.copyright": "版权所有 © 2026 EdgeList。保留所有权利。",
 
 	"action.open": "打开",
 	"action.rename": "重命名",

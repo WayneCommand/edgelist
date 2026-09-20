@@ -11,7 +11,15 @@
 	   derived from this one value by the library, so the whole accent family
 	   moves together. Measured white-on-accent contrast is 4.02:1 — below the
 	   4.5:1 this project holds text to, and kept anyway because it is the
-	   value Apple itself puts white button labels on. See R11. */
+	   value Apple itself puts white button labels on. See R11.
+
+	   The sign-in page's own blue is the other one Apple ships: the design
+	   sheet asks for `#0071E3`, which is apple.com's *link* blue rather than
+	   the system UI blue above. Measured 4.60:1 on white, so unlike the
+	   button fill it clears 4.5:1 as text. It lives in `--color-signin-link`
+	   and not here because the two are used for different things — this one
+	   fills the app's buttons, that one is text on the one page that has no
+	   shell around it. */
 	--accent: oklch(60.28% 0.2177 257.42);
 	--accent-foreground: oklch(99.11% 0 0);
 	/* 96.4% is iCloud's window grey (#F5F5F7). The gap to `--surface` (100%)
@@ -162,11 +170,65 @@
 	   alternative and is too small to hold a CJK label. */
 	--text-label: 0.8125rem;
 	--text-label--line-height: 1.125rem;
+	/* The sign-in page's own two radii, and they are deliberately *not* the
+	   control tier.
+	   The card is 18px, which is what `--radius` already gives a panel at
+	   `rounded-3xl` — so the card could have taken a ladder step and did not
+	   need a token. It has one anyway because the design sheet names
+	   "18px – 24px" as a *range for this card specifically*, and a ladder step
+	   moves with the knob: the next retune of `--radius` would silently walk
+	   the card out of that range. Pinned is the honest reading of the sheet.
+	   The 12px control sits one step above `--radius-control` (10px) for the
+	   same reason the sign-in page is not the app: this card is drawn at
+	   Apple's generous proportions, where the app's forms are drawn denser.
+	   Both are `@theme` because nothing else declares them, so there is no
+	   cascade to lose (see the note below). */
+	--radius-signin: 1.125rem;
+	--radius-signin-control: 0.75rem;
+	/* The card's width, 384px. This is `max-w-sm`'s value and it is spelled as
+	   its own token so the two can part company: the sheet gives the card a
+	   "max-width: 480px" and this is the narrower reading of it, because 480px
+	   held a two-field form at UI-19's proportions and read as sparse. 384 is
+	   also what `max-w-sm` is, so if the two ever disagree the *reason* has to
+	   be written here rather than inferred from a class name. */
+	--container-signin: 24rem;
+	/* Apple's link blue, `#0071E3` — the design sheet's "品牌/主交互色" and the
+	   one blue on the sign-in page. It is text (the "了解数据的管理方式…"
+	   link), so it takes the sheet's *link* blue rather than `--accent`: the
+	   two are different values in Apple's own palette, and this one is the one
+	   picked to be read.
+	   A colour in Tailwind's own namespace, so it also arrives as
+	   `text-signin-link` / `bg-signin-link`. */
+	--color-signin-link: oklch(57.16% 0.1958 254.62);
+	/* Apple's secondary grey, `#86868B`, as Oklch. Deliberately *not* `--muted`:
+	   `--muted` is the app's own secondary grey, tuned for the app's surfaces.
+	   The sheet ladders lighter than the app does. */
+	--color-signin-muted: oklch(59.29% 0.0042 286.18);
+	/* The privacy notice's grey: Apple's secondary label in its darker variant,
+	   `#6E6E73`. Three sentences of explanation are body text at 13px rather
+	   than a footnote, so they take a grey a step darker than the one above —
+	   which is the difference between passing and not passing on a white card.
+	   Named for what it is *for* rather than for how light it is, because the
+	   alternative is `signin-muted` and `signin-muted-darker`, which says
+	   nothing about when to use which. */
+	--color-signin-secondary: oklch(50.16% 0.0043 286.18);
 }
 
+/* The dark values for the two sign-in greys.
+ *
+ * `--color-signin-muted` needs no entry — 59.29% is 8.33:1 against the dark
+ * card, which is already the right weight. These two do: a grey picked for a
+ * white card is invisible on a dark one. `--color-signin-secondary` lands on
+ * the same 50.16% the light theme uses, which is not a copy-paste slip — in
+ * the dark theme it is 4.99:1 against the card at `oklch(21.03%)`, and the
+ * light value happens to be what clears 4.5:1 in both directions. Stated
+ * twice rather than shared, because the two will part company the moment
+ * either card moves. */
 .dark,
 [data-theme="dark"] {
 	--color-hairline: oklch(1 0 0 / 0.12);
+	--color-signin-muted: oklch(71.55% 0.0041 286.18);
+	--color-signin-secondary: oklch(70% 0.0041 286.18);
 }
 
 /* Binding a *library* token to ours has to happen out here, unlayered.
@@ -477,11 +539,45 @@ input[type="checkbox"] {
 .default,
 [data-theme="light"] {
 	--page-glow: oklch(100% 0 0);
+	/* The ten dot colours, going round the ring: pink → purple → the two
+	   teals → blue → the same sequence back on the far side, so the ring is
+	   symmetric through its centre and reads as a gradient rather than as a
+	   set of ten unrelated swatches.
+	   Light theme is the saturated set, because these sit on white. */
+	--halo-1: oklch(74% 0.16 350);
+	--halo-2: oklch(70% 0.18 310);
+	--halo-3: oklch(76% 0.11 200);
+	--halo-4: oklch(78% 0.12 190);
+	--halo-5: oklch(74% 0.14 240);
+	--halo-6: oklch(78% 0.13 165);
+	--halo-7: oklch(74% 0.14 240);
+	--halo-8: oklch(78% 0.12 190);
+	--halo-9: oklch(76% 0.11 200);
+	--halo-10: oklch(70% 0.18 310);
+	/* The haze behind them is the accent, very faint: a saturated bloom would
+	   turn the mark's background into a second accent, and the card already
+	   has exactly one. */
+	--halo-bloom: oklch(74% 0.14 265 / 0.16);
 }
 
 .dark,
 [data-theme="dark"] {
 	--page-glow: oklch(20% 0.003 253.83);
+	/* The same ten hues, raised in lightness and pulled down in chroma: a dot
+	   tuned for white is muddy on a `oklch(21%)` card, and the pair of moves
+	   is the same one Apple makes to systemBlue between the two themes —
+	   brighter is what "the same weight" costs on a dark canvas. */
+	--halo-1: oklch(80% 0.13 350);
+	--halo-2: oklch(78% 0.14 310);
+	--halo-3: oklch(82% 0.09 200);
+	--halo-4: oklch(83% 0.1 190);
+	--halo-5: oklch(80% 0.11 240);
+	--halo-6: oklch(83% 0.11 165);
+	--halo-7: oklch(80% 0.11 240);
+	--halo-8: oklch(83% 0.1 190);
+	--halo-9: oklch(82% 0.09 200);
+	--halo-10: oklch(78% 0.14 310);
+	--halo-bloom: oklch(70% 0.12 265 / 0.22);
 }
 
 @utility page-glow {
@@ -490,6 +586,131 @@ input[type="checkbox"] {
 	   ellipse is wider than the window on purpose: the horizontal falloff
 	   should be off-screen at every viewport, leaving a vertical wash. */
 	background-image: radial-gradient(120% 80% at 50% 0%, var(--page-glow), var(--background) 72%);
+}
+
+/* The sign-in card: the one surface in the app that is a *floating* panel
+ * rather than a page or a form group, so it is the one place a shadow is the
+ * right answer. Everywhere else R2 spends elevation on materials, because a
+ * toolbar and a popover are anchored to something; a card in the middle of an
+ * otherwise empty window is not, and without a shadow it reads as a rectangle
+ * painted on the grey rather than as a sheet lying on top of it.
+ *
+ * Three layers, which is what makes a shadow read as light rather than as a
+ * grey blur: a 1px contact layer that draws the edge, a 6px layer for the near
+ * falloff, and a 24px layer for the ambient spread. Opacity goes down as the
+ * radius goes up — the wide layer at the same alpha as the tight one would
+ * grey the whole surroundings instead of shading the edge.
+ *
+ * The dark values are not the light ones scaled down. Black at 5% under a
+ * `oklch(21%)` card is invisible, so the dark theme needs more alpha to
+ * register at all, and the contact layer has to be stronger — on a dark
+ * canvas the edge is the only part of the shadow the eye can see. */
+:root,
+.light,
+.default,
+[data-theme="light"] {
+	--signin-card-shadow:
+		0 1px 2px oklch(0% 0 0 / 0.04), 0 6px 16px oklch(0% 0 0 / 0.06), 0 24px 48px oklch(0% 0 0 / 0.04);
+}
+
+.dark,
+[data-theme="dark"] {
+	--signin-card-shadow:
+		0 1px 2px oklch(0% 0 0 / 0.3), 0 6px 16px oklch(0% 0 0 / 0.28), 0 24px 48px oklch(0% 0 0 / 0.2);
+}
+
+@utility signin-card {
+	background-color: var(--surface);
+	border-radius: var(--radius-signin);
+	box-shadow: var(--signin-card-shadow);
+}
+
+/* The ring of coloured dots around the sign-in mark.
+ *
+ * The design sheet asks for "由多色小圆点构成的圆形渐变点阵" with a soft bloom
+ * and an explicitly *dynamic* feel. Two decisions here:
+ *
+ * **The dots are painted, not laid out.** They are ten evenly-spaced radial
+ * gradients on one element rather than ten child elements: the pattern is
+ * decoration, and ten spans would be ten nodes in the accessibility tree's
+ * markup for nothing. `background-position` places each one on a circle, and
+ * because it is a background it can cross-fade as a whole.
+ *
+ * **The rotation is one transform on the container.** A ring is rotationally
+ * symmetric, so the *only* way its motion is visible is by its colour —
+ * hence the dots have to be distinguishable from one another, and hence the
+ * slow `spin`. `prefers-reduced-motion` stops it, which is the one motion the
+ * sheet's "柔和的动态光晕" is asking for and the one most worth switching off.
+ *
+ * `--halo-radius` is 40px so the ring's outer edge lands at 52px from the
+ * centre — clear of the 40px mark inside it, which is the whole point of the
+ * gap the design shows. It is a custom property rather than a computed
+ * position list because each dot's position is `calc()` off it, and ten
+ * hand-computed pairs would be ten numbers to keep in step by hand. */
+@utility signin-halo {
+	background-image:
+		radial-gradient(circle at 50% calc(50% - var(--halo-radius)), var(--halo-1) 0 2.5px, transparent 3px),
+		radial-gradient(
+			circle at calc(50% + var(--halo-radius) * 0.951) calc(50% - var(--halo-radius) * 0.309),
+			var(--halo-2) 0 2px,
+			transparent 2.5px
+		),
+		radial-gradient(
+			circle at calc(50% + var(--halo-radius) * 0.588) calc(50% + var(--halo-radius) * 0.809),
+			var(--halo-3) 0 2.5px,
+			transparent 3px
+		),
+		radial-gradient(
+			circle at calc(50% - var(--halo-radius) * 0.588) calc(50% + var(--halo-radius) * 0.809),
+			var(--halo-4) 0 2px,
+			transparent 2.5px
+		),
+		radial-gradient(
+			circle at calc(50% - var(--halo-radius) * 0.951) calc(50% - var(--halo-radius) * 0.309),
+			var(--halo-5) 0 2.5px,
+			transparent 3px
+		),
+		radial-gradient(circle at 50% calc(50% + var(--halo-radius)), var(--halo-6) 0 2px, transparent 2.5px),
+		radial-gradient(
+			circle at calc(50% - var(--halo-radius) * 0.951) calc(50% + var(--halo-radius) * 0.309),
+			var(--halo-7) 0 2.5px,
+			transparent 3px
+		),
+		radial-gradient(
+			circle at calc(50% - var(--halo-radius) * 0.588) calc(50% - var(--halo-radius) * 0.809),
+			var(--halo-8) 0 2px,
+			transparent 2.5px
+		),
+		radial-gradient(
+			circle at calc(50% + var(--halo-radius) * 0.588) calc(50% - var(--halo-radius) * 0.809),
+			var(--halo-9) 0 2.5px,
+			transparent 3px
+		),
+		radial-gradient(
+			circle at calc(50% + var(--halo-radius) * 0.951) calc(50% + var(--halo-radius) * 0.309),
+			var(--halo-10) 0 2px,
+			transparent 2.5px
+		);
+	animation: halo-spin 24s linear infinite;
+
+	@media (prefers-reduced-motion: reduce) {
+		animation: none;
+	}
+}
+
+@keyframes halo-spin {
+	to {
+		rotate: 360deg;
+	}
+}
+
+/* The bloom under the dots: one blurred ellipse in the accent family, which is
+ * what turns ten discrete dots into a glow. It is a separate element from the
+ * ring because a blur on the ring would blur the dots themselves, and the
+ * sheet wants both — crisp points *and* a haze behind them. */
+@utility signin-halo-bloom {
+	background-image: radial-gradient(circle at 50% 50%, var(--halo-bloom) 0%, transparent 68%);
+	filter: blur(6px);
 }
 
 /* Values that change in place — file sizes, dates, "showing 1-20 of 300",

@@ -186,3 +186,47 @@ export function InboxIcon(props: IconProps) {
 		</Icon>
 	);
 }
+
+/* --------------------------------------------------------------- sign-in */
+
+/**
+ * Two figures hand in hand, for the privacy notice.
+ *
+ * The design sheet describes it as a "极简的双人（手拉手）图标" — the glyph Apple
+ * puts beside the sentence about who a credential is shared with. Drawn as two
+ * head-and-shoulder pairs with a short bar between them, and the bar is the
+ * load-bearing part: without it the two figures read as a queue rather than as
+ * a pair, which is the opposite of what the sentence says.
+ */
+export function PrivacyIcon(props: IconProps) {
+	return (
+		<Icon name="privacy" {...props}>
+			<circle cx="7.5" cy="7" r="2.75" />
+			<path d="M2.75 19v-.75a4 4 0 0 1 4-4h1.5a4 4 0 0 1 4 4V19" />
+			<circle cx="16.5" cy="7" r="2.75" />
+			<path d="M21.25 19v-.75a4 4 0 0 0-4-4h-1.5" />
+			<path d="M11.25 12.75h1.5" />
+		</Icon>
+	);
+}
+
+/**
+ * A key beside a face, for the passkey button.
+ *
+ * Two glyphs in one 24 grid rather than a key alone, because the button's whole
+ * claim is *which kind* of credential this is: a bare key would be a generic
+ * "credentials" action next to a field that also takes credentials. The face is
+ * deliberately the smaller of the two.
+ */
+export function PasskeyIcon(props: IconProps) {
+	return (
+		<Icon name="passkey" {...props}>
+			<circle cx="7" cy="8" r="3.25" />
+			<path d="M1.75 19.25v-.5a4.25 4.25 0 0 1 4.25-4.25h2a4.25 4.25 0 0 1 4.25 4.25v.5" />
+			<circle cx="16.5" cy="12" r="2.25" />
+			<path d="M18.75 12h3.5" />
+			<path d="M20.5 12v2.5" />
+			<path d="M22.25 12v1.75" />
+		</Icon>
+	);
+}
