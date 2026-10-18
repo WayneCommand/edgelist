@@ -1,148 +1,166 @@
-import { Button as HeroButton, Toast } from "@heroui/react";
-import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from "react-router";
+import { Suspense, lazy, useEffect } from "react";
+import { Navigate, Outlet, Route, Routes, useLocation } from "react-router";
 import { ROUTES, routeFor } from "./routes";
-import type { MessageKey } from "./lib/i18n";
-import { useAuth } from "./hooks/useAuth";
-import { useT } from "./hooks/useLocale";
-import { ConfirmProvider } from "./components/common/ConfirmDialog";
-import { LocaleSelect } from "./components/common/LocaleSelect";
-import { LogoMark } from "./components/common/LogoMark";
-import { SegmentedControl } from "./components/common/SegmentedControl";
-import { ThemeSelect } from "./components/common/ThemeSelect";
-import { BackupPage } from "./pages/BackupPage";
-import { FilesPage } from "./pages/FilesPage";
+import { useAuth } from "./hooks/useStore";
+import { loadWorkspace, resetWorkspace } from "./lib/workspace";
+import { ConfirmHost, Toaster } from "./ui/Feedback";
 import { LoginPage } from "./pages/LoginPage";
-import { MetadataPage } from "./pages/MetadataPage";
-import { StoragesPage } from "./pages/StoragesPage";
-
-/** The four destinations, in the order the navigation shows them. */
-const NAV_ORDER = ["files", "storages", "metadata", "backup"] as const;
-
-type NavKind = (typeof NAV_ORDER)[number];
+import { Loading } from "./ui/Field";
 
 /**
- * Keyed by kind rather than kept as an array of the same three fields, because
- * the segmented control reports back *which option* was chosen and the path for
- * it then has to be looked up. `Record<NavKind, …>` is what makes the compiler
- * hold the two in step; an array would let a destination exist in the order
- * list with no entry of its own.
+ * The app, split so the sign-in screen does not carry the file manager.
+ *
+ * §1.1 says the first thing a visitor sees is a loading state, and the honest way to keep
+ * that loading state short is to send less. The login page is imported eagerly — it is what
+ * an unauthenticated visitor gets, and a lazy sign-in form would show a spinner where the
+ * form should be — while the browser, the file page and the management shell are chunks of
+ * their own.
+ *
+ * The split is by *route*, which is the only boundary React can honour without a second
+ * router: one dynamic import per page, and a `<Suspense>` around each outlet that renders the
+ * app's own spinner rather than nothing.
  */
-const NAV_ITEMS: Record<NavKind, { label: MessageKey; path: string }> = {
-	files: { label: "nav.files", path: ROUTES.files() },
-	storages: { label: "nav.storages", path: ROUTES.storages },
-	metadata: { label: "nav.metadata", path: ROUTES.metadata },
-	backup: { label: "nav.backup", path: ROUTES.backup },
-};
+const BrowserPage = lazy(() => import("./pages/BrowserPage").then((m) => ({ default: m.BrowserPage })));
+const FilePage = lazy(() => import("./pages/FilePage").then((m) => ({ default: m.FilePage })));
+const ManageShell = lazy(() => import("./pages/ManageShell").then((m) => ({ default: m.ManageShell })));
+const ProfilePage = lazy(() => import("./pages/ProfilePage").then((m) => ({ default: m.ProfilePage })));
+const StorageListPage = lazy(() => import("./pages/StorageListPage").then((m) => ({ default: m.StorageListPage })));
+const StorageFormPage = lazy(() => import("./pages/StorageFormPage").then((m) => ({ default: m.StorageFormPage })));
+const MetaListPage = lazy(() => import("./pages/MetaListPage").then((m) => ({ default: m.MetaListPage })));
+const MetaFormPage = lazy(() => import("./pages/MetaFormPage").then((m) => ({ default: m.MetaFormPage })));
+const BackupPage = lazy(() => import("./pages/BackupPage").then((m) => ({ default: m.BackupPage })));
+const AboutPage = lazy(() => import("./pages/AboutPage").then((m) => ({ default: m.AboutPage })));
 
-function RequireAuth({ signedIn }: { signedIn: boolean }) {
-	const location = useLocation();
-	if (signedIn) return <Outlet />;
-	return <Navigate to={ROUTES.login} replace state={{ from: location.pathname }} />;
-}
-
-/**
- * The app shell: a 52px toolbar over a content plane.
- *
- * Exported for `app-shell.test.tsx`, which renders it on its own — the shell is
- * the thing being pinned, and going through `App` would drag a page and the
- * auth redirect into every assertion.
- *
- * Three things in here are load-bearing and easy to "tidy up" into bugs:
- *
- * **The navigation is the shared `SegmentedControl`, not a fifth copy of the
- * recipe.** It had already drifted: the four destinations were `rounded-lg px-3
- * py-2 text-sm` buttons with a `border`, while the three extracted segmented
- * controls used a fill and `text-xs`. It takes the `md` size, which exists for
- * it.
- *
- * **The bar folds to two rows below `sm` by `order`, not by moving the DOM.**
- * `nav` used to be `hidden sm:flex`, so on a phone the four destinations simply
- * did not exist and there was no other route to them. Now the first row is the
- * brand and the right-hand controls and the second is the navigation, full
- * width and scrollable if a language needs it. The row is chosen with
- * `order-last` because the tab order has to stay brand → navigation → controls
- * → content at *both* widths, and that is the DOM order.
- *
- * **The header has no bottom border.** The bar is 80% of the window colour with
- * a blur behind it, over a content plane that is a step lighter; that is what
- * separates them. The 1px rule was doing the same job a second time and reading
- * as "web page" rather than "toolbar".
- */
-export function Shell() {
-	const { signOut } = useAuth();
-	const t = useT();
-	const route = routeFor(useLocation().pathname);
-	const navigate = useNavigate();
-	// `routeFor` has to answer for every path, and `files` is the destination it
-	// falls back to, so it is the honest stand-in for the one route the shell
-	// never renders for.
-	const active: NavKind = route.kind === "login" ? "files" : route.kind;
-	const options = NAV_ORDER.map((kind) => ({ value: kind, label: t(NAV_ITEMS[kind].label) }));
+/** A chunk's loading state: full-height, centred, and the same spinner as the first paint. */
+function RouteFallback() {
 	return (
-		<main className="min-h-screen bg-background text-foreground">
-			<Toast.Provider placement="bottom end" />
-			<header className="material-bar sticky top-0 z-header flex flex-wrap items-center gap-x-4 gap-y-2 bg-background/80 px-4 py-2 sm:h-13 sm:flex-nowrap sm:gap-0 sm:px-6 sm:py-0">
-				<div className="flex flex-1 items-center gap-3 sm:flex-none">
-					<button className="flex items-center gap-3" onClick={() => navigate(ROUTES.files())}>
-						<LogoMark />
-						<span className="font-semibold">EdgeList</span>
-					</button>
-				</div>
-				<nav className="order-last w-full min-w-0 overflow-x-auto sm:order-none sm:w-auto sm:flex-1 sm:overflow-x-visible">
-					<div className="flex w-max sm:w-full sm:justify-center">
-						<SegmentedControl
-							size="md"
-							ariaLabel={t("nav.label")}
-							value={active}
-							options={options}
-							onChange={(kind) => navigate(NAV_ITEMS[kind].path)}
-						/>
-					</div>
-				</nav>
-				<div className="flex items-center gap-2">
-					<LocaleSelect />
-					<ThemeSelect />
-					<HeroButton size="sm" variant="ghost" onPress={signOut}>
-						{t("nav.signOut")}
-					</HeroButton>
-				</div>
-			</header>
-			{/*
-			 * Keyed by destination, not by pathname: the animation belongs to
-			 * *changing pages*, and keying on the full path would remount
-			 * `FilesPage` every time a folder was opened, refetching the listing
-			 * and dropping its loading state.
-			 *
-			 * `--arrive-from` is local to this one element on purpose. The 6px
-			 * default is the throw for a message arriving in a page; a whole
-			 * content plane moving 6px reads as the window sliding, so this is
-			 * the 2px Apple uses for a page transition.
-			 */}
-			<div key={active} className="arrive mx-auto max-w-6xl p-6 [--arrive-from:2px]">
-				<Outlet />
-			</div>
-		</main>
+		<div className="flex min-h-[60vh] items-center justify-center">
+			<Loading size="lg" />
+		</div>
 	);
 }
 
+/** §1.2: the refused path travels as `?redirect=`. */
+function RequireAuth() {
+	const { signedIn } = useAuth();
+	const location = useLocation();
+	if (!signedIn) {
+		return <Navigate to={`${ROUTES.login}?redirect=${encodeURIComponent(location.pathname + location.search)}`} replace />;
+	}
+	return <Outlet />;
+}
+
+/**
+ * Loads the workspace — `me`, the storages, the driver registry — once, alongside the tree.
+ *
+ * Every page needs part of it, and a per-page load would fetch three endpoints on every
+ * navigation. It is also what the browser uses to decide whether a directory can be written
+ * to at all, so it has to be there before the first listing is drawn.
+ */
+function WorkspaceGate() {
+	const { signedIn } = useAuth();
+	useEffect(() => {
+		if (signedIn) void loadWorkspace();
+		else resetWorkspace();
+	}, [signedIn]);
+	return <Outlet />;
+}
+
+/**
+ * The browser's catch-all, which splits a directory from a file.
+ *
+ * In OpenList a file and a directory share one namespace, so a path is only known to be a
+ * file once the server says so. Probing on every navigation would cost a request per click, so
+ * the split is made by extension here and corroborated by `fs/get` inside `FilePage`. A
+ * *directory* whose name contains a dot is the one case this gets wrong, and it costs a
+ * failed read and a Back button rather than a wrong listing.
+ */
+function BrowserRoute() {
+	const route = routeFor(useLocation().pathname);
+	if (route.kind !== "files") return null;
+	return /\/[^/]*\.[^/]+$/.test(route.path) ? <FilePage /> : <BrowserPage />;
+}
+
 export default function App() {
-	const { signedIn, signIn } = useAuth();
 	return (
-		<ConfirmProvider>
+		<>
+			<Toaster />
+			<ConfirmHost />
+			<RouteProgress />
 			<Routes>
-				<Route element={<RequireAuth signedIn={signedIn} />}>
-					<Route element={<Shell />}>
-						<Route path={ROUTES.storages} element={<StoragesPage />} />
-						<Route path={ROUTES.metadata} element={<MetadataPage />} />
-						<Route path={ROUTES.backup} element={<BackupPage />} />
-						<Route path="*" element={<FilesPage />} />
+				<Route path={ROUTES.login} element={<SignIn />} />
+				<Route element={<RequireAuth />}>
+					<Route element={<WorkspaceGate />}>
+						<Route
+							path="/@manage"
+							element={
+								<Suspense fallback={<RouteFallback />}>
+									<ManageShell />
+								</Suspense>
+							}
+						>
+							<Route index element={page(<ProfilePage />)} />
+							<Route path="storages" element={page(<StorageListPage />)} />
+							<Route path="storages/add" element={page(<StorageFormPage />)} />
+							<Route path="storages/edit/:id" element={page(<StorageFormPage />)} />
+							<Route path="metas" element={page(<MetaListPage />)} />
+							<Route path="metas/add" element={page(<MetaFormPage />)} />
+							<Route path="metas/edit/:id" element={page(<MetaFormPage />)} />
+							<Route path="backup-restore" element={page(<BackupPage />)} />
+							<Route path="about" element={page(<AboutPage />)} />
+							{/* §1.2: an unmatched management path is still management; sending it to the
+							    browser would list it as a folder called `@manage`. */}
+							<Route path="*" element={<Navigate to={ROUTES.profile} replace />} />
+						</Route>
+						<Route path="*" element={page(<BrowserRoute />)} />
 					</Route>
 				</Route>
-				<Route
-					path={ROUTES.login}
-					element={signedIn ? <Navigate to={ROUTES.files()} replace /> : <LoginPage onSignedIn={signIn} />}
-				/>
 			</Routes>
-		</ConfirmProvider>
+		</>
+	);
+}
+
+/** Wraps a lazy page in the suspense boundary that owns its chunk. */
+function page(element: React.ReactNode) {
+	return <Suspense fallback={<RouteFallback />}>{element}</Suspense>;
+}
+
+/** The sign-in page, which leaves as soon as the token exists. */
+function SignIn() {
+	const { signedIn, signIn } = useAuth();
+	if (signedIn) return <Navigate to={ROUTES.files()} replace />;
+	return (
+		<LoginPage
+			onSignedIn={(next) => {
+				signIn(next);
+				void loadWorkspace(true);
+			}}
+		/>
+	);
+}
+
+/**
+ * §1.1's route progress bar.
+ *
+ * A CSS animation with a fixed beat rather than a measured one: how long a chunk takes is not
+ * knowable from here, and a bar that pretends to know is a bar that lies and then jumps. It
+ * appears on a path change and disappears shortly after, which is honest about a duration it
+ * cannot see.
+ *
+ * `bg-info-9` on a transparent track, `.5` tall, in the banner layer — §1.4's own slot.
+ */
+function RouteProgress() {
+	const { pathname } = useLocation();
+	// The bar is keyed by the path, so a new route is a new element and the animation
+	// restarts — which is what a progress bar *is*. No state, no effect, and nowhere for a
+	// synchronous write to happen.
+	return (
+		<div
+			key={pathname}
+			aria-hidden="true"
+			className="pointer-events-none fixed inset-x-0 top-0 z-banner h-0.5 overflow-hidden [animation:progress-fade_700ms_ease-out_both]"
+		>
+			<div className="indeterminate-bar h-full w-1/3 rounded-full bg-info-9" />
+		</div>
 	);
 }
