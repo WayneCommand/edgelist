@@ -15,14 +15,11 @@
 	"dependencies": {
 		"@heroui/react": "^3.2.4",
 		"@heroui/styles": "^3.2.4",
-		"@typefox/monaco-editor-react": "^7.7.0",
 		"crypto-js": "^4.2.0",
 		"hono": "4.11.1",
-		"monaco-languageclient": "^10.7.0",
 		"react": "19.2.1",
 		"react-dom": "19.2.1",
-		"react-router": "^7.18.3",
-		"tailwind-variants": "^3.3.1"
+		"react-router": "^7.18.3"
 	},
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "1.52.1",
