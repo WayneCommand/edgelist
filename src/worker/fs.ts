@@ -4,11 +4,12 @@ import { planTransfers, type TransferInput, type TransferKind, type TransferPlan
 import { canAccess, canWrite, getNearestMeta, metaHeader, metaReadme, whetherHide } from "./meta";
 import { invalidateDirectory, listDirectory } from "./storage/cache";
 import {
-	getStorageConfig,
 	isVirtualMount,
+	listStorageConfigs,
 	listVirtualMounts,
 	mergeFileObjects,
 	paginateFileObjects,
+	selectStorage,
 } from "./storage/config";
 import { resolveStorage } from "./storage/factory";
 import { normalizePath, ObjMask, parentOf, type FileObject, type StorageConfig } from "./storage/types";
@@ -416,7 +417,12 @@ export async function fsSearch(c: FsContext) {
 			}
 			const currentMeta = await getNearestMeta(c.env.EDGE_CONFIG, current);
 			if (!canAccess(user, currentMeta, current)) continue;
-			if (!(await getStorageConfig(c.env.EDGE_CONFIG, current))) {
+			// "Is a storage mounted *at* this path" is the wrong question: only the root
+			// of a mount answers yes, so every directory below it would be mistaken for a
+			// virtual level and skipped — the walk would stop one level into any storage.
+			// What matters is whether a storage *serves* this path, which is what
+			// `selectStorage` decides.
+			if (!selectStorage(await listStorageConfigs(c.env.EDGE_CONFIG), current)) {
 				const virtual = await listVirtualMounts(c.env.EDGE_CONFIG, current);
 				for (const item of virtual) {
 					if (item.name.toLocaleLowerCase().includes(keywords) && (scope === 0 || scope === 1))

@@ -231,6 +231,21 @@ describe("storage selection", () => {
 		expect(selectStorage(configs, "/a/top.txt")?.mount_path).toBe("/a");
 	});
 
+	/**
+	 * The walk in `fsSearch` asks whether a storage *serves* a directory, and the earlier
+	 * code asked whether one was mounted *at* it. Only a mount's root answers the second
+	 * question, so the search descended exactly one level and then treated everything
+	 * below as a virtual mount and skipped it.
+	 */
+	it("reports a storage for a directory below the mount, not just at it", () => {
+		const configs = [storage("/")];
+		expect(selectStorage(configs, "/Documents")).toBeDefined();
+		expect(selectStorage(configs, "/Documents/sub")).toBeDefined();
+		// The negative case that made the bug look like "search is broken": a path no
+		// mount covers has to come back empty, or the walk would list a phantom tree.
+		expect(selectStorage([storage("/a")], "/elsewhere")).toBeUndefined();
+	});
+
 	it("does not treat /ab as a child of /a", () => {
 		expect(selectStorage([storage("/a")], "/ab")).toBeUndefined();
 		expect(selectStorage([storage("/a")], "/abc/d.txt")).toBeUndefined();
