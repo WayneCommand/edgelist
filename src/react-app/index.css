@@ -1,361 +1,546 @@
 @import "tailwindcss";
 @import "@heroui/styles";
 
+/*
+ * The design tokens, transcribed from `interfaces.md` §16.
+ *
+ * Two things are worth knowing before reading the values.
+ *
+ * **The ramps are Radix's, and the spec's own numbers win where it gives one.**
+ * §16.4 lists 9/10/11/12 for each semantic colour, and those four steps are what
+ * the interface actually paints with (a `9` is a solid fill, `11` is readable
+ * text on the page background, `3`/`4` are the soft backgrounds). Steps 1–8 are
+ * Radix's published values for the same ramps, so the scale stays coherent
+ * without inventing the missing steps.
+ *
+ * **HeroUI's variables are *bound* to these ramps, not replaced.** The library
+ * styles its own components from `--background`, `--surface`, `--accent`,
+ * `--field-*` and friends, so pointing those at the spec palette is what makes
+ * a `Button` and a hand-written row the same colour family. Everything this
+ * file declares is unlayered on purpose: the library declares the same names
+ * inside `@layer base`, and an unlayered rule outranks a layered one regardless
+ * of source order. (`--field-radius` is the exception that proves it — see the
+ * note there.)
+ */
 :root,
 .light,
 .default,
 [data-theme="light"],
 [data-theme="default"] {
-	/* Apple's light-mode systemBlue (#007AFF). `--accent-soft`,
-	   `--accent-soft-foreground`, `--accent-hover` and `--focus` are all
-	   derived from this one value by the library, so the whole accent family
-	   moves together. Measured white-on-accent contrast is 4.02:1 — below the
-	   4.5:1 this project holds text to, and kept anyway because it is the
-	   value Apple itself puts white button labels on. See R11.
+	color-scheme: light;
 
-	   The sign-in page's own blue is the other one Apple ships: the design
-	   sheet asks for `#0071E3`, which is apple.com's *link* blue rather than
-	   the system UI blue above. Measured 4.60:1 on white, so unlike the
-	   button fill it clears 4.5:1 as text. It lives in `--color-signin-link`
-	   and not here because the two are used for different things — this one
-	   fills the app's buttons, that one is text on the one page that has no
-	   shell around it. */
-	--accent: oklch(60.28% 0.2177 257.42);
-	--accent-foreground: oklch(99.11% 0 0);
-	/* 96.4% is iCloud's window grey (#F5F5F7). The gap to `--surface` (100%)
-	   is what lets a flat page and a form group read as two levels without a
-	   border. */
-	--background: oklch(96.4% 0.002 253.83);
-	--border: oklch(90% 0.0015 253.83);
-	--danger: oklch(65.32% 0.2335 25.74);
-	--danger-foreground: oklch(99.11% 0 0);
-	--default: oklch(94% 0.0015 253.83);
-	--default-foreground: oklch(21.03% 0.0059 253.83);
-	--field-background: oklch(100% 0.0008 253.83);
-	--field-foreground: oklch(21.03% 0.0015 253.83);
-	--field-placeholder: oklch(55.17% 0.003 253.83);
-	--foreground: oklch(21.03% 0.0015 253.83);
-	--muted: oklch(55.17% 0.003 253.83);
-	--overlay: oklch(100% 0.0004 253.83);
-	--overlay-foreground: oklch(21.03% 0.0015 253.83);
-	--scrollbar: oklch(87.1% 0.0015 253.83);
-	--segment: oklch(100% 0.0015 253.83);
-	--segment-foreground: oklch(21.03% 0.0015 253.83);
-	--separator: oklch(92% 0.0015 253.83);
-	--success: oklch(73.29% 0.1941 150.81);
-	--success-foreground: oklch(21.03% 0.0059 150.81);
-	--surface: oklch(100% 0.0008 253.83);
-	--surface-foreground: oklch(21.03% 0.0015 253.83);
-	--surface-secondary: oklch(95.24% 0.0012 253.83);
-	--surface-secondary-foreground: oklch(21.03% 0.0015 253.83);
-	--surface-tertiary: oklch(93.73% 0.0012 253.83);
-	--surface-tertiary-foreground: oklch(21.03% 0.0015 253.83);
-	--warning: oklch(78.19% 0.159 72.33);
-	--warning-foreground: oklch(21.03% 0.0059 72.33);
-	/* The one knob the radii scale from. 0.375rem = 6px puts the ladder at
-	   panels 18px (`--radius-3xl`), menu rows and chips 12px, the switch and
-	   the segmented-control shell 6px, the small inline steps 4.5px.
-	   Third value this knob has had, and the reasons are worth keeping: 0.5rem
-	   was the library's own (24px panels, and 24px on a 36px button, i.e. a
-	   pill); 0.3125rem overshot the correction and went square. What settled it
-	   is the outside number — macOS 26 Tahoe put its window corners at 26px and
-	   macOS 27 Golden Gate brought them back down to 15-16px, so the panels here
-	   now sit at 18px, the same family one step softer than the window they are
-	   drawn inside.
-	   This knob cannot fix the button, which the library rounds with
-	   `--radius-3xl` — see `--radius-control` below.
-	   `--field-border` is the library's own token (`transparent`) and is not
-	   restated here. `--focus` was removed for the same reason: the library
-	   already derives it from `--accent`. */
-	--radius: 0.375rem;
-	--font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, ui-sans-serif, system-ui, sans-serif;
+	/* --- neutral (slate) ------------------------------------------------- */
+	--neutral-1: #fbfcfd;
+	--neutral-2: #f8f9fa;
+	--neutral-3: #f1f3f5;
+	--neutral-4: #eceef0;
+	--neutral-5: #e6e8eb;
+	--neutral-6: #dfe3e6;
+	--neutral-7: #d7dbdf;
+	--neutral-8: #c1c8cd;
+	--neutral-9: #889096;
+	--neutral-10: #7e868c;
+	--neutral-11: #687076;
+	--neutral-12: #11181c;
+
+	/* --- info (blue) ----------------------------------------------------- */
+	--info-1: #fbfdff;
+	--info-2: #f4faff;
+	--info-3: #e6f4fe;
+	--info-4: #d5efff;
+	--info-5: #c2e5ff;
+	--info-6: #acd8fc;
+	--info-7: #8ec8f6;
+	--info-8: #5eb1ef;
+	--info-9: #0091ff;
+	--info-10: #0081f1;
+	--info-11: #006adc;
+	--info-12: #00254d;
+
+	/* --- primary (cyan) -------------------------------------------------- */
+	--primary-1: #fafdfe;
+	--primary-2: #f2fafb;
+	--primary-3: #def7f9;
+	--primary-4: #caf1f6;
+	--primary-5: #b5e9f0;
+	--primary-6: #9ddde7;
+	--primary-7: #7dcedc;
+	--primary-8: #3db9cf;
+	--primary-9: #05a2c2;
+	--primary-10: #0894b3;
+	--primary-11: #0c7792;
+	--primary-12: #04313c;
+
+	/* --- accent (violet) ------------------------------------------------- */
+	--accent-1: #fdfcfe;
+	--accent-2: #faf8ff;
+	--accent-3: #f4f0fe;
+	--accent-4: #ebe4ff;
+	--accent-5: #e1d9ff;
+	--accent-6: #d4cafe;
+	--accent-7: #c2b5f5;
+	--accent-8: #aa99ec;
+	--accent-9: #6e56cf;
+	--accent-10: #644fc1;
+	--accent-11: #5746af;
+	--accent-12: #20134b;
+
+	/* --- success (green) ------------------------------------------------- */
+	--success-1: #fbfefc;
+	--success-2: #f4fbf6;
+	--success-3: #e6f6eb;
+	--success-4: #d6f1df;
+	--success-5: #c4e8d1;
+	--success-6: #adddc0;
+	--success-7: #8eceaa;
+	--success-8: #5bb98b;
+	--success-9: #30a46c;
+	--success-10: #299764;
+	--success-11: #18794e;
+	--success-12: #153226;
+
+	/* --- warning (amber) ------------------------------------------------- */
+	--warning-1: #fefdfb;
+	--warning-2: #fefbe9;
+	--warning-3: #fff7c2;
+	--warning-4: #ffee9c;
+	--warning-5: #fbe577;
+	--warning-6: #f3d673;
+	--warning-7: #e9c162;
+	--warning-8: #e2a336;
+	--warning-9: #ffb224;
+	--warning-10: #ffa01c;
+	--warning-11: #ad5700;
+	--warning-12: #4e2009;
+
+	/* --- danger (red) ---------------------------------------------------- */
+	--danger-1: #fffcfc;
+	--danger-2: #fff7f7;
+	--danger-3: #feebec;
+	--danger-4: #ffdbdc;
+	--danger-5: #ffcdce;
+	--danger-6: #fdbdbe;
+	--danger-7: #f4a9aa;
+	--danger-8: #eb8e90;
+	--danger-9: #e5484d;
+	--danger-10: #dc3d43;
+	--danger-11: #cd2b31;
+	--danger-12: #381316;
+
+	/* --- derived surfaces ------------------------------------------------ */
+	/* §16.4: the page is #f7f8fa rather than white, so a card has something
+	 * to be lighter than without needing a border to say so. */
+	--page: #f7f8fa;
+	--low-contrast-page: #ffffff;
+	/* §2.6: one hover tint for every list row, grid cell and menu row in the
+	 * app — deliberately neutral, so a hovered row never reads as selected. */
+	--row-hover: rgba(132, 133, 141, 0.18);
+	--selection: rgba(46, 115, 252, 0.11);
+	--selection-border: rgba(98, 155, 255, 0.81);
+	--image-outline: rgba(0, 0, 0, 0.1);
+
+	/* §3.3: the search capsule and the layout switcher are the main colour at
+	 * 15%, deepening to 20% on hover. */
+	--main-color: var(--primary-9);
+	--main-soft: color-mix(in oklab, var(--main-color) 15%, transparent);
+	--main-soft-hover: color-mix(in oklab, var(--main-color) 20%, transparent);
+
+	/* §16.3 shadows, in the spec's own values. */
+	--shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.09), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+	--shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.09), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+	--shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.09), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+	--shadow-bar: 0px 10px 30px -5px rgba(0, 0, 0, 0.3);
+
+	/* --- HeroUI bindings ------------------------------------------------- */
+	--background: var(--page);
+	--background-secondary: var(--neutral-2);
+	--background-tertiary: var(--neutral-3);
+	--foreground: var(--neutral-12);
+	--surface: #ffffff;
+	--surface-foreground: var(--neutral-12);
+	--surface-secondary: var(--neutral-2);
+	--surface-secondary-foreground: var(--neutral-12);
+	--surface-tertiary: var(--neutral-3);
+	--surface-tertiary-foreground: var(--neutral-12);
+	--overlay: #ffffff;
+	--overlay-foreground: var(--neutral-12);
+	--muted: var(--neutral-11);
+	--border: var(--neutral-6);
+	--separator: var(--neutral-4);
+	--default: var(--neutral-3);
+	--default-foreground: var(--neutral-12);
+	/* The app's one interactive colour. §2.2 draws ordinary buttons in `info`
+	 * (blue) and reserves cyan for the solid "primary" weight, so `accent` —
+	 * the library's word for "the thing you press" — is the blue. */
+	--accent: var(--info-9);
+	--accent-foreground: #ffffff;
+	--success: var(--success-9);
+	--success-foreground: #ffffff;
+	--warning: var(--warning-9);
+	--warning-foreground: var(--neutral-12);
+	--danger: var(--danger-9);
+	--danger-foreground: #ffffff;
+	--focus: var(--info-8);
+	--link: var(--info-11);
+	--backdrop: rgba(0, 0, 0, 0.5);
+	/* §2.4: fields are *filled*, not outlined — a neutral-3 well with no border
+	 * until focus. */
+	--field-background: var(--neutral-3);
+	--field-foreground: var(--neutral-12);
+	--field-placeholder: var(--neutral-9);
+	--field-border: transparent;
+	--field-hover: var(--neutral-4);
+	--field-shadow: none;
+	--scrollbar-thumb: rgba(0, 0, 0, 0.3);
+	--radius: 0.5rem;
+	--field-radius: 0.5rem;
+
+	/* §16.2 leaves the family to the platform, and names the stack. No webfont
+	 * is loaded, so this resolves to SF Pro on macOS and Segoe UI UI on
+	 * Windows, which is the intent. */
+	--font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji",
+		"Segoe UI Emoji", "Segoe UI Symbol";
 }
 
 .dark,
 [data-theme="dark"] {
 	color-scheme: dark;
-	/* Apple's dark-mode systemBlue (#0A84FF). Apple lightens the accent on a
-	   dark canvas so it reads at the same weight; this is that value, not a
-	   typo for the light one. */
-	--accent: oklch(62.43% 0.2056 255.49);
-	--accent-foreground: oklch(99.11% 0 0);
-	--background: oklch(12% 0.0015 253.83);
-	--border: oklch(28% 0.0015 253.83);
-	--danger: oklch(59.4% 0.1973 24.63);
-	--danger-foreground: oklch(99.11% 0 0);
-	--default: oklch(27.4% 0.0015 253.83);
-	--default-foreground: oklch(99.11% 0 0);
-	--field-background: oklch(21.03% 0.003 253.83);
-	--field-foreground: oklch(99.11% 0.0015 253.83);
-	--field-placeholder: oklch(70.5% 0.003 253.83);
-	--foreground: oklch(99.11% 0.0015 253.83);
-	--muted: oklch(70.5% 0.003 253.83);
-	--overlay: oklch(21.03% 0.003 253.83);
-	--overlay-foreground: oklch(99.11% 0.0015 253.83);
-	--scrollbar: oklch(70.5% 0.0015 253.83);
-	--segment: oklch(39.64% 0.0015 253.83);
-	--segment-foreground: oklch(99.11% 0 0);
-	--separator: oklch(25% 0.0015 253.83);
-	--success: oklch(73.29% 0.1941 150.81);
-	--success-foreground: oklch(21.03% 0.0059 150.81);
-	--surface: oklch(21.03% 0.003 253.83);
-	--surface-foreground: oklch(99.11% 0.0015 253.83);
-	--surface-secondary: oklch(25.7% 0.0023 253.83);
-	--surface-secondary-foreground: oklch(99.11% 0.0015 253.83);
-	--surface-tertiary: oklch(27.21% 0.0023 253.83);
-	--surface-tertiary-foreground: oklch(99.11% 0.0015 253.83);
-	--warning: oklch(82.03% 0.1392 76.34);
-	--warning-foreground: oklch(21.03% 0.0059 72.33);
+
+	--neutral-1: #151718;
+	--neutral-2: #1a1d1e;
+	--neutral-3: #202425;
+	--neutral-4: #26292b;
+	--neutral-5: #2b2f31;
+	--neutral-6: #313538;
+	--neutral-7: #3a3f42;
+	--neutral-8: #4c5155;
+	--neutral-9: #697177;
+	--neutral-10: #787f85;
+	--neutral-11: #9ba1a6;
+	--neutral-12: #ecedee;
+
+	--info-1: #0d1520;
+	--info-2: #111927;
+	--info-3: #0d2847;
+	--info-4: #003362;
+	--info-5: #004074;
+	--info-6: #104d87;
+	--info-7: #205d9e;
+	--info-8: #2870bd;
+	--info-9: #0091ff;
+	--info-10: #369eff;
+	--info-11: #52a9ff;
+	--info-12: #eaf6ff;
+
+	--primary-1: #0b161a;
+	--primary-2: #101b20;
+	--primary-3: #082c36;
+	--primary-4: #003848;
+	--primary-5: #004558;
+	--primary-6: #045468;
+	--primary-7: #12677e;
+	--primary-8: #11809c;
+	--primary-9: #05a2c2;
+	--primary-10: #00b1cc;
+	--primary-11: #00c2d7;
+	--primary-12: #e1f8fa;
+
+	--accent-1: #14121f;
+	--accent-2: #1b1525;
+	--accent-3: #291f43;
+	--accent-4: #33255b;
+	--accent-5: #3c2e69;
+	--accent-6: #473876;
+	--accent-7: #56468b;
+	--accent-8: #6958ad;
+	--accent-9: #6e56cf;
+	--accent-10: #7c66dc;
+	--accent-11: #9e8cfc;
+	--accent-12: #f1eefe;
+
+	--success-1: #0e1512;
+	--success-2: #121b17;
+	--success-3: #132d21;
+	--success-4: #113b29;
+	--success-5: #174933;
+	--success-6: #20573e;
+	--success-7: #28684a;
+	--success-8: #2f7c57;
+	--success-9: #30a46c;
+	--success-10: #3cb179;
+	--success-11: #4cc38a;
+	--success-12: #e5fbeb;
+
+	--warning-1: #16120c;
+	--warning-2: #1d180f;
+	--warning-3: #302008;
+	--warning-4: #3f2700;
+	--warning-5: #4d3000;
+	--warning-6: #5c3d05;
+	--warning-7: #714f19;
+	--warning-8: #8f6424;
+	--warning-9: #ffb224;
+	--warning-10: #ffcb47;
+	--warning-11: #f1a10d;
+	--warning-12: #fef3dd;
+
+	--danger-1: #191111;
+	--danger-2: #201314;
+	--danger-3: #3b1219;
+	--danger-4: #500f1c;
+	--danger-5: #611623;
+	--danger-6: #72232d;
+	--danger-7: #8c333a;
+	--danger-8: #b54548;
+	--danger-9: #e5484d;
+	--danger-10: #f2555a;
+	--danger-11: #ff6369;
+	--danger-12: #feecee;
+
+	--page: var(--neutral-1);
+	--low-contrast-page: var(--neutral-1);
+	--image-outline: rgba(255, 255, 255, 0.1);
+
+	--background: var(--page);
+	--background-secondary: var(--neutral-2);
+	--background-tertiary: var(--neutral-3);
+	--foreground: var(--neutral-12);
+	--surface: var(--neutral-3);
+	--surface-foreground: var(--neutral-12);
+	--surface-secondary: var(--neutral-2);
+	--surface-secondary-foreground: var(--neutral-12);
+	--surface-tertiary: var(--neutral-4);
+	--surface-tertiary-foreground: var(--neutral-12);
+	--overlay: var(--neutral-3);
+	--overlay-foreground: var(--neutral-12);
+	--muted: var(--neutral-11);
+	--border: var(--neutral-6);
+	--separator: var(--neutral-4);
+	--default: var(--neutral-3);
+	--default-foreground: var(--neutral-12);
+	--accent: var(--info-9);
+	--accent-foreground: #ffffff;
+	--success: var(--success-9);
+	--success-foreground: #ffffff;
+	--warning: var(--warning-9);
+	--warning-foreground: var(--neutral-12);
+	--danger: var(--danger-9);
+	--danger-foreground: #ffffff;
+	--focus: var(--info-8);
+	--link: var(--info-11);
+	--field-background: var(--neutral-2);
+	--field-foreground: var(--neutral-12);
+	--field-placeholder: var(--neutral-9);
+	--field-border: transparent;
+	--field-hover: var(--neutral-4);
+	--scrollbar-thumb: #2d2d2d;
+	--row-hover: rgba(132, 133, 141, 0.24);
 }
 
-/* Tokens this round adds. Four of them land in Tailwind namespaces, so they
- * come with utilities: `border-hairline` / `divide-hairline`,
- * `rounded-control`, `text-title`, `text-large-title`.
+/*
+ * The colour utilities the interface writes by hand.
  *
- * `--color-hairline` is pure black at 8% (white at 12% in the dark), never a
- * tinted neutral: a tinted line picks up the surface it sits on and reads as
- * dirt along the edge. Same reasoning as `--image-outline` below. It replaces
- * `--separator` on list rows — where a line is the right answer — and nowhere
- * else: controls are told apart by fill, not by a stroke.
+ * `@theme` is where Tailwind learns a name; every entry here becomes a family
+ * (`bg-info-9`, `text-neutral-11`, `border-danger-6`, …). Nothing else needs to
+ * be declared: the values themselves live in the two blocks above, which is what
+ * lets a single class name follow the theme.
  *
- * `--radius-control` exists because the library rounds `.button` with
- * `--radius-3xl`, the same knob that rounds panels and popovers. One knob
- * cannot be both an 18px panel and a 10px button, so the button gets its own
- * value plus an override below, instead of a second full radius ladder.
- *
- * It is the radius of a *free-standing* control — a button, a select, a field.
- * Hand-written ones take the utility (`rounded-control`) so a plain `<button>`
- * and a HeroUI `Button` in the same row are the same shape.
- *
- * **A field is a control**, which is the one library token this project
- * rebinds rather than leaves alone: the library derives `--field-radius` as
- * `calc(var(--radius) * 1.5)`, and that happened to equal this tier only at
- * the library's own base. Left as-is the two would now differ by a pixel on
- * every form in the app, which is precisely the near-miss this pass removes —
- * and they are the two things a form puts one above the other.
- *
- * Deliberately not, and the reason is never the size on its own:
- *
- * - a control nested inside a rounded panel — a context-menu row, a
- *   selection-bar action. Those follow the panel's concentric pairing
- *   (`rounded-2xl`, the corner the library's own `.menu-item` uses): that is
- *   what keeps a highlight inside the panel's curve, and the same action is in
- *   both places, so it has to be the same shape in both.
- * - an inline button inside a row — the breadcrumb's pencil, a table header's
- *   sort target, a storage row's own actions. ~20-26px tall, no box until they
- *   are hovered, and a driver chip sits beside them in the same row; 8px there
- *   would be a pebble and would not match the chip it stands next to. They take
- *   the small ladder step, so the row keeps one corner for all its small boxes.
- * - a chip, which is a tag and stays a pill.
+ * The semantic ramps are exposed under their own names rather than collapsed
+ * into one, because the spec asks for a specific one per element — an accent
+ * violet refresh button beside an info-blue ordinary one beside a cyan solid one
+ * is the button hierarchy in §2.2, and flattening them would lose it.
  */
-@theme {
-	--color-hairline: oklch(0% 0 0 / 0.08);
-	--radius-control: 0.625rem;
-	/* 17px/22px semibold is what a macOS toolbar titles things at. The 24px
-	   page heading it replaces said the same thing the toolbar already says,
-	   only louder, and cost a 88px band on four pages. */
-	--text-title: 1.0625rem;
-	--text-title--line-height: 1.375rem;
-	--text-title--letter-spacing: -0.01em;
-	/* 28px is for the sign-in screen — the one screen that is a page rather
-	   than a toolbar. */
-	--text-large-title: 1.75rem;
-	--text-large-title--line-height: 2.125rem;
-	--text-large-title--letter-spacing: -0.022em;
-	/* 13px, for the label above a form field. It is one step below `text-sm`
-	   and it is a step of its own rather than an arbitrary `text-[13px]`
-	   because every form in the app labels its fields this way — the sign-in
-	   form now and the storage, backup and metadata forms when they are
-	   regrouped — so the value has to be stated once. 12px was the
-	   alternative and is too small to hold a CJK label. */
-	--text-label: 0.8125rem;
-	--text-label--line-height: 1.125rem;
-	/* The sign-in page's own two radii, and they are deliberately *not* the
-	   control tier.
-	   The card is 18px, which is what `--radius` already gives a panel at
-	   `rounded-3xl` — so the card could have taken a ladder step and did not
-	   need a token. It has one anyway because the design sheet names
-	   "18px – 24px" as a *range for this card specifically*, and a ladder step
-	   moves with the knob: the next retune of `--radius` would silently walk
-	   the card out of that range. Pinned is the honest reading of the sheet.
-	   The 12px control sits one step above `--radius-control` (10px) for the
-	   same reason the sign-in page is not the app: this card is drawn at
-	   Apple's generous proportions, where the app's forms are drawn denser.
-	   Both are `@theme` because nothing else declares them, so there is no
-	   cascade to lose (see the note below). */
-	--radius-signin: 1.125rem;
-	--radius-signin-control: 0.75rem;
-	/* The card's width, 480px. Third value this token has had, and the two
-	   earlier ones both lost *height*, which is the only axis a two-field form
-	   can spend: 384px was UI-19's, which took the sheet's 480 down to
-	   `max-w-sm` because 480 held the fields at proportions that read as
-	   sparse. 384 is also the point where the two buttons stop fitting side by
-	   side — and that row is what changed the arithmetic. The English passkey
-	   label needs about 139px beside its icon, so a 480px card is the smallest
-	   1rem step that leaves it on one line in a Chrome render; the wider form
-	   reads as a deliberate sheet rather than sparse because the bottom row is
-	   now the longest row in it. */
-	--container-signin: 30rem;
-	/* Apple's link blue, `#0071E3` — the design sheet's "品牌/主交互色" and the
-	   one blue on the sign-in page. It is text (the "了解数据的管理方式…"
-	   link), so it takes the sheet's *link* blue rather than `--accent`: the
-	   two are different values in Apple's own palette, and this one is the one
-	   picked to be read.
-	   A colour in Tailwind's own namespace, so it also arrives as
-	   `text-signin-link` / `bg-signin-link`. */
-	--color-signin-link: oklch(57.16% 0.1958 254.62);
-	/* Apple's secondary grey, `#86868B`, as Oklch. Deliberately *not* `--muted`:
-	   `--muted` is the app's own secondary grey, tuned for the app's surfaces.
-	   The sheet ladders lighter than the app does. */
-	--color-signin-muted: oklch(59.29% 0.0042 286.18);
-	/* The privacy notice's grey: Apple's secondary label in its darker variant,
-	   `#6E6E73`. Three sentences of explanation are body text at 13px rather
-	   than a footnote, so they take a grey a step darker than the one above —
-	   which is the difference between passing and not passing on a white card.
-	   Named for what it is *for* rather than for how light it is, because the
-	   alternative is `signin-muted` and `signin-muted-darker`, which says
-	   nothing about when to use which. */
-	--color-signin-secondary: oklch(50.16% 0.0043 286.18);
+@theme inline {
+	--color-main: var(--main-color);
+	--color-main-soft: var(--main-soft);
+	--color-main-soft-hover: var(--main-soft-hover);
+	--color-row-hover: var(--row-hover);
+	--color-page: var(--page);
+
+	--color-neutral-1: var(--neutral-1);
+	--color-neutral-2: var(--neutral-2);
+	--color-neutral-3: var(--neutral-3);
+	--color-neutral-4: var(--neutral-4);
+	--color-neutral-5: var(--neutral-5);
+	--color-neutral-6: var(--neutral-6);
+	--color-neutral-7: var(--neutral-7);
+	--color-neutral-8: var(--neutral-8);
+	--color-neutral-9: var(--neutral-9);
+	--color-neutral-10: var(--neutral-10);
+	--color-neutral-11: var(--neutral-11);
+	--color-neutral-12: var(--neutral-12);
+
+	--color-info-1: var(--info-1);
+	--color-info-2: var(--info-2);
+	--color-info-3: var(--info-3);
+	--color-info-4: var(--info-4);
+	--color-info-5: var(--info-5);
+	--color-info-6: var(--info-6);
+	--color-info-7: var(--info-7);
+	--color-info-8: var(--info-8);
+	--color-info-9: var(--info-9);
+	--color-info-10: var(--info-10);
+	--color-info-11: var(--info-11);
+	--color-info-12: var(--info-12);
+
+	--color-primary-1: var(--primary-1);
+	--color-primary-2: var(--primary-2);
+	--color-primary-3: var(--primary-3);
+	--color-primary-4: var(--primary-4);
+	--color-primary-5: var(--primary-5);
+	--color-primary-6: var(--primary-6);
+	--color-primary-7: var(--primary-7);
+	--color-primary-8: var(--primary-8);
+	--color-primary-9: var(--primary-9);
+	--color-primary-10: var(--primary-10);
+	--color-primary-11: var(--primary-11);
+	--color-primary-12: var(--primary-12);
+
+	--color-accent-1: var(--accent-1);
+	--color-accent-2: var(--accent-2);
+	--color-accent-3: var(--accent-3);
+	--color-accent-4: var(--accent-4);
+	--color-accent-5: var(--accent-5);
+	--color-accent-6: var(--accent-6);
+	--color-accent-7: var(--accent-7);
+	--color-accent-8: var(--accent-8);
+	--color-accent-9: var(--accent-9);
+	--color-accent-10: var(--accent-10);
+	--color-accent-11: var(--accent-11);
+	--color-accent-12: var(--accent-12);
+
+	--color-success-1: var(--success-1);
+	--color-success-2: var(--success-2);
+	--color-success-3: var(--success-3);
+	--color-success-4: var(--success-4);
+	--color-success-5: var(--success-5);
+	--color-success-6: var(--success-6);
+	--color-success-7: var(--success-7);
+	--color-success-8: var(--success-8);
+	--color-success-9: var(--success-9);
+	--color-success-10: var(--success-10);
+	--color-success-11: var(--success-11);
+	--color-success-12: var(--success-12);
+
+	--color-warning-1: var(--warning-1);
+	--color-warning-2: var(--warning-2);
+	--color-warning-3: var(--warning-3);
+	--color-warning-4: var(--warning-4);
+	--color-warning-5: var(--warning-5);
+	--color-warning-6: var(--warning-6);
+	--color-warning-7: var(--warning-7);
+	--color-warning-8: var(--warning-8);
+	--color-warning-9: var(--warning-9);
+	--color-warning-10: var(--warning-10);
+	--color-warning-11: var(--warning-11);
+	--color-warning-12: var(--warning-12);
+
+	--color-danger-1: var(--danger-1);
+	--color-danger-2: var(--danger-2);
+	--color-danger-3: var(--danger-3);
+	--color-danger-4: var(--danger-4);
+	--color-danger-5: var(--danger-5);
+	--color-danger-6: var(--danger-6);
+	--color-danger-7: var(--danger-7);
+	--color-danger-8: var(--danger-8);
+	--color-danger-9: var(--danger-9);
+	--color-danger-10: var(--danger-10);
+	--color-danger-11: var(--danger-11);
+	--color-danger-12: var(--danger-12);
+
+	/* §16.3: the radii ladder. `2xl` is the object card and `xl` a panel. */
+	--radius-xs: 2px;
+	--radius-sm: 4px;
+	--radius-md: 6px;
+	--radius-lg: 8px;
+	--radius-xl: 12px;
+	--radius-2xl: 16px;
+	--radius-3xl: 24px;
+	--radius-control: 8px;
+
+	/* §1.4, the overlay ladder. Named so a new layer does not have to invent a
+	 * number and hope it lands in the right place. The `z-index` namespace is
+	 * what makes these arrive as `z-sticky`, `z-modal`, … */
+	--z-index-docked: 10;
+	--z-index-sticky: 1000;
+	--z-index-banner: 1100;
+	--z-index-overlay: 1200;
+	--z-index-modal: 1300;
+	--z-index-dropdown: 1400;
+	--z-index-popover: 1500;
+	--z-index-tooltip: 1600;
+	--z-index-notification: 1800;
 }
 
-/* The dark values for the two sign-in greys.
- *
- * `--color-signin-muted` needs no entry — 59.29% is 8.33:1 against the dark
- * card, which is already the right weight. These two do: a grey picked for a
- * white card is invisible on a dark one. `--color-signin-secondary` lands on
- * the same 50.16% the light theme uses, which is not a copy-paste slip — in
- * the dark theme it is 4.99:1 against the card at `oklch(21.03%)`, and the
- * light value happens to be what clears 4.5:1 in both directions. Stated
- * twice rather than shared, because the two will part company the moment
- * either card moves. */
-.dark,
-[data-theme="dark"] {
-	--color-hairline: oklch(1 0 0 / 0.12);
-	--color-signin-muted: oklch(71.55% 0.0041 286.18);
-	--color-signin-secondary: oklch(70% 0.0041 286.18);
-}
-
-/* Binding a *library* token to ours has to happen out here, unlayered.
- *
- * `@theme` output lands in Tailwind's `theme` layer, and the library declares
- * `--field-radius` in that same layer — later in the bundle than ours, because
- * `@import "@heroui/styles"` is expanded after Tailwind's own theme block. Equal
- * layer, equal specificity, later wins: set inside `@theme`, this line did
- * nothing at all. Measured in the built CSS rather than reasoned about — ours at
- * byte 4866, the library's at 5626, both `layer=theme`.
- *
- * The library's own `--radius` loses for the mirror-image reason: it is layered
- * and this file is not, so the `:root` block above wins on layering alone and
- * source order never enters into it.
- *
- * A new token of our own (`--radius-control`, `--color-hairline`) is fine inside
- * `@theme`, because nothing else declares it and there is no conflict to lose. */
+/* One font stack for the document, matching `--font-sans` above. Text
+ * rendering is turned down to what the platform does best rather than what
+ * looks sharpest on one OS. */
 :root {
-	--field-radius: var(--radius-control);
-}
-
-/* The library's `.button` is `rounded-3xl` — 24px at the library's own base and
- * 18px now, which on a 36px-tall control is a capsule rather than a button.
- * `--radius-control` is the control tier, so the button takes it like every
- * other control here. Apple's controls are rounded rectangles whose corner
- * scales with the control's own size; the one thing they are not is a pill.
- * This file is unlayered, so the rule outranks the library's layered output on
- * its own — measured from the bundle rather than assumed: the library's
- * `.button` sits inside `@layer components` (bytes 33024-400121) and this rule
- * comes after `@layer utilities` has also closed (454785), so there is no layer
- * between them for it to lose to. A `HeroButton` therefore needs no
- * `rounded-control` class, and would not take one: the override beats the
- * utility. */
-.button {
-	border-radius: var(--radius-control);
-}
-
-/* The same list as `--font-sans` above, and it has to stay that way — these
- * were two different stacks, so `font-sans` and the document default disagreed
- * about whether `-apple-system` existed at all. The system font comes first
- * because no webfont is loaded (there is no font package and no `<link>`), so
- * on macOS this resolves to SF Pro, which is the whole point; naming
- * `-apple-system` ahead of `Inter` means a machine that happens to have Inter
- * installed no longer takes the whole UI over. */
-:root {
-	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, ui-sans-serif, system-ui, sans-serif;
+	font-family: var(--font-sans);
 	font-synthesis: none;
 	text-rendering: optimizeLegibility;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 }
 
+html {
+	/* The page background lives on `html` so a short page is still the page
+	 * colour past the end of its content, and so overscroll does not flash. */
+	background-color: var(--background);
+}
+
 body {
 	margin: 0;
 	min-width: 320px;
 	min-height: 100vh;
+	background-color: var(--background);
+	color: var(--foreground);
 }
 
 button,
-input {
+input,
+select,
+textarea {
 	font: inherit;
 }
 
-/* One recipe for the app's own form controls.
- *
- * Every field used to carry the same dozen classes in its `className`, which is
- * how four slightly different versions of one control came to exist — two of
- * them with no focus style at all. The classes also named a background that is
- * not a theme colour (`bg-field-background`; the library's token is `bg-field`),
- * so Tailwind dropped it and the real appearance came from the rule below
- * anyway. Stated once here instead, components keep only their layout.
- *
- * The values are the library's, so a hand-written field and a HeroUI `Input`
- * are the same field: its `.input` is `rounded-field bg-field
- * text-field-foreground shadow-field`, hover is `bg-field-hover`, and focus is
- * `status-focused-field` — a 2px ring in `--focus`.
- *
- * `:where()` keeps the specificity at zero, so anything that names what it is
- * styling — a HeroUI component, a widget's own stylesheet — can still override
- * one property without having to restate the other eight. Checkboxes and radios
- * are excluded: they are not text fields, and a 12px radius plus a field
- * background would redraw the control's own box.
- */
+/* §16.3 rounds every button at `lg` (8px) and the library rounds `.button` with
+ * `--radius-3xl`. Binding the control tier here is what keeps a HeroUI button
+ * and a hand-written one the same shape. */
+.button {
+	border-radius: var(--radius-control);
+}
+
+/* HeroUI declares `--field-radius` in the `theme` layer, and an unlayered rule
+ * loses to nothing — so this has to be written outside `@theme` to win. */
+:root {
+	--field-radius: var(--radius-control);
+}
+
+/* The app's own fields, for the places a HeroUI `Input` is the wrong shape
+ * (a dense inline field inside a toolbar, a translucent field in a dialog). */
 :where(input:not([type="file"], [type="checkbox"], [type="radio"]), select, textarea) {
 	background-color: var(--field-background);
-	border: 1px solid var(--border);
+	border: 1px solid var(--field-border);
 	border-radius: var(--field-radius);
-	box-shadow: var(--field-shadow);
 	color: var(--field-foreground);
 	outline: none;
-	/* Only what changes. A bare `transition` would subscribe to twenty
-	   properties, `scale` and `transform` among them. */
 	transition-property: background-color, border-color, box-shadow;
-	transition-duration: 200ms;
-	transition-timing-function: var(--ease-out-fluid);
+	transition-duration: 150ms;
+	transition-timing-function: var(--ease-out-fluid, ease-out);
 
 	&::placeholder {
 		color: var(--field-placeholder);
 	}
 
-	@media (hover: hover) {
-		&:hover:not(:focus) {
-			background-color: var(--field-hover);
-			border-color: var(--field-border-hover, var(--border));
-		}
-	}
-
-	/* A solid 2px accent ring rather than the 20%-opacity outline this used to
-	   draw: the old one was a hint, and focus has to be unmistakable. */
 	&:focus {
 		border-color: var(--focus);
-		box-shadow:
-			var(--field-shadow),
-			0 0 0 2px var(--focus);
+		box-shadow: 0 0 0 1px var(--focus);
 	}
 
 	&:disabled {
-		cursor: var(--cursor-disabled);
-		opacity: var(--disabled-opacity);
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		transition-duration: 0ms;
+		cursor: not-allowed;
+		opacity: 0.55;
 	}
 }
 
@@ -363,10 +548,172 @@ input[type="checkbox"] {
 	accent-color: var(--accent);
 }
 
-/* Rendered Markdown. Tailwind's preflight strips heading sizes and list markers,
-   so the handful of elements `renderMarkdown` emits get their own rules rather
-   than a utility class per tag. Scoped to `.markdown-body`, which the previewer
-   and the directory readme both set — one renderer, one set of styles. */
+/* ---------------------------------------------------------------- motion ---
+ *
+ * §2.6 states the timings the interface is built from. Three utilities cover
+ * all of them, so a new component picks a beat instead of writing `transition:
+ * all 0.3s` and animating twenty properties.
+ *
+ * `tap` is the press: buttons and links scale to .95 (§2.2), and the transition
+ * belongs to the base state so the release animates back rather than snapping.
+ * `tint` is colour-only movement, for rows where a press scale would be noise.
+ * `arrive` is a one-shot entrance for an element that is mounted at the moment
+ * it appears, so it has no before-state to transition from.
+ */
+@utility tap {
+	transition-property: background-color, border-color, color, scale, box-shadow, opacity;
+	transition-duration: 150ms;
+	transition-timing-function: var(--ease-out-fluid, ease-out);
+
+	&:active:not(:disabled):not([aria-disabled="true"]) {
+		scale: 0.95;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		transition-property: background-color, border-color, color;
+
+		&:active:not(:disabled):not([aria-disabled="true"]) {
+			scale: none;
+		}
+	}
+}
+
+@utility tint {
+	transition-property: background-color, border-color, color, box-shadow, opacity;
+	transition-duration: 150ms;
+	transition-timing-function: var(--ease-out-fluid, ease-out);
+
+	@media (prefers-reduced-motion: reduce) {
+		transition-duration: 0ms;
+	}
+}
+
+@keyframes arrive {
+	from {
+		opacity: 0;
+		translate: 0 var(--arrive-from, 6px);
+		scale: var(--arrive-scale, 1);
+	}
+}
+
+@utility arrive {
+	animation: arrive var(--arrive-duration, 200ms) var(--ease-out-fluid, ease-out) both;
+	animation-delay: var(--arrive-delay, 0ms);
+
+	@media (prefers-reduced-motion: reduce) {
+		animation: none;
+	}
+}
+
+/* §2.6: an entry in a listing appears rather than being painted. The grid grows
+ * from .9, the list from .95 — a bigger throw for the bigger cell. Staggering
+ * is bounded by the index the caller passes, so a 500-entry directory does not
+ * animate for 12 seconds. */
+@keyframes item-in {
+	from {
+		opacity: 0;
+		scale: var(--item-in-scale, 0.95);
+	}
+}
+
+@utility item-in {
+	animation: item-in 200ms var(--ease-out-fluid, ease-out) both;
+	animation-delay: min(calc(var(--item-index, 0) * 12ms), 240ms);
+
+	@media (prefers-reduced-motion: reduce) {
+		animation: none;
+	}
+}
+
+/* §2.6: the progress bar's indeterminate state is a travelling stripe. */
+@keyframes indeterminate {
+	0% {
+		translate: -100% 0;
+	}
+	100% {
+		translate: 400% 0;
+	}
+}
+
+@utility indeterminate-bar {
+	animation: indeterminate 1.1s ease-in-out infinite;
+}
+
+/* ------------------------------------------------------------- materials ---
+ *
+ * A material is a translucent surface over a blur: the floating tool cluster,
+ * the selection bar, the translucent announcement. Kept as utilities so the
+ * blur radius and the saturation cannot drift between three call sites.
+ */
+@utility material {
+	backdrop-filter: blur(8px) saturate(160%);
+}
+
+@utility material-strong {
+	backdrop-filter: blur(24px) saturate(180%);
+}
+
+/* §16.4: the scrollbar is 6px with a 2px-radius thumb, and it is the same on
+ * every scroll container in the app. Firefox takes the two properties, WebKit
+ * the pseudo-elements. */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+*::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+*::-webkit-scrollbar-thumb {
+	background-color: var(--scrollbar-thumb);
+	border-radius: 2px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+	background-color: rgba(0, 0, 0, 0.35);
+}
+
+.dark *::-webkit-scrollbar-thumb:hover {
+	background-color: #3a3a3a;
+}
+
+*::-webkit-scrollbar-track {
+	background-color: var(--neutral-4);
+	border-radius: 2px;
+}
+
+.dark *::-webkit-scrollbar-track {
+	background-color: rgb(15, 15, 15);
+}
+
+/* Values that change in place — sizes, dates, counts, percentages — take
+ * tabular figures so a column does not shift when a digit changes width. */
+@utility numeric {
+	font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------- tokens ---
+ *
+ * A hairline is black at 8% (white at 12% in the dark), never a tinted neutral:
+ * a tinted line picks up the surface under it and reads as dirt along the edge.
+ */
+@theme {
+	--color-hairline: oklch(0% 0 0 / 0.08);
+}
+
+.dark,
+[data-theme="dark"] {
+	--color-hairline: oklch(1 0 0 / 0.12);
+}
+
+/* --------------------------------------------------------------- markdown ---
+ *
+ * Rendered Markdown: Tailwind's preflight strips heading sizes and list
+ * markers, so the handful of elements the renderer emits get their own rules
+ * rather than a utility class per tag. One renderer, one set of styles.
+ */
 .markdown-body > * + * {
 	margin-top: 0.75rem;
 }
@@ -379,6 +726,7 @@ input[type="checkbox"] {
 .markdown-body h6 {
 	font-weight: 600;
 	line-height: 1.3;
+	scroll-margin-top: 5rem;
 }
 
 .markdown-body h1 {
@@ -402,11 +750,12 @@ input[type="checkbox"] {
 .markdown-body a {
 	color: var(--accent);
 	text-decoration: underline;
+	text-underline-offset: 2px;
 }
 
 .markdown-body code {
 	background: var(--surface-tertiary);
-	border-radius: var(--radius-md);
+	border-radius: var(--radius-sm);
 	padding: 0.1rem 0.3rem;
 	font-size: 0.875em;
 }
@@ -452,353 +801,23 @@ input[type="checkbox"] {
 	color: var(--muted);
 }
 
-/* Suppress transitions during theme switch to prevent visual smearing */
+.markdown-body table {
+	border-collapse: collapse;
+	display: block;
+	overflow-x: auto;
+}
+
+.markdown-body th,
+.markdown-body td {
+	border: 1px solid var(--border);
+	padding: 0.35rem 0.6rem;
+	text-align: left;
+}
+
+/* Suppress transitions during a theme switch: every colour on the page would
+ * otherwise animate from the old value to the new one. */
 .theme-transitioning *,
 .theme-transitioning *::before,
 .theme-transitioning *::after {
 	transition: none !important;
-}
-
-/* The app's stacking order, stated once.
- *
- * Four loose literals used to carry this: 10, 20, 20, 30. Two different
- * overlays shared 20, which left which one was on top to be decided by where
- * they happened to sit in the DOM — and a fifth overlay would have had to guess
- * a number. A named ladder makes the answer readable and visible in one place.
- *
- * Tailwind's `z` utility reads the `--z-index-*` namespace, so these are the
- * `z-header`, `z-drop`, `z-bar` and `z-menu` classes.
- */
-@theme {
-	/* The sticky header sits under everything that floats. */
-	--z-index-header: 10;
-	/* The drag-and-drop target, which covers the content area. */
-	--z-index-drop: 20;
-	/* The selection bar, which floats over the list the drop target covers. */
-	--z-index-bar: 30;
-	/* The context menu, which has to be above whatever opened it. */
-	--z-index-menu: 40;
-}
-
-/* A picture gets a 1px ring just inside its edge, because the frame behind it is
- * a surface and a white screenshot would otherwise dissolve into it. The colour
- * is pure black or pure white at 10% — never a tinted neutral from the palette,
- * which picks up the surrounding surface and reads as dirt along the edge.
- *
- * The dark value waits here with the rest of the dark tokens; it applies once
- * `data-theme="dark"` reaches the document. */
-:root,
-.light,
-.default,
-[data-theme="light"] {
-	--image-outline: oklch(0 0 0 / 0.1);
-}
-
-.dark,
-[data-theme="dark"] {
-	--image-outline: oklch(1 0 0 / 0.1);
-}
-
-@utility image-outline {
-	outline: 1px solid var(--image-outline);
-	outline-offset: -1px;
-}
-
-/* Materials, so a toolbar is one class instead of a hand-written
- * `backdrop-blur` per call site.
- *
- * The toolbar used to be `bg-surface/95 backdrop-blur`: at 95% opacity there
- * was almost nothing left behind it for the blur to work with, which is why it
- * looked flat. 80% is what makes a bar read as glass — the blur needs
- * something to move. `saturate` is there because a blurred backdrop otherwise
- * looks washed out next to what is behind it; it is the same pair of
- * properties macOS uses, at the same rough values.
- *
- * `prefers-reduced-motion` is not involved: a material is not motion. */
-@utility material-bar {
-	backdrop-filter: blur(24px) saturate(180%);
-}
-
-@utility material-popover {
-	backdrop-filter: blur(32px) saturate(180%);
-}
-
-/* The backdrop of the one screen that has no app shell around it.
- *
- * Apple's sign-in pages are not a panel on a flat field: the window is lifted
- * a few points toward white at the top, so the mark and the heading sit *in*
- * light rather than on the page, and the form below sits on the plain window
- * colour. That is the whole effect — it has no edge, because it is 3.6 points
- * of delta in the light theme and 8 in the dark one, where a step needs to be
- * bigger to register at all.
- *
- * A token pair plus one utility rather than a `bg-[radial-gradient(...)]` at
- * the call site: an arbitrary value cannot be themed, so the dark version
- * would need a second class and the two would drift apart. It is co-located
- * with itself the same way `--image-outline` is, rather than sitting with the
- * other dark tokens.
- */
-:root,
-.light,
-.default,
-[data-theme="light"] {
-	--page-glow: oklch(100% 0 0);
-	/* The ten dot colours, going round the ring: pink → purple → the two
-	   teals → blue → the same sequence back on the far side, so the ring is
-	   symmetric through its centre and reads as a gradient rather than as a
-	   set of ten unrelated swatches.
-	   Light theme is the saturated set, because these sit on white. */
-	--halo-1: oklch(74% 0.16 350);
-	--halo-2: oklch(70% 0.18 310);
-	--halo-3: oklch(76% 0.11 200);
-	--halo-4: oklch(78% 0.12 190);
-	--halo-5: oklch(74% 0.14 240);
-	--halo-6: oklch(78% 0.13 165);
-	--halo-7: oklch(74% 0.14 240);
-	--halo-8: oklch(78% 0.12 190);
-	--halo-9: oklch(76% 0.11 200);
-	--halo-10: oklch(70% 0.18 310);
-	/* The haze behind them is the accent, very faint: a saturated bloom would
-	   turn the mark's background into a second accent, and the card already
-	   has exactly one. */
-	--halo-bloom: oklch(74% 0.14 265 / 0.16);
-}
-
-.dark,
-[data-theme="dark"] {
-	--page-glow: oklch(20% 0.003 253.83);
-	/* The same ten hues, raised in lightness and pulled down in chroma: a dot
-	   tuned for white is muddy on a `oklch(21%)` card, and the pair of moves
-	   is the same one Apple makes to systemBlue between the two themes —
-	   brighter is what "the same weight" costs on a dark canvas. */
-	--halo-1: oklch(80% 0.13 350);
-	--halo-2: oklch(78% 0.14 310);
-	--halo-3: oklch(82% 0.09 200);
-	--halo-4: oklch(83% 0.1 190);
-	--halo-5: oklch(80% 0.11 240);
-	--halo-6: oklch(83% 0.11 165);
-	--halo-7: oklch(80% 0.11 240);
-	--halo-8: oklch(83% 0.1 190);
-	--halo-9: oklch(82% 0.09 200);
-	--halo-10: oklch(78% 0.14 310);
-	--halo-bloom: oklch(70% 0.12 265 / 0.22);
-}
-
-@utility page-glow {
-	/* Falls off to the window colour just past half the page, so only the top
-	   is lifted and there is no radius at which a seam could be found. The
-	   ellipse is wider than the window on purpose: the horizontal falloff
-	   should be off-screen at every viewport, leaving a vertical wash. */
-	background-image: radial-gradient(120% 80% at 50% 0%, var(--page-glow), var(--background) 72%);
-}
-
-/* The sign-in card: the one surface in the app that is a *floating* panel
- * rather than a page or a form group, so it is the one place a shadow is the
- * right answer. Everywhere else R2 spends elevation on materials, because a
- * toolbar and a popover are anchored to something; a card in the middle of an
- * otherwise empty window is not, and without a shadow it reads as a rectangle
- * painted on the grey rather than as a sheet lying on top of it.
- *
- * Three layers, which is what makes a shadow read as light rather than as a
- * grey blur: a 1px contact layer that draws the edge, a 6px layer for the near
- * falloff, and a 24px layer for the ambient spread. Opacity goes down as the
- * radius goes up — the wide layer at the same alpha as the tight one would
- * grey the whole surroundings instead of shading the edge.
- *
- * The dark values are not the light ones scaled down. Black at 5% under a
- * `oklch(21%)` card is invisible, so the dark theme needs more alpha to
- * register at all, and the contact layer has to be stronger — on a dark
- * canvas the edge is the only part of the shadow the eye can see. */
-:root,
-.light,
-.default,
-[data-theme="light"] {
-	--signin-card-shadow:
-		0 1px 2px oklch(0% 0 0 / 0.04), 0 6px 16px oklch(0% 0 0 / 0.06), 0 24px 48px oklch(0% 0 0 / 0.04);
-}
-
-.dark,
-[data-theme="dark"] {
-	--signin-card-shadow: 0 1px 2px oklch(0% 0 0 / 0.3), 0 6px 16px oklch(0% 0 0 / 0.28), 0 24px 48px oklch(0% 0 0 / 0.2);
-}
-
-@utility signin-card {
-	background-color: var(--surface);
-	border-radius: var(--radius-signin);
-	box-shadow: var(--signin-card-shadow);
-}
-
-/* The ring of coloured dots around the sign-in mark.
- *
- * The design sheet asks for "由多色小圆点构成的圆形渐变点阵" with a soft bloom
- * and an explicitly *dynamic* feel. Two decisions here:
- *
- * **The dots are painted, not laid out.** They are ten evenly-spaced radial
- * gradients on one element rather than ten child elements: the pattern is
- * decoration, and ten spans would be ten nodes in the accessibility tree's
- * markup for nothing. `background-position` places each one on a circle, and
- * because it is a background it can cross-fade as a whole.
- *
- * **The rotation is one transform on the container.** A ring is rotationally
- * symmetric, so the *only* way its motion is visible is by its colour —
- * hence the dots have to be distinguishable from one another, and hence the
- * slow `spin`. `prefers-reduced-motion` stops it, which is the one motion the
- * sheet's "柔和的动态光晕" is asking for and the one most worth switching off.
- *
- * `--halo-radius` is 40px so the ring's outer edge lands at 52px from the
- * centre — clear of the 40px mark inside it, which is the whole point of the
- * gap the design shows. It is a custom property rather than a computed
- * position list because each dot's position is `calc()` off it, and ten
- * hand-computed pairs would be ten numbers to keep in step by hand. */
-@utility signin-halo {
-	background-image:
-		radial-gradient(circle at 50% calc(50% - var(--halo-radius)), var(--halo-1) 0 2.5px, transparent 3px),
-		radial-gradient(
-			circle at calc(50% + var(--halo-radius) * 0.951) calc(50% - var(--halo-radius) * 0.309),
-			var(--halo-2) 0 2px,
-			transparent 2.5px
-		),
-		radial-gradient(
-			circle at calc(50% + var(--halo-radius) * 0.588) calc(50% + var(--halo-radius) * 0.809),
-			var(--halo-3) 0 2.5px,
-			transparent 3px
-		),
-		radial-gradient(
-			circle at calc(50% - var(--halo-radius) * 0.588) calc(50% + var(--halo-radius) * 0.809),
-			var(--halo-4) 0 2px,
-			transparent 2.5px
-		),
-		radial-gradient(
-			circle at calc(50% - var(--halo-radius) * 0.951) calc(50% - var(--halo-radius) * 0.309),
-			var(--halo-5) 0 2.5px,
-			transparent 3px
-		),
-		radial-gradient(circle at 50% calc(50% + var(--halo-radius)), var(--halo-6) 0 2px, transparent 2.5px),
-		radial-gradient(
-			circle at calc(50% - var(--halo-radius) * 0.951) calc(50% + var(--halo-radius) * 0.309),
-			var(--halo-7) 0 2.5px,
-			transparent 3px
-		),
-		radial-gradient(
-			circle at calc(50% - var(--halo-radius) * 0.588) calc(50% - var(--halo-radius) * 0.809),
-			var(--halo-8) 0 2px,
-			transparent 2.5px
-		),
-		radial-gradient(
-			circle at calc(50% + var(--halo-radius) * 0.588) calc(50% - var(--halo-radius) * 0.809),
-			var(--halo-9) 0 2.5px,
-			transparent 3px
-		),
-		radial-gradient(
-			circle at calc(50% + var(--halo-radius) * 0.951) calc(50% + var(--halo-radius) * 0.309),
-			var(--halo-10) 0 2px,
-			transparent 2.5px
-		);
-	animation: halo-spin 24s linear infinite;
-
-	@media (prefers-reduced-motion: reduce) {
-		animation: none;
-	}
-}
-
-@keyframes halo-spin {
-	to {
-		rotate: 360deg;
-	}
-}
-
-/* The bloom under the dots: one blurred ellipse in the accent family, which is
- * what turns ten discrete dots into a glow. It is a separate element from the
- * ring because a blur on the ring would blur the dots themselves, and the
- * sheet wants both — crisp points *and* a haze behind them. */
-@utility signin-halo-bloom {
-	background-image: radial-gradient(circle at 50% 50%, var(--halo-bloom) 0%, transparent 68%);
-	filter: blur(6px);
-}
-
-/* Values that change in place — file sizes, dates, "showing 1-20 of 300",
- * an upload percentage — get tabular figures so the column does not shift when
- * a digit changes width. */
-@utility numeric {
-	font-variant-numeric: tabular-nums;
-}
-
-/* Press feedback for the app's own controls.
- *
- * HeroUI's `Button` already ships a press scale tuned per size — 0.97 by
- * default, 0.98 for `sm`, 0.96 for `lg` — on a 250ms transform transition. A
- * blanket `button:active` selector outranks `.button:active` on specificity, so
- * it would override both the library's chosen scale and its timing. These are
- * opt-in classes for the plain `<button>`s HeroUI does not style instead.
- *
- * The transition belongs to the base state, never to `:active`: declared only
- * while pressed, the press animates and the release snaps back.
- *
- * Curve and duration are the library's own `--ease-out-fluid` (the comment
- * next to it calls the curve "Apple style") at 200ms — the same pair the fields
- * use, so two controls never move differently from each other.
- */
-@utility tap {
-	transition-property: background-color, border-color, color, scale;
-	transition-duration: 200ms;
-	transition-timing-function: var(--ease-out-fluid);
-
-	&:active:not(:disabled):not([aria-disabled="true"]) {
-		scale: 0.96;
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		transition-property: background-color, border-color, color;
-
-		&:active:not(:disabled):not([aria-disabled="true"]) {
-			scale: none;
-		}
-	}
-}
-
-/* Colour-only feedback, for elements where a press scale would be noise: a
- * column header re-sorts the whole listing and a row click replaces the
- * selection, so the click already has a loud result of its own. */
-@utility tint {
-	transition-property: background-color, border-color, color;
-	transition-duration: 200ms;
-	transition-timing-function: var(--ease-out-fluid);
-
-	@media (prefers-reduced-motion: reduce) {
-		transition-duration: 0ms;
-	}
-}
-
-/* Arrivals that cannot be a transition.
- *
- * A transition needs the element to be present in both states. The error banner
- * and the two blocks of the empty state are mounted at the moment they appear,
- * so they have no "before" to travel from — these are one-shot animations. Only
- * the `from` keyframe is stated: the destination is left implicit, so an element
- * animates up to whatever it already sits at rather than the stylesheet
- * restating the design.
- *
- * `both` is what makes the delay usable. The empty state's second beat holds the
- * invisible start state while it waits instead of being painted and then yanked
- * back to nothing.
- *
- * Two variables, because the banner and the empty state want a different throw
- * and a different beat, and neither is worth a keyframe of its own.
- */
-@keyframes arrive {
-	from {
-		opacity: 0;
-		translate: 0 var(--arrive-from, 6px);
-	}
-}
-
-@utility arrive {
-	animation: arrive var(--arrive-duration, 200ms) var(--ease-out-fluid) both;
-	animation-delay: var(--arrive-delay, 0ms);
-
-	/* The end state is the element's own, so dropping the animation leaves it
-	   fully drawn: the message is still there, it simply did not travel. */
-	@media (prefers-reduced-motion: reduce) {
-		animation: none;
-	}
 }
