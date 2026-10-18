@@ -123,14 +123,11 @@ export function useSelection(items: readonly FileObject[]): Selection {
 		[paths, selectIndex],
 	);
 
-	const selectOnly = useCallback(
-		(path: string, index: number) => {
-			setPaths(new Set([path]));
-			anchor.current = index;
-			end.current = index;
-		},
-		[],
-	);
+	const selectOnly = useCallback((path: string, index: number) => {
+		setPaths(new Set([path]));
+		anchor.current = index;
+		end.current = index;
+	}, []);
 
 	const selectMany = useCallback((next: readonly string[]) => {
 		setPaths(new Set(next));
@@ -139,7 +136,9 @@ export function useSelection(items: readonly FileObject[]): Selection {
 	}, []);
 
 	const toggleAll = useCallback(() => {
-		setPaths((current) => (current.size === items.length ? new Set<string>() : new Set(items.map((item) => item.path))));
+		setPaths((current) =>
+			current.size === items.length ? new Set<string>() : new Set(items.map((item) => item.path)),
+		);
 		anchor.current = -1;
 		end.current = -1;
 	}, [items]);

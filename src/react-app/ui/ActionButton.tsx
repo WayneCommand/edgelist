@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Button as HeroButton } from "@heroui/react";
+import { Button as HeroButton } from "@heroui/react/button";
 import { Icon, type IconName } from "./Icon";
 
 /**
@@ -29,7 +29,10 @@ import { Icon, type IconName } from "./Icon";
 export type ButtonTone = "primary" | "accent" | "soft" | "danger" | "ghost" | "outline";
 export type ButtonSize = "sm" | "md" | "lg";
 
-const TONE: Record<ButtonTone, { variant: "primary" | "secondary" | "tertiary" | "danger" | "ghost" | "outline"; className: string }> = {
+const TONE: Record<
+	ButtonTone,
+	{ variant: "primary" | "secondary" | "tertiary" | "danger" | "ghost" | "outline"; className: string }
+> = {
 	// Solid cyan. `--primary-9` is bound as the library's `primary`, but the
 	// library's `primary` variant paints the *accent* (blue), so the cyan has to
 	// be stated here.
@@ -133,10 +136,7 @@ export function IconButton({
 }) {
 	const box = size === "sm" ? "size-7" : size === "lg" ? "size-10" : "size-8";
 	const glyph = size === "sm" ? "size-3.5" : size === "lg" ? "size-5" : "size-4";
-	const hover =
-		tone === "main"
-			? "hover:bg-main hover:text-white"
-			: "hover:bg-row-hover hover:text-foreground";
+	const hover = tone === "main" ? "hover:bg-main hover:text-white" : "hover:bg-row-hover hover:text-foreground";
 	return (
 		<button
 			type="button"

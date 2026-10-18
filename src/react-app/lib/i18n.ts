@@ -307,9 +307,11 @@ export const EN = {
 	"manage.profile.confirm_tips": "Repeat the password that you just input",
 	"manage.profile.mismatch": "The passwords you entered do not match",
 	"manage.profile.updated": "Profile updated successfully, please log in again.",
-	"manage.profile.managed_in_kv": "Credentials are held in Cloudflare KV and verified by the Worker. This page shows the identity the current token carries.",
+	"manage.profile.managed_in_kv":
+		"Credentials are held in Cloudflare KV and verified by the Worker. This page shows the identity the current token carries.",
 	"manage.profile.permissions": "Permissions",
-	"manage.users.permissions": "The token carries every permission: this deployment authenticates one key pair, and that pair is the administrator.",
+	"manage.users.permissions":
+		"The token carries every permission: this deployment authenticates one key pair, and that pair is the administrator.",
 
 	"storages.title": "Storages",
 	"storages.add": "Add",
@@ -337,7 +339,8 @@ export const EN = {
 	"storages.import_success": "Imported successfully!",
 	"storages.import_failed": "Invalid storage format: {{error}}",
 	"storages.switch_driver_title": "Change driver?",
-	"storages.switch_driver_message": "The driver-specific fields will be replaced, and the current credentials are discarded.",
+	"storages.switch_driver_message":
+		"The driver-specific fields will be replaced, and the current credentials are discarded.",
 	"storages.switch_driver": "Change driver",
 	"storages.required": "Required",
 	"storages.empty": "No storage is mounted yet",
@@ -369,8 +372,7 @@ export const EN = {
 	"metas.apply_sub": "Apply to sub folder",
 	"metas.read_users_help": "Only selected users with the required permission can read this path.",
 	"metas.write_users_help": "Only selected users with the required permission can write this path.",
-	"metas.bypass_help":
-		"Bypasses user permission checks for content writes (create/upload/modify). USE WITH CAUTION.",
+	"metas.bypass_help": "Bypasses user permission checks for content writes (create/upload/modify). USE WITH CAUTION.",
 	"metas.hide_help": "One regular expression per line",
 	"metas.header_help": "Render a markdown at the top, support content or link",
 	"metas.readme_help": "Render a markdown at the bottom, support content or link",
@@ -383,7 +385,8 @@ export const EN = {
 	"metas.delete_failed": "Unable to delete the rule",
 	"metas.load_failed": "Unable to load metadata",
 	"metas.path_placeholder": "Path, e.g. /private",
-	"metas.no_users": "This deployment has no user directory; the permission lists are OpenList-compatible fields kept for import and export.",
+	"metas.no_users":
+		"This deployment has no user directory; the permission lists are OpenList-compatible fields kept for import and export.",
 
 	"backup.title": "Backup & Restore",
 	"backup.backup": "Backup",
@@ -440,6 +443,11 @@ export const EN = {
 	"permission.not_all_archives": "Decompression needs archives only",
 	"toolbar.no_mount": "No storage is mounted here, so nothing can be written",
 	"toolbar.mount_layer": "This level only exists to reach a nested mount",
+	"toolbar.same_folder": "Pick a folder other than the one being transferred from",
+	"toolbar.inside_itself": "A folder cannot be transferred inside itself",
+	"toolbar.cross_storage": "Cross-storage copy/move is not supported",
+	"toolbar.transfer_done": "{{accepted}} done, {{skipped}} skipped, {{failed}} failed",
+	"toolbar.transfer_none": "Nothing to do",
 } as const;
 
 export type MessageKey = keyof typeof EN;

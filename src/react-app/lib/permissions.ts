@@ -83,7 +83,8 @@ function transferPermission(items: readonly FileObject[], kind: "copy" | "move")
 	if (items.some((item) => blocks(item.mask, kind === "copy" ? ObjMask.NoCopy : ObjMask.NoMove)))
 		return denied(kind === "copy" ? "permission.no_copy" : "permission.no_move");
 	// A move deletes the original, so `NoRemove` blocks it even without `NoMove`.
-	if (kind === "move" && items.some((item) => blocks(item.mask, ObjMask.NoRemove))) return denied("permission.move_no_remove");
+	if (kind === "move" && items.some((item) => blocks(item.mask, ObjMask.NoRemove)))
+		return denied("permission.move_no_remove");
 	return OK;
 }
 
@@ -92,7 +93,9 @@ export function permissionsFor(items: readonly FileObject[]): Permissions {
 	const nothing = items.length === 0;
 	const single = items.length === 1 ? items[0] : null;
 	const empty = denied("permission.nothing_selected");
-	const archives = items.length > 0 && items.every((item) => !item.is_dir && /\.(zip|tar|gz|tgz|bz2|xz|7z|rar|zst|iso)$/i.test(item.name));
+	const archives =
+		items.length > 0 &&
+		items.every((item) => !item.is_dir && /\.(zip|tar|gz|tgz|bz2|xz|7z|rar|zst|iso)$/i.test(item.name));
 
 	return {
 		open: single ? OK : denied("permission.open_one"),

@@ -1,5 +1,47 @@
 @import "tailwindcss";
-@import "@heroui/styles";
+/*
+ * `tw-animate-css` is not optional: the library's `modal.css` and `drawer.css` build their
+ * enter and exit keyframes with its utilities (`fade-in-0`, `zoom-in-95`, …), so leaving it
+ * out fails the build on an unknown class rather than degrading quietly.
+ */
+@import "tw-animate-css";
+
+/*
+ * Only the HeroUI component stylesheets this app actually renders.
+ *
+ * The library's entry point imports all seventy-odd of them, which is ~400 KB of CSS for
+ * the handful of components below — and none of that CSS is tree-shaken, because it
+ * arrives as plain `@import`s rather than through Tailwind's scanner. The choice is
+ * between importing the barrel and shipping the whole library's appearance, and naming
+ * what is used. Naming it is a list to maintain, and it is a short one.
+ *
+ * The theme layer still comes from the package, because that is variables rather than
+ * rules and it is what defines every `--*` token the library's components read.
+ */
+@layer theme, base, components, utilities;
+@import "@heroui/styles/base" layer(base);
+@import "@heroui/styles/components/close-button.css" layer(components);
+@import "@heroui/styles/components/label.css" layer(components);
+@import "@heroui/styles/components/description.css" layer(components);
+@import "@heroui/styles/components/error-message.css" layer(components);
+@import "@heroui/styles/components/field-error.css" layer(components);
+@import "@heroui/styles/components/button.css" layer(components);
+@import "@heroui/styles/components/button-group.css" layer(components);
+@import "@heroui/styles/components/dropdown.css" layer(components);
+@import "@heroui/styles/components/list-box.css" layer(components);
+@import "@heroui/styles/components/list-box-item.css" layer(components);
+@import "@heroui/styles/components/list-box-section.css" layer(components);
+@import "@heroui/styles/components/menu.css" layer(components);
+@import "@heroui/styles/components/menu-item.css" layer(components);
+@import "@heroui/styles/components/menu-section.css" layer(components);
+@import "@heroui/styles/components/modal.css" layer(components);
+@import "@heroui/styles/components/drawer.css" layer(components);
+@import "@heroui/styles/components/surface.css" layer(components);
+@import "@heroui/styles/components/skeleton.css" layer(components);
+@import "@heroui/styles/components/spinner.css" layer(components);
+@import "@heroui/styles/components/tooltip.css" layer(components);
+@import "@heroui/styles/themes/default" layer(theme);
+@import "@heroui/styles/utilities";
 
 /*
  * The design tokens, transcribed from `interfaces.md` §16.
@@ -198,8 +240,9 @@
 	/* §16.2 leaves the family to the platform, and names the stack. No webfont
 	 * is loaded, so this resolves to SF Pro on macOS and Segoe UI UI on
 	 * Windows, which is the intent. */
-	--font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji",
-		"Segoe UI Emoji", "Segoe UI Symbol";
+	--font-sans:
+		-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+		"Segoe UI Symbol";
 }
 
 .dark,
@@ -820,4 +863,15 @@ input[type="checkbox"] {
 .theme-transitioning *::before,
 .theme-transitioning *::after {
 	transition: none !important;
+}
+
+/* §1.1's route bar: it fades out on its own after a beat, so nothing has to unmount it. */
+@keyframes progress-fade {
+	0%,
+	60% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+	}
 }

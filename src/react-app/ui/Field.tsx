@@ -66,22 +66,16 @@ export function TextInput({
 	size = "md",
 	className = "",
 	...props
-}: Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"> & { size?: "sm" | "md" }) {
+}: Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"> & {
+	size?: "sm" | "md";
+	/** React 19 passes `ref` as a prop; the type needs to say so. */
+	ref?: React.Ref<HTMLInputElement>;
+}) {
 	return <input {...props} className={`w-full ${INPUT_SIZE[size]} ${className}`} />;
 }
 
-export function TextArea({
-	className = "",
-	rows = 4,
-	...props
-}: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-	return (
-		<textarea
-			rows={rows}
-			{...props}
-			className={`w-full resize-y px-3 py-2 text-sm break-all ${className}`}
-		/>
-	);
+export function TextArea({ className = "", rows = 4, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+	return <textarea rows={rows} {...props} className={`w-full resize-y px-3 py-2 text-sm break-all ${className}`} />;
 }
 
 /**

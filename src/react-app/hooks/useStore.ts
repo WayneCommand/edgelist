@@ -12,7 +12,17 @@ import { useCallback, useSyncExternalStore } from "react";
 import { clearToken, getToken, setToken, subscribeToken } from "../lib/api";
 import { getLocale, setLocale, subscribeLocale, t, tCount } from "../lib/locale";
 import { getTheme, getThemeChoice, setThemeChoice, subscribeTheme } from "../lib/theme";
-import { translate, translateCount, type Locale, type MessageKey, type MessageParams, type Translate } from "../lib/i18n";
+import {
+	translate,
+	translateCount,
+	type Locale,
+	type MessageKey,
+	type MessageParams,
+	type Translate,
+} from "../lib/i18n";
+
+export { usePreference, useLayoutFor, useSortFor } from "../lib/preferences";
+export { useWorkspace, driverFor, driverLabel, loadWorkspace, resetWorkspace } from "../lib/workspace";
 
 /**
  * The session.

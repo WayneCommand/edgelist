@@ -363,7 +363,10 @@ export async function exportBackup(password: string): Promise<Response> {
 	return response;
 }
 
-export function restoreBackup(data: BackupData, options: { password: string; override: boolean }): Promise<RestoreResult> {
+export function restoreBackup(
+	data: BackupData,
+	options: { password: string; override: boolean },
+): Promise<RestoreResult> {
 	return post<RestoreResult>("/api/admin/backup/restore", {
 		password: options.password,
 		override: options.override,

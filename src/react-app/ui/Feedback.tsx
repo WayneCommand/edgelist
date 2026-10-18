@@ -1,17 +1,19 @@
-import { useT } from "../hooks/useStore";
+import { lazy, Suspense } from "react";
 import { dismissNotice, resolveConfirm, useConfirmRequest, useNotices, type Notice } from "../lib/feedback";
-import { Dialog, DialogActions } from "./Dialog";
 import { Icon, type IconName } from "./Icon";
 
 /**
- * The notification stack.
+ * Notifications and the confirmation dialog.
  *
- * Bottom-right and stacked upward, which is where §1.4 puts it and where it does
- * not cover the object card's own header. Each notice is a card in the semantic
- * colour of its tone: a green check, a red cross, an amber triangle, a blue i.
+ * The two are split deliberately. The notification stack is a box that is always mounted and
+ * costs almost nothing; the dialog drags in the modal machinery — react-aria's overlay, focus
+ * scope and presence — which is hundreds of kilobytes a visitor who never confirms anything
+ * should not download. So `ConfirmHost` mounts the lazy dialog only once a request exists,
+ * which is exactly when the chunk first becomes worth fetching.
  *
- * `role="status"` on a success and `role="alert"` on a failure, because a screen
- * reader should interrupt for the latter and wait its turn for the former.
+ * The trade is one chunk fetch on the first confirmation, and it happens while the dialog's own
+ * backdrop is already fading in, from the same origin, on a connection that has just loaded the
+ * app. What it buys is that the baseline no longer carries a modal for everyone.
  */
 const ICON: Record<Notice["tone"], IconName> = {
 	success: "check-circle",
@@ -34,6 +36,13 @@ const GLYPH: Record<Notice["tone"], string> = {
 	info: "text-info-9",
 };
 
+/**
+ * The notification stack (§1.4).
+ *
+ * Bottom-right, stacked upward, each a card in the semantic colour of its tone. `role="alert"`
+ * on a failure and `role="status"` on everything else: a screen reader should interrupt for the
+ * former and wait its turn for the latter.
+ */
 export function Toaster() {
 	const notices = useNotices();
 	return (
@@ -68,35 +77,24 @@ export function Toaster() {
 	);
 }
 
+const ConfirmDialog = lazy(() => import("./ConfirmDialog").then((m) => ({ default: m.ConfirmDialog })));
+
 /**
- * The single confirmation dialog.
+ * The one confirmation dialog.
  *
- * One host for the whole app: `lib/feedback.ts` holds at most one pending request,
- * so two confirmations cannot stack — which is the point. §7.4 and §12.4 use two
- * different *visual* styles for a delete (a modal on the file page, a popover in
- * the admin tables), and both read this same request; the difference is only in
- * how the caller asks.
+ * `lib/feedback.ts` holds at most one pending request, so two confirmations cannot stack —
+ * which is the point. §7.4 and §12.4 use two different *visual* styles for a delete (a modal on
+ * the file page, a popover in the admin tables) and both read this same request; the difference
+ * is in how the caller asks, not in what the reader is told.
  */
 export function ConfirmHost() {
 	const request = useConfirmRequest();
-	const t = useT();
+	// Nothing is mounted until something is asked, which is what keeps the modal chunk out of
+	// the first paint's module graph.
 	if (!request) return null;
 	return (
-		<Dialog
-			title={request.title}
-			size="sm"
-			onClose={() => resolveConfirm(false)}
-			footer={
-				<DialogActions
-					onCancel={() => resolveConfirm(false)}
-					onConfirm={() => resolveConfirm(true)}
-					cancelText={t("global.cancel")}
-					confirmLabel={request.confirmLabel}
-					confirmTone={request.danger ? "danger" : "soft"}
-				/>
-			}
-		>
-			<p className="leading-relaxed text-neutral-11">{request.message}</p>
-		</Dialog>
+		<Suspense fallback={null}>
+			<ConfirmDialog request={request} onResolve={resolveConfirm} />
+		</Suspense>
 	);
 }

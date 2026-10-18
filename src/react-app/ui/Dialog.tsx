@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from "react";
-import { Modal as HeroModal } from "@heroui/react";
+import { Modal as HeroModal } from "@heroui/react/modal";
 import { ActionButton } from "./ActionButton";
 
 /**

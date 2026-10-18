@@ -66,6 +66,12 @@ export function formatDate(value: string | undefined | null): string {
 	if (!value) return "-";
 	const date = new Date(value);
 	if (Number.isNaN(date.getTime())) return "-";
+	// The Worker writes the epoch when a storage reports no timestamp — a directory
+	// synthesized from a key prefix, an object with no `LastModified`. Rendering that is
+	// worse than rendering nothing: "1970-01-01 08:00:00" reads as a fact about the file
+	// rather than as the absence of one, and no real file in this system predates 1970 by
+	// enough to be the same value.
+	if (date.getTime() <= 0) return "-";
 	return (
 		`${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
 		`${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
@@ -310,7 +316,18 @@ export function languageFor(name: string): string {
  * One table for the file glyph and the preview thumbnail, so a `.zip` cannot be a
  * box in the list and a page in the grid.
  */
-export function iconFor(kind: FileKind): "folder" | "file-archive" | "file-audio" | "file-code" | "file-image" | "file-pdf" | "file-text" | "file-video" | "file" {
+export function iconFor(
+	kind: FileKind,
+):
+	| "folder"
+	| "file-archive"
+	| "file-audio"
+	| "file-code"
+	| "file-image"
+	| "file-pdf"
+	| "file-text"
+	| "file-video"
+	| "file" {
 	switch (kind) {
 		case "directory":
 			return "folder";

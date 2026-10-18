@@ -168,10 +168,20 @@ export type PreferenceKey = keyof typeof PREFERENCE_SPECS;
 /**
  * The value type one setting holds.
  *
- * Derived from the spec's own `default`, which is what makes `setPreference("grid_item_size", "big")`
- * a compile error rather than a silently coerced `0`.
+ * Derived from the *option list* where there is one, not from the default: a
+ * literal `"off"` default would make `setPreference("editor_word_wrap", "on")` a type
+ * error, and the setter's job is to accept any option the control can offer.
  */
-export type PreferenceValue<K extends PreferenceKey> = (typeof PREFERENCE_SPECS)[K]["default"];
+export type PreferenceValue<K extends PreferenceKey> = (typeof PREFERENCE_SPECS)[K] extends {
+	kind: "enum";
+	options: readonly (infer O)[];
+}
+	? O extends { value: infer V }
+		? V
+		: never
+	: (typeof PREFERENCE_SPECS)[K] extends { kind: "number" }
+		? number
+		: (typeof PREFERENCE_SPECS)[K]["default"];
 
 /** The settings in the order the drawer shows them: §8's table. */
 export const PREFERENCE_ORDER: PreferenceKey[] = [

@@ -13,7 +13,15 @@
  * once and then never updates.
  */
 
-import { DEFAULT_LOCALE, isLocale, localeFrom, translate, type Locale, type MessageKey, type MessageParams } from "./i18n";
+import {
+	DEFAULT_LOCALE,
+	isLocale,
+	localeFrom,
+	translate,
+	type Locale,
+	type MessageKey,
+	type MessageParams,
+} from "./i18n";
 import { LOCALE_KEY, readFlag, writeFlag } from "./preferences";
 
 /**
