@@ -16,13 +16,7 @@ import { ActionButton } from "./ActionButton";
  * `::backdrop` is styled in `index.css`, because a pseudo-element cannot be reached with
  * utility classes on this element.
  */
-export function ConfirmDialog({
-	request,
-	onResolve,
-}: {
-	request: ConfirmRequest;
-	onResolve: (ok: boolean) => void;
-}) {
+export function ConfirmDialog({ request, onResolve }: { request: ConfirmRequest; onResolve: (ok: boolean) => void }) {
 	const t = useT();
 	const dialog = useRef<HTMLDialogElement>(null);
 

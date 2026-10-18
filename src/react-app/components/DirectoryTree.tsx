@@ -6,6 +6,9 @@ import { useT } from "../hooks/useStore";
 import { Icon } from "../ui/Icon";
 import { Loading } from "../ui/Field";
 
+/** The empty set, shared so `expanded` does not allocate a fresh one every render. */
+const EMPTY: ReadonlySet<string> = new Set();
+
 /**
  * The directory tree (§3.10), the one picker every "choose a folder" surface uses.
  *
@@ -36,9 +39,39 @@ export function DirectoryTree({
 	const t = useT();
 	// Children by parent path. `null` means "asked for and empty"; an absent key
 	// means "not asked yet", which is what an arrow checks to decide whether to fetch.
-	const [children, setChildren] = useState<Record<string, DirectoryNode[] | "loading" | "error">>({});
-	const [expanded, setExpanded] = useState<Set<string>>(() => new Set(["/"]));
+	const [children, setChildren] = useState<Record<string, DirectoryNode[] | "error">>({});
 	const [root, setRoot] = useState<DirectoryNode[] | "loading" | "error">("loading");
+
+	/**
+	 * The levels the current path runs through, which §3.10 wants open.
+	 *
+	 * Derived from `value` rather than stored and written from an effect: "open the
+	 * ancestors of where I am" is a *function of* the current path, and keeping a copy
+	 * in state meant every navigation wrote it, rendered, and then wrote again when the
+	 * loading responses arrived.
+	 */
+	const trail = useMemo(() => {
+		const parts = value.split("/").filter(Boolean);
+		return new Set(["/", ...parts.map((_, index) => `/${parts.slice(0, index + 1).join("/")}`)]);
+	}, [value]);
+
+	// A branch the reader opened by hand. Kept apart from the trail so the two cannot
+	// fight over the same path.
+	const [opened, setOpened] = useState<ReadonlySet<string>>(() => new Set());
+	// A collapse the reader asked for. Scoped to the path it happened on: navigating away
+	// and back should show the tree open at where you are, not where you once closed it.
+	const [collapsed, setCollapsed] = useState<{ at: string; paths: ReadonlySet<string> }>(() => ({
+		at: "",
+		paths: new Set(),
+	}));
+
+	const expanded = useMemo(() => {
+		const closed = collapsed.at === value ? collapsed.paths : EMPTY;
+		const next = new Set<string>();
+		for (const path of trail) if (!closed.has(path)) next.add(path);
+		for (const path of opened) if (!closed.has(path)) next.add(path);
+		return next;
+	}, [trail, opened, collapsed, value]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -62,15 +95,7 @@ export function DirectoryTree({
 	 * Doing that up front is what makes the dialog open *at* the directory the user is
 	 * in rather than at the root with a "keep clicking" problem.
 	 */
-	useEffect(() => {
-		const parts = value.split("/").filter(Boolean);
-		const levels = ["/", ...parts.map((_, index) => `/${parts.slice(0, index + 1).join("/")}`)];
-		setExpanded((current) => new Set([...current, ...levels]));
-		for (const level of levels) void loadChildren(level);
-	}, [value]);
-
 	async function loadChildren(path: string) {
-		setChildren((current) => (current[path] ? current : { ...current, [path]: "loading" }));
 		try {
 			const nodes = await listDirectories(path, 1);
 			setChildren((current) => ({ ...current, [path]: nodes }));
@@ -79,16 +104,53 @@ export function DirectoryTree({
 		}
 	}
 
-	function toggle(path: string) {
-		setExpanded((current) => {
-			const next = new Set(current);
-			if (next.has(path)) next.delete(path);
-			else {
-				next.add(path);
-				if (!children[path]) void loadChildren(path);
+	function ask(path: string) {
+		void loadChildren(path);
+	}
+
+	useEffect(() => {
+		// Defined inside the effect so the rule can see the `await` before any write:
+		// every `setChildren` below happens after a round trip, never during the effect.
+		let cancelled = false;
+		void (async () => {
+			for (const level of trail) {
+				try {
+					const nodes = await listDirectories(level, 1);
+					if (cancelled) return;
+					setChildren((current) => ({ ...current, [level]: nodes }));
+				} catch {
+					if (cancelled) return;
+					setChildren((current) => ({ ...current, [level]: "error" }));
+				}
 			}
-			return next;
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [trail]);
+
+	function toggle(path: string) {
+		const open = expanded.has(path);
+		if (!open && !children[path]) ask(path);
+		// A collapse is recorded against the current path; an expansion removes any
+		// earlier collapse of the same branch, so reopening it here sticks.
+		if (open) {
+			setCollapsed((previous) => {
+				const paths = new Set(previous.at === value ? previous.paths : []);
+				paths.add(path);
+				return { at: value, paths };
+			});
+			return;
+		}
+		setCollapsed((previous) => {
+			if (previous.at !== value || !previous.paths.has(path)) return previous;
+			const paths = new Set(previous.paths);
+			paths.delete(path);
+			return { at: value, paths };
 		});
+		if (!trail.has(path)) {
+			setOpened((previous) => (previous.has(path) ? previous : new Set(previous).add(path)));
+		}
 	}
 
 	return (
@@ -127,7 +189,7 @@ function TreeLevel({
 	depth: number;
 	value: string;
 	expanded: Set<string>;
-	children: Record<string, DirectoryNode[] | "loading" | "error">;
+	children: Record<string, DirectoryNode[] | "error">;
 	onToggle: (path: string) => void;
 	onSelect: (path: string) => void;
 }) {
@@ -161,7 +223,9 @@ function TreeLevel({
 							depth={depth + 1}
 							open={open}
 							selected={value === node.path}
-							loading={state === "loading"}
+							// "Open with no answer yet" is the loading state. The request
+							// itself is what says so — there is no third flag to keep in step.
+							loading={open && state === undefined}
 							onToggle={() => onToggle(node.path)}
 							onSelect={() => onSelect(node.path)}
 							hasChildren={

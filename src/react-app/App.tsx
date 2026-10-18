@@ -45,7 +45,9 @@ function RequireAuth() {
 	const { signedIn } = useAuth();
 	const location = useLocation();
 	if (!signedIn) {
-		return <Navigate to={`${ROUTES.login}?redirect=${encodeURIComponent(location.pathname + location.search)}`} replace />;
+		return (
+			<Navigate to={`${ROUTES.login}?redirect=${encodeURIComponent(location.pathname + location.search)}`} replace />
+		);
 	}
 	return <Outlet />;
 }
