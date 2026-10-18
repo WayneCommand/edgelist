@@ -191,10 +191,12 @@ export function BrowserPage() {
 				// §4.6: right-clicking inside a multi-selection keeps the selection;
 				// anywhere else selects the row first, so the menu describes what was
 				// pointed at.
-				if (selection.count <= 1 || !selection.isSelected(item.path)) {
-					selection.selectOnly(item.path, index);
-				}
-				setMenu({ ...position, items: contextEntries(item) });
+				const keep = selection.count > 1 && selection.isSelected(item.path);
+				if (!keep) selection.selectOnly(item.path, index);
+				// The entries are built from the selection *as it will be*, not as it is:
+				// `selectOnly` only schedules the update, so reading `selection` here would
+				// describe the previous one — an empty menu on the first right click.
+				setMenu({ ...position, items: contextEntries(item, keep ? selection.items : [item]) });
 			},
 			onLightbox: (item) => navigate(`${ROUTES.files(item.path)}?preview=image`),
 		}),
@@ -205,9 +207,8 @@ export function BrowserPage() {
 	);
 
 	/** §6.4's menu, in the spec's own order. */
-	function contextEntries(item: FileObject): MenuEntry[] {
+	function contextEntries(item: FileObject, chosen: readonly FileObject[]): MenuEntry[] {
 		const entries: MenuEntry[] = [];
-		const chosen = selection.count === 1 ? [item] : selection.items;
 		const allows = permissionsFor(chosen);
 
 		if (chosen.length === 1 && !item.is_dir) {
