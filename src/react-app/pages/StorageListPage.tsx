@@ -133,7 +133,7 @@ export function StorageListPage() {
 									setFilter(next);
 								}}
 								className={`tap rounded-md px-2 py-1 text-[11px] font-medium ${
-									filter.has(driver.key) ? "bg-info-9 text-white" : "bg-neutral-3 text-neutral-11 hover:bg-neutral-4"
+									filter.has(driver.key) ? "bg-info-10 text-white" : "bg-neutral-3 text-neutral-11 hover:bg-neutral-4"
 								}`}
 							>
 								{driver.name}

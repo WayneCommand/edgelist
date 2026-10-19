@@ -163,7 +163,7 @@ export function FilePage() {
 							aria-pressed={entry.key === active}
 							className={`tap rounded-md px-2.5 py-1 text-[12.5px] ${
 								entry.key === active
-									? "bg-info-9 font-medium text-white shadow-sm"
+									? "bg-info-10 font-medium text-white shadow-sm"
 									: "text-neutral-11 hover:bg-row-hover hover:text-foreground"
 							}`}
 						>

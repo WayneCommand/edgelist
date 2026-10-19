@@ -52,9 +52,10 @@ export function ManageShell() {
 	const navigate = useNavigate();
 	const { signOut } = useAuth();
 	const [menuOpen, setMenuOpen] = useState(false);
-	// The path is what the menu compares against, and it is already decoded and
-	// normalized by the location itself.
-	const currentPath = useLocation().pathname;
+	// The path is what the menu compares against, so it has to be the *decoded*
+	// one: `useLocation().pathname` keeps `%40manage` as the browser sent it, and
+	// none of `ROUTES` would match. `routeFor` decodes for exactly this reason.
+	const currentPath = decodeURIComponent(useLocation().pathname);
 	// `routeFor` is what decides whether a management path is known at all; an
 	// unmatched one falls back to the profile, which is the index route's own page.
 	void routeFor(currentPath);
@@ -200,7 +201,7 @@ function MenuList({ currentPath, onNavigate }: { currentPath: string; onNavigate
 				// controls, because it is a navigation target rather than a button.
 				const className = `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-left transition-colors duration-100 ${
 					active
-						? "bg-info-9 font-medium text-white shadow-sm"
+						? "bg-info-10 font-medium text-white shadow-sm"
 						: "hover:bg-row-hover hover:text-foreground active:bg-row-active"
 				}`;
 

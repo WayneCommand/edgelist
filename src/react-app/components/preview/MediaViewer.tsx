@@ -196,7 +196,7 @@ export function DownloadPanel({ item, onDownload }: { item: FileObject; onDownlo
 				<button
 					type="button"
 					onClick={onDownload}
-					className="tap inline-flex items-center gap-1.5 rounded-lg bg-info-9 px-3.5 py-1.5 text-[13px] font-medium text-white hover:bg-info-10"
+					className="tap inline-flex items-center gap-1.5 rounded-lg bg-info-10 px-3.5 py-1.5 text-[13px] font-medium text-white hover:bg-info-11"
 				>
 					<Icon name="download" className="size-3.5" />
 					{t("preview.download")}
