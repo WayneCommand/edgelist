@@ -9,6 +9,7 @@ import { ActionButton } from "../ui/ActionButton";
 import { Field, Loading, Select, StateMessage, Switch, TextArea, TextInput } from "../ui/Field";
 import { Dialog, DialogActions } from "../ui/Dialog";
 import { ManageHeading } from "./ManageShell";
+import { Card } from "../ui/PageShell";
 
 /**
  * Storage add/edit (§12.10).
@@ -145,59 +146,67 @@ export function StorageFormPage() {
 				</ActionButton>
 			</ManageHeading>
 
-			<div className="flex flex-col gap-5">
-				<section className="flex flex-col gap-3">
-					{/* The driver picker is disabled while editing: changing it would silently
-					    rewrite every additional field, and the Worker keys a storage's
-					    identity off its mount path rather than its driver. */}
-					<Field
-						label={t("storages.driver")}
-						hint={editing ? undefined : t("storages.driver_settings", { driver: info?.name ?? "" })}
-					>
-						{(fieldId) => (
-							<Select
-								id={fieldId}
-								value={draft.driver}
-								disabled={editing}
-								onChange={(event) => void changeDriver(event.target.value)}
-								className={editing ? "opacity-60" : ""}
-							>
-								{drivers.map((driver) => (
-									<option key={driver.key} value={driver.key}>
-										{driver.name}
-									</option>
-								))}
-							</Select>
-						)}
-					</Field>
+			<div className="flex flex-col gap-4">
+				{/* A grouped card, the way a macOS inspector stacks its rows: one
+				    surface, a section per concern, hairline rules between them. */}
+				<Card className="p-4">
+					<div className="flex flex-col gap-3">
+						{/* The driver picker is disabled while editing: changing it would silently
+						    rewrite every additional field, and the Worker keys a storage's
+						    identity off its mount path rather than its driver. */}
+						<Field
+							label={t("storages.driver")}
+							hint={editing ? undefined : t("storages.driver_settings", { driver: info?.name ?? "" })}
+						>
+							{(fieldId) => (
+								<Select
+									id={fieldId}
+									value={draft.driver}
+									disabled={editing}
+									onChange={(event) => void changeDriver(event.target.value)}
+									className={editing ? "opacity-60" : ""}
+								>
+									{drivers.map((driver) => (
+										<option key={driver.key} value={driver.key}>
+											{driver.name}
+										</option>
+									))}
+								</Select>
+							)}
+						</Field>
 
-					<div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))" }}>
-						{info?.common.map((item) => (
-							<ItemField
-								key={item.name}
-								item={item}
-								value={draft[item.name]}
-								onChange={(value) => setCommon(item.name, value)}
-							/>
-						))}
-						{info?.additional.map((item) => (
-							<ItemField
-								key={item.name}
-								item={item}
-								value={addition[item.name]}
-								onChange={(value) => setAdditional(item.name, value)}
-								className={item.type === "text" ? "col-span-full" : undefined}
-							/>
-						))}
+						<div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))" }}>
+							{info?.common.map((item) => (
+								<ItemField
+									key={item.name}
+									item={item}
+									value={draft[item.name]}
+									onChange={(value) => setCommon(item.name, value)}
+									className={item.type === "text" ? "col-span-full" : undefined}
+								/>
+							))}
+							{info?.additional.map((item) => (
+								<ItemField
+									key={item.name}
+									item={item}
+									value={addition[item.name]}
+									onChange={(value) => setAdditional(item.name, value)}
+									className={item.type === "text" ? "col-span-full" : undefined}
+								/>
+							))}
+						</div>
 					</div>
-				</section>
+				</Card>
 
+				{/* One filled action, the rest neutral: Import used to be white next to a
+				    cyan Add and a violet Export, which read as three ranks of the same
+				    thing. */}
 				<div className="flex flex-wrap items-center gap-2">
 					<ActionButton tone="primary" onPress={() => void save()} isPending={saving}>
 						{editing ? t("global.save") : t("storages.add")}
 					</ActionButton>
 					<ActionButton
-						tone="accent"
+						tone="soft"
 						onPress={() => {
 							setJsonText(JSON.stringify(stripAssigned(draft), null, 2));
 							setJson("export");

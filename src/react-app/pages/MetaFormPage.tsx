@@ -8,6 +8,7 @@ import { ROUTES } from "../routes";
 import { ActionButton } from "../ui/ActionButton";
 import { Checkbox, Field, Loading, StateMessage, Switch, TextArea, TextInput } from "../ui/Field";
 import { ManageHeading } from "./ManageShell";
+import { Card } from "../ui/PageShell";
 
 /**
  * A metadata rule (§12.13).
@@ -97,7 +98,7 @@ export function MetaFormPage() {
 				</ActionButton>
 			</ManageHeading>
 
-			<div className="flex max-w-3xl flex-col gap-4">
+			<Card className="flex max-w-3xl flex-col gap-4 p-4">
 				{/* The path is typed rather than picked: a rule can name a directory that does
 				    not exist yet, and a picker would make it unrepresentable. */}
 				<Field label={t("metas.path")} hint={t("metas.path_placeholder")} required>
@@ -195,12 +196,12 @@ export function MetaFormPage() {
 						<span>{draft.write_users?.join(", ") || t("metas.all_permitted_users")}</span>
 					</div>
 				</div>
+			</Card>
 
-				<div className="flex items-center gap-2">
-					<ActionButton tone="primary" onPress={() => void save()} isPending={saving}>
-						{editing ? t("global.save") : t("metas.add")}
-					</ActionButton>
-				</div>
+			<div className="mt-4 flex items-center gap-2">
+				<ActionButton tone="primary" onPress={() => void save()} isPending={saving}>
+					{editing ? t("global.save") : t("metas.add")}
+				</ActionButton>
 			</div>
 		</div>
 	);

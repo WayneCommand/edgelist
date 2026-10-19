@@ -2,6 +2,8 @@ import { useT, useWorkspace } from "../hooks/useStore";
 import { Chip } from "../ui/Field";
 import { Icon } from "../ui/Icon";
 import { ManageHeading } from "./ManageShell";
+import { Card } from "../ui/PageShell";
+import { LogoMark } from "../ui/Chrome";
 
 /**
  * About (§12.22, adapted).
@@ -25,53 +27,52 @@ export function AboutPage() {
 		<div>
 			<ManageHeading title={t("about.title")} />
 
-			<div className="flex max-w-2xl flex-col gap-5">
-				<div className="flex items-start gap-3">
-					<span
-						aria-hidden="true"
-						className="flex size-12 shrink-0 items-center justify-center rounded-[25%] bg-foreground text-xl font-bold text-background"
-					>
-						E
-					</span>
-					<div>
-						<h2 className="text-base font-semibold">EdgeList</h2>
-						<p className="text-[13px] text-neutral-11">{t("about.tagline")}</p>
-					</div>
-				</div>
-
-				<dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-[13px]">
-					<Term>{t("about.backend")}</Term>
-					<Value>{t("about.backend_value")}</Value>
-					<Term>{t("about.auth")}</Term>
-					<Value>{t("about.auth_value")}</Value>
-					<Term>{t("about.api")}</Term>
-					<Value>{t("about.api_value")}</Value>
-					<Term>{t("about.drivers")}</Term>
-					<Value>
-						<div className="flex flex-wrap gap-1">
-							{(drivers.length
-								? drivers
-								: [
-										{ key: "object", name: "S3" },
-										{ key: "webdav", name: "WebDav" },
-										{ key: "openlist", name: "OpenList" },
-									]
-							).map((driver) => (
-								<Chip key={driver.key} tone="info">
-									{driver.name}
-								</Chip>
-							))}
+			<div className="flex max-w-2xl flex-col gap-4">
+				<Card className="flex flex-col gap-4 p-5">
+					<div className="flex items-start gap-3">
+						<LogoMark size="lg" />
+						<div>
+							<h2 className="text-[16px] font-semibold tracking-tight">EdgeList</h2>
+							<p className="text-[12.5px] text-neutral-10">{t("about.tagline")}</p>
 						</div>
-					</Value>
-					<Term>{t("storages.title")}</Term>
-					<Value>
-						{storages.length} · {mounts.join(", ") || "/"}
-					</Value>
-				</dl>
+					</div>
 
-				<section className="rounded-lg bg-neutral-2 px-3 py-2.5">
-					<h3 className="mb-1.5 text-[13px] font-semibold text-neutral-11">Not implemented</h3>
-					<ul className="flex flex-col gap-1 text-xs leading-relaxed text-neutral-10">
+					<dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 border-t border-hairline pt-4 text-[12.5px]">
+						<Term>{t("about.backend")}</Term>
+						<Value>{t("about.backend_value")}</Value>
+						<Term>{t("about.auth")}</Term>
+						<Value>{t("about.auth_value")}</Value>
+						<Term>{t("about.api")}</Term>
+						<Value>{t("about.api_value")}</Value>
+						<Term>{t("about.drivers")}</Term>
+						<Value>
+							<div className="flex flex-wrap gap-1">
+								{(drivers.length
+									? drivers
+									: [
+											{ key: "object", name: "S3" },
+											{ key: "webdav", name: "WebDav" },
+											{ key: "openlist", name: "OpenList" },
+										]
+								).map((driver) => (
+									<Chip key={driver.key} tone="info">
+										{driver.name}
+									</Chip>
+								))}
+							</div>
+						</Value>
+						<Term>{t("storages.title")}</Term>
+						<Value>
+							{storages.length} · {mounts.join(", ") || "/"}
+						</Value>
+					</dl>
+				</Card>
+
+				<Card className="p-5">
+					<h3 className="mb-2 text-[12px] font-semibold tracking-[0.04em] text-neutral-10 uppercase">
+						Not implemented
+					</h3>
+					<ul className="flex flex-col gap-1.5 text-[12.5px] leading-relaxed text-neutral-10">
 						{LIMITS.map((limit) => (
 							<li key={limit.title} className="flex gap-1.5">
 								<Icon name="minus" className="mt-1 size-3 shrink-0 text-neutral-8" />
@@ -81,9 +82,9 @@ export function AboutPage() {
 							</li>
 						))}
 					</ul>
-				</section>
+				</Card>
 
-				<p className="text-[11px] text-neutral-10">
+				<p className="px-1 text-[11.5px] leading-relaxed text-neutral-10">
 					The interface follows <code className="rounded bg-neutral-3 px-1">interfaces.md</code>, a transcription of
 					OpenList's front end. Where this deployment cannot match it, the deviation is stated above rather than drawn
 					and left inert.

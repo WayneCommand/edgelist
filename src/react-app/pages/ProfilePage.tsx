@@ -1,6 +1,7 @@
 import { useT, useWorkspace } from "../hooks/useStore";
 import { Chip, Field, TextInput } from "../ui/Field";
 import { ManageHeading } from "./ManageShell";
+import { Card } from "../ui/PageShell";
 
 /**
  * Profile (§12.5, cut to what this deployment can do).
@@ -23,33 +24,37 @@ export function ProfilePage() {
 
 	return (
 		<div>
-			<ManageHeading title={t("manage.profile.title")} />
+			<ManageHeading title={t("manage.profile.title")} description={t("manage.profile.description")} />
 
 			<div className="flex max-w-xl flex-col gap-4">
-				<div className="flex items-center gap-2">
-					<Chip tone="accent">{me?.is_admin ? "admin" : "guest"}</Chip>
-					<span className="text-sm text-neutral-11">{t("manage.signed_in_as")}</span>
-					<span className="text-sm font-semibold">{me?.username ?? "—"}</span>
-				</div>
+				<Card className="flex flex-col gap-3 p-4">
+					<div className="flex items-center gap-2">
+						<Chip tone="accent">{me?.is_admin ? "admin" : "guest"}</Chip>
+						<span className="text-[13px] text-neutral-11">{t("manage.signed_in_as")}</span>
+						<span className="text-[13px] font-semibold">{me?.username ?? "—"}</span>
+					</div>
 
-				<Field label={t("manage.profile.username")} hint={t("manage.profile.managed_in_kv")}>
-					{(fieldId) => <TextInput id={fieldId} readOnly value={me?.username ?? ""} className="opacity-70" />}
-				</Field>
+					<Field label={t("manage.profile.username")} hint={t("manage.profile.managed_in_kv")}>
+						{(fieldId) => <TextInput id={fieldId} readOnly value={me?.username ?? ""} className="opacity-70" />}
+					</Field>
+				</Card>
 
-				<div className="rounded-lg bg-warning-3 px-3 py-2.5 text-[13px] leading-relaxed text-warning-11">
+				<div className="rounded-xl border border-warning-6/40 bg-warning-3 px-3.5 py-3 text-[12.5px] leading-relaxed text-warning-11">
 					{t("manage.users.permissions")}
 				</div>
 
-				<div className="rounded-lg bg-neutral-2 px-3 py-2.5">
-					<p className="mb-1.5 text-[13px] font-medium text-neutral-11">{t("manage.profile.permissions")}</p>
-					<div className="flex flex-wrap gap-1">
+				<Card className="p-4">
+					<p className="mb-2 text-[12px] font-semibold tracking-[0.04em] text-neutral-10 uppercase">
+						{t("manage.profile.permissions")}
+					</p>
+					<div className="flex flex-wrap gap-1.5">
 						{PERMISSIONS.map((permission) => (
 							<Chip key={permission} tone="success">
 								{permission}
 							</Chip>
 						))}
 					</div>
-				</div>
+				</Card>
 			</div>
 		</div>
 	);

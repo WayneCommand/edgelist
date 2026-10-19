@@ -67,25 +67,25 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 	}
 
 	return (
-		<LoginBackdrop>
-			<main className="relative z-docked flex min-h-dvh flex-col px-5 py-6 sm:px-8">
+		<div className="relative flex min-h-dvh flex-col bg-[var(--page)]">
+			<main className="relative z-docked mx-auto flex w-full max-w-[1000px] flex-1 flex-col px-5 py-6 sm:px-7">
 				<header className="flex items-start justify-between gap-4">
 					<span className="flex items-center gap-2.5">
 						<LogoMark />
-						<span className="text-[15px] font-semibold tracking-tight text-white [text-shadow:0_1px_2px_rgb(0_0_0/0.25)]">
-							EdgeList
-						</span>
+						<span className="text-[15px] font-semibold tracking-tight text-neutral-12">EdgeList</span>
 					</span>
-					<div className="flex items-center gap-1 rounded-lg bg-white/15 px-1 py-0.5 backdrop-blur-sm">
+					<div className="flex items-center gap-1 rounded-lg bg-neutral-3 px-1 py-0.5">
 						<LocaleMenu />
 						<ThemeMenu />
 					</div>
 				</header>
 
 				<div className="flex flex-1 items-center justify-center py-8">
-					{/* A sheet, not a white box: the same glass as a macOS login window,
-					    with the specular rim doing the work an outer border used to. */}
-					<div className="w-full max-w-[372px] rounded-[22px] border border-white/60 bg-white/65 px-7 py-8 shadow-lg backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-[#2c2c2e]/70">
+					{/* A plain white sheet on the page colour. §10.1's arcs belong to the
+					    brand's own site; a deployment's sign-in page is the front door to
+					    someone's files, and a wallpaper behind it made the form compete with
+					    the decoration for attention. */}
+					<div className="w-full max-w-[372px] rounded-2xl border border-hairline bg-surface px-7 py-8 shadow-lg">
 						<div className="flex items-center justify-center gap-3">
 							<LogoMark size="md" />
 							<h1 className="text-[19px] font-semibold tracking-tight">{t("login.login_to")} EdgeList</h1>
@@ -171,79 +171,17 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 					</div>
 				</div>
 
-				<footer className="text-center text-[11px] text-white/70">
+				<footer className="text-center text-[11px] text-neutral-10">
 					<a
 						href="https://doc.oplist.org"
 						target="_blank"
 						rel="noreferrer"
-						className="tap hover:text-white hover:underline"
+						className="tap hover:text-neutral-12 hover:underline"
 					>
 						OpenList
 					</a>
 				</footer>
 			</main>
-		</LoginBackdrop>
-	);
-}
-
-/**
- * §10.1's two arcs, and the flat field they sit on.
- *
- * The shapes are given as paths with fixed coordinates, so the SVG viewBox is their
- * own size and the position is a percentage-free absolute offset — the spec's
- * `right/top` and `left/bottom` values, which crop differently at each breakpoint
- * exactly as it describes.
- */
-function LoginBackdrop({ children }: { children: React.ReactNode }) {
-	return (
-		<div className="relative min-h-dvh overflow-hidden bg-[#a9c6ff] dark:bg-[#062b74]">
-			{/* §10.1's two arcs stay — they are the brand's one piece of geometry, and the
-			    spec calls them a required part of the visual. What changes is the field
-			    they sit on: a macOS wallpaper is a soft wash of colour, not a flat fill,
-			    so the arcs now read as depth rather than as two shapes pasted on blue. */}
-			<div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-				{/* A wallpaper, not a flat fill: three soft blooms over the base colour.
-				    Glass is only legible as glass when there is something behind it to
-				    refract, and this is what the card's blur actually reads. */}
-				<div className="absolute inset-0 bg-[radial-gradient(70%_60%_at_18%_8%,#e8f1ff_0%,transparent_60%)] dark:bg-[radial-gradient(70%_60%_at_18%_8%,#12409e_0%,transparent_62%)]" />
-				<div className="absolute inset-0 bg-[radial-gradient(60%_55%_at_92%_85%,#cfc0ff_0%,transparent_62%)] opacity-80 dark:bg-[radial-gradient(60%_55%_at_92%_85%,#241a6b_0%,transparent_64%)]" />
-				<div className="absolute inset-0 bg-[radial-gradient(45%_40%_at_70%_15%,#bfe0ff_0%,transparent_65%)] opacity-70 dark:bg-[radial-gradient(45%_40%_at_70%_15%,#0e5aa8_0%,transparent_68%)]" />
-				<svg
-					viewBox="0 0 1337 1337"
-					className="absolute -top-[1170px] -right-[100px] sm:-top-[900px] sm:-right-[300px]"
-					width="1337"
-					height="1337"
-				>
-					<defs>
-						<linearGradient id="login-arc-top" x1="0.79" y1="0.62" x2="0.21" y2="0.86">
-							<stop offset="0%" stopColor="#28aff0" />
-							<stop offset="100%" stopColor="#120fc4" />
-						</linearGradient>
-					</defs>
-					<path
-						d="M1337,668.5 C1337,1037.455 1037.455,1337 668.5,1337 C523.673,1337 337,1236 370.5,1094 C434.038,824.673 0,892.628 0,668.5 C0,299.545 299.545,0 668.5,0 C1037.455,0 1337,299.545 1337,668.5 Z"
-						fill="url(#login-arc-top)"
-					/>
-				</svg>
-				<svg
-					viewBox="0 0 967.885 896"
-					className="absolute -bottom-[760px] -left-[100px] sm:-bottom-[400px] sm:-left-[200px]"
-					width="967.885"
-					height="896"
-				>
-					<defs>
-						<linearGradient id="login-arc-bottom" x1="0.5" y1="0" x2="0.5" y2="1">
-							<stop offset="0%" stopColor="#28aff0" />
-							<stop offset="100%" stopColor="#120fc4" />
-						</linearGradient>
-					</defs>
-					<path
-						d="M896,448 C1142.633,465.575 695.258,896 448,896 C200.742,896 0,695.258 0,448 C0,200.742 200.742,0 448,0 C695.258,0 475,418 896,448 Z"
-						fill="url(#login-arc-bottom)"
-					/>
-				</svg>
-			</div>
-			{children}
 		</div>
 	);
 }

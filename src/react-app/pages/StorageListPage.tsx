@@ -9,6 +9,9 @@ import { ROUTES } from "../routes";
 import { ActionButton } from "../ui/ActionButton";
 import { CapacityBar, Checkbox, Chip, Loading, StateMessage } from "../ui/Field";
 import { ManageHeading } from "./ManageShell";
+import { Dropdown, DropdownPopover, DropdownTrigger } from "@heroui/react/dropdown";
+import { MenuEntries } from "../ui/Chrome";
+import { Icon } from "../ui/Icon";
 
 /**
  * Storages (§12.9).
@@ -102,55 +105,57 @@ export function StorageListPage() {
 
 	return (
 		<div>
-			<ManageHeading title={t("storages.title")}>
-				{/* Refresh was the spec's violet accent, which read as a third colour
-				    next to a blue interface. macOS has one tint for actions and uses
-				    weight, not hue, to rank them — so both buttons are neutral and the
-				    primary one is the only one with a fill. */}
-				<ActionButton
-					tone="soft"
-					icon="refresh"
-					size="sm"
-					isPending={busy === "reload"}
-					onPress={() => void reloadAll()}
-				>
+			<ManageHeading title={t("storages.title")} description={t("storages.description")}>
+				<ActionButton tone="soft" size="sm" isPending={busy === "reload"} onPress={() => void reloadAll()}>
 					{t("global.refresh")}
 				</ActionButton>
 				<ActionButton tone="primary" icon="plus" size="sm" onPress={() => navigate(ROUTES.storageAdd)}>
 					{t("storages.add")}
 				</ActionButton>
-				{drivers.length > 0 && (
-					<div className="flex items-center gap-1">
-						{drivers.map((driver) => (
-							<button
-								key={driver.key}
-								type="button"
-								aria-pressed={filter.has(driver.key)}
-								onClick={() => {
-									const next = new Set(filter);
-									if (next.has(driver.key)) next.delete(driver.key);
-									else next.add(driver.key);
-									setFilter(next);
-								}}
-								className={`tap rounded-md px-2 py-1 text-[11px] font-medium ${
-									filter.has(driver.key) ? "bg-info-10 text-white" : "bg-neutral-3 text-neutral-11 hover:bg-neutral-4"
-								}`}
-							>
-								{driver.name}
-							</button>
-						))}
-					</div>
-				)}
-				<Checkbox
-					checked={table}
-					onChange={(value) => {
-						setTable(value);
-						writeFlag("storages-layout", value ? "table" : "grid");
-					}}
-					label={t("storages.table_layout")}
-					labelClassName="text-[13px] text-neutral-11"
-				/>
 			</ManageHeading>
+
+			{/* The filter row belongs with the data, not with the page title: it
+			    narrows what is below it, and previously sat among the page's own
+			    buttons where it read as a third action. */}
+			{(drivers.length > 0 || shown.length > 0) && (
+				<div className="mb-3 flex flex-wrap items-center gap-2">
+					{drivers.length > 0 && (
+						<div className="flex items-center gap-1">
+							{drivers.map((driver) => (
+								<button
+									key={driver.key}
+									type="button"
+									aria-pressed={filter.has(driver.key)}
+									onClick={() => {
+										const next = new Set(filter);
+										if (next.has(driver.key)) next.delete(driver.key);
+										else next.add(driver.key);
+										setFilter(next);
+									}}
+									className={`tap rounded-full px-2.5 py-1 text-[11.5px] font-medium transition-colors ${
+										filter.has(driver.key)
+											? "bg-info-10 text-white shadow-sm"
+											: "bg-neutral-3 text-neutral-11 hover:bg-neutral-4"
+									}`}
+								>
+									{driver.name}
+								</button>
+							))}
+						</div>
+					)}
+					<label className="ml-auto flex cursor-pointer items-center gap-2 text-[12.5px] text-neutral-10">
+						<Checkbox
+							checked={table}
+							onChange={(value) => {
+								setTable(value);
+								writeFlag("storages-layout", value ? "table" : "grid");
+							}}
+							label={t("storages.table_layout")}
+							labelClassName="text-[12.5px] text-neutral-10"
+						/>
+					</label>
+				</div>
+			)}
 
 			{loading ? (
 				<div className="flex justify-center py-16">
@@ -168,10 +173,10 @@ export function StorageListPage() {
 					}
 				/>
 			) : table ? (
-				<div className="overflow-x-auto rounded-xl bg-surface shadow-md">
+				<div className="glass-panel overflow-x-auto rounded-2xl border border-hairline shadow-sm">
 					<table className="w-full text-sm">
 						<thead>
-							<tr className="border-b border-hairline text-left text-xs font-semibold text-neutral-11">
+							<tr className="border-b border-hairline bg-neutral-3/40 text-left text-[11px] font-semibold tracking-[0.04em] text-neutral-11 uppercase">
 								<th className="px-3 py-2">{t("storages.mount_path")}</th>
 								<th className="px-3 py-2">{t("storages.driver")}</th>
 								<th className="px-3 py-2">{t("storages.order")}</th>
@@ -183,7 +188,10 @@ export function StorageListPage() {
 						</thead>
 						<tbody>
 							{shown.map((row) => (
-								<tr key={row.id} className="border-b border-hairline last:border-0 hover:bg-row-hover">
+								<tr
+									key={row.id}
+									className="border-b border-hairline transition-colors last:border-0 hover:bg-row-hover"
+								>
 									<td className="px-3 py-2 font-medium break-all">{row.mount_path}</td>
 									<td className="px-3 py-2">
 										<Chip tone="info">{driverLabel(drivers, row.driver)}</Chip>
@@ -208,22 +216,37 @@ export function StorageListPage() {
 					</table>
 				</div>
 			) : (
-				<div className="grid gap-2.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(324px, 1fr))" }}>
+				<div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}>
 					{shown.map((row) => (
 						<div
 							key={row.id}
-							className="flex flex-col gap-2 rounded-lg border border-neutral-7 bg-neutral-2 p-3 hover:border-main"
+							className={`glass-panel flex flex-col gap-3 rounded-2xl border border-hairline p-4 shadow-sm transition-colors hover:border-hairline-strong ${
+								row.disabled ? "opacity-60" : ""
+							}`}
 						>
-							<div className="flex flex-wrap items-center gap-2">
-								<span className="text-sm font-medium break-all">{row.mount_path}</span>
-								<Chip tone="info">{driverLabel(drivers, row.driver)}</Chip>
-								{capacityBadge(row)}
+							<div className="flex items-start justify-between gap-2">
+								<div className="flex min-w-0 flex-wrap items-center gap-1.5">
+									<span className="numeric truncate text-[14px] font-semibold" title={row.mount_path}>
+										{row.mount_path}
+									</span>
+									<Chip tone="info">{driverLabel(drivers, row.driver)}</Chip>
+								</div>
+								{/* Status is a light *and* a word: a bare coloured dot is a
+								    WCAG failure (colour alone carries the meaning) and leaves a
+								    reader guessing what green means here. */}
+								<span className="mt-0.5 flex shrink-0 items-center gap-1.5 text-[11.5px] text-neutral-10">
+									<span
+										className={`size-1.5 rounded-full ${row.disabled ? "bg-neutral-8" : "bg-success-9"}`}
+										aria-hidden="true"
+									/>
+									{statusOf(row, t)}
+								</span>
 							</div>
-							<p className="text-xs text-neutral-11">
-								{t("storages.status")}: {statusOf(row, t)}
-							</p>
-							{row.remark && <p className="text-xs break-words text-neutral-10">{row.remark}</p>}
-							<div className="mt-auto flex flex-wrap items-center gap-1 pt-1">
+							{row.remark && (
+								<p className="line-clamp-2 text-[12.5px] leading-snug break-words text-neutral-10">{row.remark}</p>
+							)}
+							{capacityBadge(row)}
+							<div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">
 								<RowActions row={row} busy={busy} onToggle={() => void toggle(row)} onDelete={() => void remove(row)} />
 							</div>
 						</div>
@@ -252,24 +275,27 @@ function RowActions({
 			<ActionButton tone="soft" size="sm" onPress={() => navigate(ROUTES.storageEdit(row.id))}>
 				{t("global.edit")}
 			</ActionButton>
-			<ActionButton
-				tone={row.disabled ? "soft" : "outline"}
-				size="sm"
-				isPending={busy === `toggle-${row.id}`}
-				onPress={onToggle}
-			>
+			<ActionButton tone="outline" size="sm" isPending={busy === `toggle-${row.id}`} onPress={onToggle}>
 				{row.disabled ? t("global.enable") : t("global.disable")}
 			</ActionButton>
-			<ActionButton
-				tone="ghost"
-				size="sm"
-				icon="trash"
-				iconOnly
-				aria-label={t("global.delete")}
-				isPending={busy === `delete-${row.id}`}
-				onPress={onDelete}
-				className="text-danger-11"
-			/>
+			{/* Delete sits behind an overflow, the way a macOS list hides a destructive
+			    action one click deep: the trash sat beside Edit at the same weight, and
+			    the confirmation was the only thing standing between a mis-click and a
+			    lost mount. */}
+			<Dropdown>
+				<DropdownTrigger
+					aria-label={t("global.more")}
+					className="tap flex size-7 items-center justify-center rounded-md text-neutral-11 hover:bg-row-hover"
+				>
+					<Icon name="more-horizontal" className="size-4" />
+				</DropdownTrigger>
+				<DropdownPopover placement="bottom end">
+					<MenuEntries
+						entries={[{ id: "delete", label: t("global.delete"), icon: "trash", danger: true }]}
+						onAction={() => onDelete()}
+					/>
+				</DropdownPopover>
+			</Dropdown>
 		</>
 	);
 }

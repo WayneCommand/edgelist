@@ -7,6 +7,8 @@ import { useT } from "../hooks/useStore";
 import { ActionButton } from "../ui/ActionButton";
 import { Checkbox, Field, TextInput } from "../ui/Field";
 import { ManageHeading } from "./ManageShell";
+import { Card } from "../ui/PageShell";
+import { Icon } from "../ui/Icon";
 
 /**
  * Backup and restore (§12.17).
@@ -107,37 +109,41 @@ export function BackupPage() {
 
 	return (
 		<div>
-			<ManageHeading title={t("backup.title")} />
+			<ManageHeading title={t("backup.title")} description={t("backup.description")}>
+				<ActionButton tone="soft" icon="download" onPress={() => void backup()} isPending={backingUp}>
+					{t("backup.backup")}
+				</ActionButton>
+				<ActionButton tone="soft" icon="upload" onPress={() => fileInput.current?.click()} isPending={restoring}>
+					{t("backup.restore")}
+				</ActionButton>
+			</ManageHeading>
 
-			<div className="flex flex-col gap-3">
-				<div className="flex flex-wrap items-center gap-2">
-					<ActionButton tone="accent" icon="download" onPress={() => void backup()} isPending={backingUp}>
-						{t("backup.backup")}
-					</ActionButton>
-					<ActionButton tone="soft" icon="upload" onPress={() => fileInput.current?.click()} isPending={restoring}>
-						{t("backup.restore")}
-					</ActionButton>
-					<input
-						ref={fileInput}
-						type="file"
-						accept="application/json,.json"
-						hidden
-						onChange={(event) => {
-							const file = event.target.files?.[0];
-							event.target.value = "";
-							if (!file) {
-								notify.warning(t("backup.no_file"));
-								return;
-							}
-							void restore(file);
-						}}
+			<div className="flex flex-col gap-4">
+				<input
+					ref={fileInput}
+					type="file"
+					accept="application/json,.json"
+					hidden
+					onChange={(event) => {
+						const file = event.target.files?.[0];
+						event.target.value = "";
+						if (!file) {
+							notify.warning(t("backup.no_file"));
+							return;
+						}
+						void restore(file);
+					}}
+				/>
+
+				<Card className="flex flex-col gap-2.5 p-4 sm:max-w-md">
+					<Checkbox
+						checked={override}
+						onChange={setOverride}
+						label={t("backup.override")}
+						labelClassName="text-[13px]"
 					/>
-				</div>
-
-				<div className="flex flex-col gap-2 sm:max-w-md">
-					<Checkbox checked={override} onChange={setOverride} label={t("backup.override")} labelClassName="text-sm" />
-					<p className="text-xs leading-relaxed text-neutral-10">{t("backup.override_tips")}</p>
-					<Field label={t("backup.password")} hint={t("backup.password_placeholder")}>
+					<p className="text-[12px] leading-relaxed text-neutral-10">{t("backup.override_tips")}</p>
+					<Field label={t("backup.password")} hint={t("backup.password_hint")}>
 						{(fieldId) => (
 							<TextInput
 								id={fieldId}
@@ -149,28 +155,33 @@ export function BackupPage() {
 							/>
 						)}
 					</Field>
-				</div>
+				</Card>
 
-				{/* §12.17: a 70vh scrolling log, one line per event, coloured by kind. */}
+				{/* §12.17: a scrolling log, one line per event, coloured by kind. The
+				    icons were emoji, which render at a different weight on every
+				    platform and read as decoration rather than as status. */}
 				<div
 					ref={(node) => {
 						// §12.17 asks for the newest line to be scrolled into view. Doing it
 						// on the node's own scroll position avoids a second effect per line.
 						if (node) node.scrollTop = node.scrollHeight;
 					}}
-					className="flex h-[70vh] flex-col gap-1 overflow-y-auto rounded-md bg-neutral-3 p-2 text-[13px]"
+					className="flex h-[60vh] flex-col gap-1 overflow-y-auto rounded-2xl border border-hairline bg-neutral-3/50 p-3 font-mono text-[12.5px]"
 				>
 					{log.length === 0 ? (
-						<p className="text-xs text-neutral-10">{t("backup.start_backup")}…</p>
+						<p className="font-sans text-[12.5px] text-neutral-10">{t("backup.start_backup")}…</p>
 					) : (
 						log.map((entry, index) => (
 							<p
 								key={index}
-								className={`flex items-start gap-1.5 break-all ${
+								className={`flex items-start gap-2 break-all ${
 									entry.kind === "ok" ? "text-success-11" : entry.kind === "bad" ? "text-danger-11" : "text-info-11"
 								}`}
 							>
-								<span aria-hidden="true">{entry.kind === "ok" ? "✅" : entry.kind === "bad" ? "❌" : "ℹ️"}</span>
+								<Icon
+									name={entry.kind === "ok" ? "check-circle" : entry.kind === "bad" ? "alert-circle" : "info"}
+									className="mt-0.5 size-3.5 shrink-0"
+								/>
 								<span>{entry.text}</span>
 							</p>
 						))

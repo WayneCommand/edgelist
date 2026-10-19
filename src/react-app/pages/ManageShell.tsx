@@ -6,6 +6,7 @@ import { resetWorkspace } from "../lib/workspace";
 import { useAuth, useT } from "../hooks/useStore";
 import { ROUTES, routeFor } from "../routes";
 import { Icon, type IconName } from "../ui/Icon";
+import { PageFooter } from "../ui/PageShell";
 import { LocaleMenu, LogoMark, ThemeMenu } from "../ui/Chrome";
 
 /**
@@ -129,8 +130,15 @@ export function ManageShell() {
 					{/* §12: the management pages share the file browser's column, so a
 					    table of storages does not stretch to the window edge while the
 					    list of files sits in a 980px block. */}
-					<div className="mx-auto w-full max-w-[1040px] px-4 py-5 sm:px-6">
-						<Outlet />
+					<div className="mx-auto flex min-h-full w-full max-w-[1040px] flex-col px-4 py-5 sm:px-6">
+						<div className="flex-1">
+							<Outlet />
+						</div>
+						{/* One footer for every management page, the way the browser page
+						    has always had one: a page that stops mid-air reads unfinished. */}
+						<PageFooter>
+							<span className="text-[12px]">EdgeList · {t("manage.settings_stored_in_kv")}</span>
+						</PageFooter>
 					</div>
 				</main>
 			</div>
@@ -246,11 +254,28 @@ function MenuList({ currentPath, onNavigate }: { currentPath: string; onNavigate
 	);
 }
 
-/** The heading every management page starts with (§12.4). */
-export function ManageHeading({ title, children }: { title: string; children?: React.ReactNode }) {
+/**
+ * The heading above a management page's content (§12).
+ *
+ * A large title, a subtitle, and the page's actions on the right — the shape every
+ * macOS preferences pane uses. It used to be one `text-xl` line with the buttons
+ * crammed beside it, which read as a toolbar rather than as a page title.
+ */
+export function ManageHeading({
+	title,
+	description,
+	children,
+}: {
+	title: string;
+	description?: string;
+	children?: React.ReactNode;
+}) {
 	return (
-		<div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-			<h1 className="text-xl font-semibold">{title}</h1>
+		<div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+			<div className="min-w-0">
+				<h1 className="text-[22px] leading-tight font-semibold tracking-tight">{title}</h1>
+				{description && <p className="mt-1 text-[13px] text-neutral-10">{description}</p>}
+			</div>
 			{children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
 		</div>
 	);
