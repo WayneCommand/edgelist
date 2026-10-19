@@ -302,10 +302,10 @@ export function BrowserPage() {
 	const showSidebar = readShowSidebar();
 
 	return (
-		<div className="mx-auto flex w-full max-w-[980px] flex-1 flex-col gap-4 px-2 pt-1 [min-height:80vh]">
+		<div className="mx-auto flex min-h-dvh w-full max-w-[980px] flex-col px-[calc(2%+0.5rem)]">
 			{/* ---------------------------------------------------------- header (§3.3) */}
 			<header
-				className={`-mx-2 flex w-[calc(100%+1rem)] items-center justify-between bg-background px-2 py-2 ${
+				className={`-mx-[calc(2%+0.5rem)] flex items-center justify-between bg-background px-[calc(2%+0.5rem)] py-2 ${
 					sticky === "sticky" ? "sticky top-0 z-sticky" : ""
 				}`}
 			>
@@ -354,7 +354,7 @@ export function BrowserPage() {
 			{/* ------------------------------------------------------- breadcrumbs (§3.4) */}
 			<nav
 				aria-label="Breadcrumb"
-				className={`-mx-2 flex w-[calc(100%+1rem)] flex-wrap items-center gap-y-0 bg-background px-2 ${
+				className={`-mx-[calc(2%+0.5rem)] flex flex-wrap items-center gap-y-0 bg-background px-[calc(2%+0.5rem)] ${
 					sticky === "sticky"
 						? "sticky top-[60px] z-sticky"
 						: sticky === "only_navbar_sticky"
@@ -386,7 +386,7 @@ export function BrowserPage() {
 			</nav>
 
 			{/* -------------------------------------------------------- object card (§3.5) */}
-			<section className="flex w-full flex-col gap-2 rounded-2xl bg-surface p-2 shadow-lg">
+			<section className="mt-1 mb-2 flex w-full flex-col gap-1 overflow-hidden rounded-xl border border-border bg-surface">
 				{error ? (
 					<StateMessage
 						icon="alert-triangle"
@@ -476,7 +476,10 @@ export function BrowserPage() {
 			</section>
 
 			{/* --------------------------------------------------------------- footer (§3.7) */}
-			<footer className="flex items-center justify-center gap-2 py-4 text-xs text-neutral-11">
+			{/* `mt-auto` pushes the line to the bottom of a short page, so a directory
+			    with three entries does not leave a card floating over empty space
+			    with the footer immediately under it. */}
+			<footer className="mt-auto flex items-center justify-center gap-2 py-6 text-xs text-neutral-11">
 				<a href="https://doc.oplist.org" target="_blank" rel="noreferrer" className="hover:underline">
 					{t("home.footer.powered_by")}
 				</a>

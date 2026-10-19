@@ -875,3 +875,25 @@ input[type="checkbox"] {
 		opacity: 0;
 	}
 }
+
+/*
+ * A keyboard focus ring, app-wide.
+ *
+ * Nothing in the app had one: `outline: none` on fields was paired with a border
+ * colour change that only reads as a focus state on a field, and every button,
+ * row and menu item was left with the browser default or nothing at all. Tab
+ * through the file list and there was no visible cursor.
+ *
+ * `:focus-visible` rather than `:focus`, so a mouse click does not leave a ring
+ * behind — which is the reason the ring was suppressed in the first place.
+ */
+:where(a, button, [role="button"], [role="menuitem"], [tabindex]):focus-visible {
+	outline: 2px solid var(--focus);
+	outline-offset: 2px;
+	border-radius: 4px;
+}
+
+/* A row's ring belongs inside its own bounds, not two pixels outside them. */
+:where([role="option"], [role="row"], [data-focus-ring="inset"]):focus-visible {
+	outline-offset: -2px;
+}

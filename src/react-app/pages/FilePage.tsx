@@ -11,6 +11,8 @@ import { Loading, StateMessage } from "../ui/Field";
 import { ImageViewer, picturesIn } from "../components/preview/ImageViewer";
 import { MarkdownViewer } from "../components/preview/MarkdownViewer";
 import { DownloadPanel, HtmlViewer, MediaViewer } from "../components/preview/MediaViewer";
+import { PageShell } from "../ui/PageShell";
+import { Icon } from "../ui/Icon";
 import { TextEditor } from "../components/preview/TextEditor";
 import { useFileContents, ViewerFrame } from "../components/preview/ViewerFrame";
 
@@ -99,6 +101,8 @@ export function FilePage() {
 		};
 	}, [needsGallery, item]);
 
+	const onBackWithGuard = useBackGuard(dirty, ROUTES.files(parentOf(path)));
+
 	const selectPreview = useCallback(
 		(key: PreviewKey) => {
 			// `replace` on purpose: §5 has switching a previewer write the URL without
@@ -113,67 +117,118 @@ export function FilePage() {
 
 	if (pending) {
 		return (
-			<div className="flex min-h-[50vh] items-center justify-center">
-				<Loading size="lg" />
-			</div>
+			<PageShell>
+				<div className="flex min-h-[50vh] items-center justify-center">
+					<Loading size="lg" />
+				</div>
+			</PageShell>
 		);
 	}
 
 	if (error || !item) {
 		return (
-			<StateMessage
-				icon="alert-triangle"
-				tone="danger"
-				title={error || t("home.load_failed")}
-				description={path}
-				action={
-					<ActionButton tone="soft" onPress={() => navigate(ROUTES.files(parentOf(path)))}>
-						{t("global.back")}
-					</ActionButton>
-				}
-				className="min-h-[50vh] justify-center"
-			/>
+			<PageShell>
+				<StateMessage
+					icon="alert-triangle"
+					tone="danger"
+					title={error || t("home.load_failed")}
+					description={path}
+					action={
+						<ActionButton tone="soft" onPress={() => navigate(ROUTES.files(parentOf(path)))}>
+							{t("global.back")}
+						</ActionButton>
+					}
+					className="min-h-[50vh] justify-center"
+				/>
+			</PageShell>
 		);
 	}
 
 	return (
-		<div className="flex flex-col gap-3">
-			{/* §5: the bar is only drawn when there is more than one thing to choose
-			    from. With one previewer the content is the page. */}
+		<PageShell className="min-h-dvh">
+			{/* §5: a file page had no chrome at all, so the only way back was the
+			    browser's own button. One bar: where you came from, what you are
+			    looking at, and the actions that apply to the whole file. */}
+			<FileHeader item={item} onBack={onBackWithGuard} />
+
+			{/* §5: the switcher is only drawn when there is more than one thing to
+			    choose from. With one previewer the content is the page. */}
 			{previewers.length > 1 && (
-				<div className="flex flex-wrap items-center gap-2">
-					<div className="flex items-center gap-1.5 rounded-lg bg-neutral-2 p-1">
-						{previewers.map((entry) => (
-							<button
-								key={entry.key}
-								type="button"
-								onClick={() => selectPreview(entry.key)}
-								aria-pressed={entry.key === active}
-								className={`tap rounded-md px-2.5 py-1 text-[13px] ${
-									entry.key === active
-										? "bg-surface font-medium text-foreground shadow-sm"
-										: "text-neutral-11 hover:text-foreground"
-								}`}
-							>
-								{t(entry.label)}
-							</button>
-						))}
-					</div>
-					<span className="ml-auto truncate text-xs text-neutral-10">{item.name}</span>
+				<div className="mb-3 flex flex-wrap items-center gap-1.5">
+					{previewers.map((entry) => (
+						<button
+							key={entry.key}
+							type="button"
+							onClick={() => selectPreview(entry.key)}
+							aria-pressed={entry.key === active}
+							className={`tap rounded-md px-2.5 py-1 text-[12.5px] ${
+								entry.key === active
+									? "bg-info-3 font-medium text-info-11"
+									: "text-neutral-11 hover:bg-row-hover hover:text-foreground"
+							}`}
+						>
+							{t(entry.label)}
+						</button>
+					))}
 				</div>
 			)}
 
-			<FilePreview
-				item={item}
-				active={active}
-				siblings={siblings}
-				onDirtyChange={setDirty}
-				onBack={() => {
-					if (dirty && !window.confirm(t("global.unsaved_changes_confirm"))) return;
-					navigate(ROUTES.files(parentOf(item.path)));
-				}}
-			/>
-		</div>
+			<div className="pb-8">
+				<FilePreview
+					item={item}
+					active={active}
+					siblings={siblings}
+					onDirtyChange={setDirty}
+					onBack={onBackWithGuard}
+				/>
+			</div>
+		</PageShell>
+	);
+}
+
+/**
+ * Back, guarded by the editor's unsaved state (§5.10).
+ *
+ * A function rather than an inline closure because the header renders it and the
+ * editor's guard can fire from either: leaving the page through the breadcrumb and
+ * leaving through the browser's own Back have to ask the same question.
+ */
+function useBackGuard(dirty: boolean, target: string) {
+	const navigate = useNavigate();
+	const t = useT();
+	return useCallback(() => {
+		if (dirty && !window.confirm(t("global.unsaved_changes_confirm"))) return;
+		navigate(target);
+	}, [dirty, navigate, t, target]);
+}
+
+/**
+ * The file page's one bar.
+ *
+ * §5 puts the previewer switcher at the top and nothing else, which left a file page
+ * with no header — no way back except the browser's button, and no statement of what
+ * the file is. The bar answers those two questions and holds the download action,
+ * which every previewer offers and none should have to re-invent.
+ */
+function FileHeader({ item, onBack }: { item: FileObject; onBack: () => void }) {
+	const t = useT();
+	return (
+		<header className="flex items-center gap-2 py-2">
+			<button
+				type="button"
+				onClick={onBack}
+				className="tap flex items-center gap-1 rounded-md px-1.5 py-1 text-[13px] text-neutral-11 hover:bg-row-hover hover:text-foreground"
+			>
+				<Icon name="chevron-left" className="size-4" />
+				{t("global.back")}
+			</button>
+			<span className="text-neutral-9" aria-hidden="true">
+				/
+			</span>
+			<span className="min-w-0 flex-1 truncate text-[13px] font-medium" title={item.path}>
+				{item.name}
+			</span>
+		</header>
 	);
 }
 

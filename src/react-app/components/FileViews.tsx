@@ -8,7 +8,7 @@ import { useT } from "../hooks/useStore";
 import type { Selection } from "../hooks/useSelection";
 import { Icon } from "../ui/Icon";
 import { IconButton } from "../ui/ActionButton";
-import { CapacityBar, Checkbox, Chip } from "../ui/Field";
+import { Checkbox } from "../ui/Field";
 import { Thumbnail, isPicture, kindIcon } from "./Thumbnail";
 
 /**
@@ -126,12 +126,16 @@ export function FileList({
 	const folders = items.filter((item) => item.is_dir).length;
 
 	return (
-		<div className="flex w-full flex-col gap-1">
+		<div className="flex w-full flex-col">
 			{/* §4.1: the header row. The first cell holds the select-all box and the
 			    sortable "Name"; its label becomes the selection summary when
-			    anything is ticked, and the sort stays bound to that text. */}
-			<div className="flex w-full items-center gap-2 px-2 py-1 text-xs font-semibold text-neutral-11">
-				<div className="flex min-w-0 flex-1 items-center gap-2 md:basis-1/2">
+			    anything is ticked, and the sort stays bound to that text.
+
+			    The padding and the column widths are the row's own, so the header
+			    and every row below it share one grid; giving the header `px-2` while
+			    a row used `px-3` put the two on edges three pixels apart. */}
+			<div className="flex w-full items-center gap-3 border-b border-border bg-neutral-2/60 px-3 py-2 text-[11.5px] font-semibold tracking-wide text-neutral-11 uppercase">
+				<div className="flex min-w-0 flex-1 items-center gap-2.5">
 					{checkbox && (
 						<Checkbox
 							checked={selection.allSelected}
@@ -143,7 +147,7 @@ export function FileList({
 					<button
 						type="button"
 						onClick={() => onSort("name")}
-						className="tint flex min-w-0 items-center rounded px-1 py-0.5 text-left hover:bg-row-hover"
+						className="tint flex min-w-0 items-center rounded text-left uppercase hover:text-foreground"
 					>
 						<span className="truncate">{selection.count > 0 ? summary(t, selection) : t("home.obj.name")}</span>
 					</button>
@@ -151,14 +155,14 @@ export function FileList({
 				<button
 					type="button"
 					onClick={() => onSort("size")}
-					className="tint hidden w-[17%] shrink-0 rounded px-1 py-0.5 text-right hover:bg-row-hover md:block"
+					className="tint hidden w-[92px] shrink-0 rounded text-right uppercase hover:text-foreground md:block"
 				>
 					{t("home.obj.size")}
 				</button>
 				<button
 					type="button"
 					onClick={() => onSort("modified")}
-					className="tint hidden w-[33%] shrink-0 rounded px-1 py-0.5 text-right hover:bg-row-hover md:block"
+					className="tint hidden w-[148px] shrink-0 rounded text-right uppercase hover:text-foreground md:block"
 				>
 					{t("home.obj.modified")}
 				</button>
@@ -258,11 +262,11 @@ const FileRow = memo(function FileRow({
 				handlers.onContextMenu(item, index, { x: event.clientX, y: event.clientY });
 			}}
 			style={{ ["--item-index" as string]: index }}
-			className={`tint item-in group flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:scale-[1.01] hover:bg-row-hover ${
+			className={`tint item-in group flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-row-hover ${
 				selected ? "bg-row-hover" : ""
 			} ${locked ? "opacity-80" : ""}`}
 		>
-			<div className="flex min-w-0 flex-1 items-center gap-2 md:basis-1/2">
+			<div className="flex min-w-0 flex-1 items-center gap-2.5">
 				{checkbox && (
 					<span
 						// The box must not also navigate: §4.2 step 1.
@@ -275,7 +279,7 @@ const FileRow = memo(function FileRow({
 					</span>
 				)}
 				{item.is_dir ? (
-					<Icon name={kindIcon(item.name, true)} className="size-5 shrink-0 text-main" strokeWidth={1.5} />
+					<Icon name={kindIcon(item.name, true)} className="size-[1.15rem] shrink-0 text-main" strokeWidth={1.5} />
 				) : picture && handlers.onLightbox ? (
 					<button
 						type="button"
@@ -286,34 +290,35 @@ const FileRow = memo(function FileRow({
 						aria-label={item.name}
 						className="tap shrink-0 cursor-pointer"
 					>
-						<Icon name="file-image" className="size-5 text-main" strokeWidth={1.5} />
+						<Icon name="file-image" className="size-[1.15rem] text-main" strokeWidth={1.5} />
 					</button>
 				) : (
-					<Icon name={kindIcon(item.name)} className="size-5 shrink-0 text-main" strokeWidth={1.5} />
+					<Icon name={kindIcon(item.name)} className="size-[1.15rem] shrink-0 text-main" strokeWidth={1.5} />
 				)}
-				<span title={item.name} className={`min-w-0 text-sm ${OVERFLOW[overflow]}`}>
+				<span title={item.name} className={`min-w-0 flex-1 text-[13.5px] leading-tight ${OVERFLOW[overflow]}`}>
 					{item.name}
 				</span>
-				{mount && <Chip tone="info">{t("storages.status.work") === "Working" ? "Mount" : "挂载"}</Chip>}
-			</div>
-
-			<div className="hidden w-[17%] shrink-0 items-center justify-end gap-2 md:flex">
-				{item.is_dir ? (
-					total > 0 ? (
-						<div className="flex w-full max-w-32 flex-col items-end gap-1">
-							<CapacityBar used={used} total={total} label={`${formatSize(used)} / ${formatSize(total)}`} />
-							<span className="numeric text-[11px] text-neutral-11">
-								{formatSize(used)} / {formatSize(total)}
-							</span>
-						</div>
-					) : (
-						<span className="text-sm text-neutral-10">-</span>
-					)
-				) : (
-					<span className="numeric text-sm text-neutral-11">{formatSize(item.size)}</span>
+				{mount && (
+					<span className="shrink-0 rounded bg-info-3 px-1.5 py-0.5 text-[10.5px] leading-none font-medium text-info-11">
+						{t("common.mount")}
+					</span>
 				)}
 			</div>
-			<div className="hidden w-[33%] shrink-0 text-right text-sm text-neutral-11 md:block">
+
+			<div className="hidden w-[92px] shrink-0 justify-end text-[13px] md:flex">
+				{item.is_dir ? (
+					total > 0 ? (
+						<span className="numeric text-right text-[12px] text-neutral-11">
+							{formatSize(used)} / {formatSize(total)}
+						</span>
+					) : (
+						<span className="text-neutral-9">—</span>
+					)
+				) : (
+					<span className="numeric text-neutral-11">{formatSize(item.size)}</span>
+				)}
+			</div>
+			<div className="hidden w-[148px] shrink-0 text-right text-[13px] text-neutral-11 md:block">
 				<span className="numeric">{formatDate(item.modified)}</span>
 			</div>
 		</div>

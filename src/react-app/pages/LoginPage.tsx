@@ -26,7 +26,7 @@ import { Field, TextInput } from "../ui/Field";
  * fields.
  */
 export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void }) {
-	const { t, locale } = useLocale();
+	const { t } = useLocale();
 	const navigate = useNavigate();
 	const [params] = useSearchParams();
 	const [accessKey, setAccessKey] = useState("");
@@ -127,8 +127,12 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 							)}
 
 							<div className="mt-1 flex items-center gap-2">
+								{/* §10.2: Clear is the primary colour and Login is the default one —
+								    the reverse of what a "submit" usually looks like, and worth
+								    keeping, because the destructive-adjacent action is the one
+								    that clears the form. */}
 								<ActionButton
-									tone="soft"
+									tone="primary"
 									fullWidth
 									type="button"
 									onPress={() => {
@@ -140,7 +144,7 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 								>
 									{t("login.clear")}
 								</ActionButton>
-								<ActionButton tone="primary" fullWidth type="submit" isPending={pending}>
+								<ActionButton tone="soft" fullWidth type="submit" isPending={pending}>
 									{t("login.login")}
 								</ActionButton>
 							</div>
@@ -155,7 +159,7 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 						</button>
 
 						<div className="mt-5 flex items-center justify-evenly border-t border-hairline pt-4 text-xs text-neutral-10">
-							<span>{locale === "zh" ? "EdgeList 文件管理" : "EdgeList file manager"}</span>
+							<span>{t("about.tagline")}</span>
 						</div>
 					</div>
 				</div>

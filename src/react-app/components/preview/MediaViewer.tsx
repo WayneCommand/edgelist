@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FileObject } from "../../lib/types";
-import { formatSize } from "../../lib/format";
+import { formatDate, formatSize } from "../../lib/format";
 import { useT } from "../../hooks/useStore";
 import { readFile } from "../../lib/api";
 import { withMime } from "../../lib/format";
+import { Icon } from "../../ui/Icon";
+import { kindIcon } from "../Thumbnail";
 import { Loading, StateMessage } from "../../ui/Field";
 import { ViewerFrame, useFileContents } from "./ViewerFrame";
 
@@ -166,44 +168,37 @@ export function DownloadPanel({ item, onDownload }: { item: FileObject; onDownlo
 	}
 
 	return (
-		<div className="flex flex-col items-center gap-4 px-6 py-8 text-center">
-			<div className="flex size-20 items-center justify-center rounded-2xl bg-neutral-3">
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					strokeWidth={1.1}
-					className="size-10 text-neutral-9"
-					aria-hidden="true"
-				>
-					<path d="M6 3.5h7.5l4.5 4.5v12.5H6zM13 3.5v5H18" strokeLinecap="round" strokeLinejoin="round" />
-				</svg>
+		<div className="flex flex-col items-center gap-5 px-6 py-12 text-center">
+			<div className="flex size-16 items-center justify-center rounded-xl border border-border bg-neutral-2">
+				<Icon name={kindIcon(item.name, item.is_dir)} className="size-8 text-main" strokeWidth={1.2} />
 			</div>
-			<h3 className="max-w-lg text-lg font-medium break-all">{item.name}</h3>
-			<p className="numeric text-xs text-neutral-10">
-				{formatSize(item.size)}
-				{"  ·  "}
-				{item.modified}
+			<h3 className="max-w-xl text-[17px] leading-snug font-semibold break-all">{item.name}</h3>
+			<p className="numeric flex flex-wrap items-center justify-center gap-x-2 text-[12.5px] text-neutral-10">
+				<span>{formatSize(item.size)}</span>
+				<span aria-hidden="true">·</span>
+				<span>{formatDate(item.modified)}</span>
 				{typeof item.provider === "string" && (
 					<>
-						{"  ·  "}
-						{item.provider}
+						<span aria-hidden="true">·</span>
+						<span>{item.provider}</span>
 					</>
 				)}
 			</p>
-			<div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+			<div className="flex flex-wrap items-center justify-center gap-2">
 				<button
 					type="button"
 					onClick={() => void copyLink()}
-					className="tap rounded-lg bg-accent-3 px-3 py-1.5 text-[13px] font-medium text-accent-11 hover:bg-accent-4"
+					className="tap inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-[13px] font-medium text-accent-11 hover:bg-accent-2"
 				>
+					<Icon name="link" className="size-3.5" />
 					{copied ? t("global.copied") : t("preview.copy_link")}
 				</button>
 				<button
 					type="button"
 					onClick={onDownload}
-					className="tap rounded-lg bg-primary-9 px-3 py-1.5 text-[13px] font-medium text-white hover:bg-primary-10"
+					className="tap inline-flex items-center gap-1.5 rounded-lg bg-info-9 px-3.5 py-1.5 text-[13px] font-medium text-white hover:bg-info-10"
 				>
+					<Icon name="download" className="size-3.5" />
 					{t("preview.download")}
 				</button>
 			</div>

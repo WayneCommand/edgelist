@@ -119,8 +119,13 @@ export function ManageShell() {
 						<ThemeMenu />
 					</div>
 				</nav>
-				<main className="min-w-0 flex-1 overflow-y-auto p-4">
-					<Outlet />
+				<main className="min-w-0 flex-1 overflow-y-auto">
+					{/* §12: the management pages share the file browser's column, so a
+					    table of storages does not stretch to the window edge while the
+					    list of files sits in a 980px block. */}
+					<div className="mx-auto w-full max-w-[1040px] px-4 py-5 sm:px-6">
+						<Outlet />
+					</div>
 				</main>
 			</div>
 
