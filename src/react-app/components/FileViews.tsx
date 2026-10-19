@@ -134,7 +134,7 @@ export function FileList({
 			    The padding and the column widths are the row's own, so the header
 			    and every row below it share one grid; giving the header `px-2` while
 			    a row used `px-3` put the two on edges three pixels apart. */}
-			<div className="flex w-full items-center gap-3 border-b border-border bg-neutral-2/60 px-3 py-2 text-[11.5px] font-semibold tracking-wide text-neutral-11 uppercase">
+			<div className="flex w-full items-center gap-3 border-b border-hairline bg-neutral-3/40 px-3 py-1.5 text-[11px] font-semibold tracking-[0.04em] text-neutral-11 uppercase">
 				<div className="flex min-w-0 flex-1 items-center gap-2.5">
 					{checkbox && (
 						<Checkbox
@@ -262,8 +262,8 @@ const FileRow = memo(function FileRow({
 				handlers.onContextMenu(item, index, { x: event.clientX, y: event.clientY });
 			}}
 			style={{ ["--item-index" as string]: index }}
-			className={`tint item-in group flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-row-hover ${
-				selected ? "bg-row-hover" : ""
+			className={`tint item-in group flex w-full cursor-pointer items-center gap-3 px-3 py-2 transition-colors duration-100 hover:bg-row-hover ${
+				selected ? "bg-selection" : ""
 			} ${locked ? "opacity-80" : ""}`}
 		>
 			<div className="flex min-w-0 flex-1 items-center gap-2.5">
@@ -279,7 +279,7 @@ const FileRow = memo(function FileRow({
 					</span>
 				)}
 				{item.is_dir ? (
-					<Icon name={kindIcon(item.name, true)} className="size-[1.15rem] shrink-0 text-main" strokeWidth={1.5} />
+					<Icon name={kindIcon(item.name, true)} className="size-[1.15rem] shrink-0 text-info-8" strokeWidth={1.6} />
 				) : picture && handlers.onLightbox ? (
 					<button
 						type="button"
@@ -290,12 +290,15 @@ const FileRow = memo(function FileRow({
 						aria-label={item.name}
 						className="tap shrink-0 cursor-pointer"
 					>
-						<Icon name="file-image" className="size-[1.15rem] text-main" strokeWidth={1.5} />
+						<Icon name="file-image" className="size-[1.15rem] text-info-8" strokeWidth={1.6} />
 					</button>
 				) : (
-					<Icon name={kindIcon(item.name)} className="size-[1.15rem] shrink-0 text-main" strokeWidth={1.5} />
+					<Icon name={kindIcon(item.name)} className="size-[1.15rem] shrink-0 text-info-8" strokeWidth={1.6} />
 				)}
-				<span title={item.name} className={`min-w-0 flex-1 text-[13.5px] leading-tight ${OVERFLOW[overflow]}`}>
+				<span
+					title={item.name}
+					className={`min-w-0 flex-1 text-[13.5px] leading-tight text-neutral-12 ${OVERFLOW[overflow]}`}
+				>
 					{item.name}
 				</span>
 				{mount && (

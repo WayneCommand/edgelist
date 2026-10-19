@@ -91,14 +91,19 @@ export function ThemeMenu() {
  * from assistive technology rather than read out as a stray "E".
  */
 export function LogoMark({ size = "sm" }: { size?: "sm" | "md" | "lg" }) {
-	const box = size === "sm" ? "size-8" : size === "md" ? "size-10" : "size-14";
-	const text = size === "sm" ? "text-sm" : size === "md" ? "text-base" : "text-2xl";
+	const box = size === "sm" ? "size-7" : size === "md" ? "size-10" : "size-14";
+	const text = size === "sm" ? "text-[13px]" : size === "md" ? "text-base" : "text-2xl";
+	// A solid black square was the one element that refused to join the material
+	// language: too heavy beside a translucent toolbar. Apple's marks are either a
+	// product glyph or a saturated tile, so this is a blue tile with an inner
+	// highlight — the same glass, coloured.
 	return (
 		<span
 			aria-hidden="true"
-			className={`flex shrink-0 items-center justify-center rounded-[25%] bg-foreground font-bold text-background ${box} ${text}`}
+			className={`relative flex shrink-0 items-center justify-center rounded-[26%] bg-[linear-gradient(160deg,var(--info-8),var(--info-10))] font-bold text-white shadow-sm ring-1 ring-black/5 ring-inset ${box} ${text}`}
 		>
-			E
+			<span className="absolute inset-x-1 top-0.5 h-1/3 rounded-full bg-white/25 blur-[1px]" />
+			<span className="relative">E</span>
 		</span>
 	);
 }

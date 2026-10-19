@@ -71,145 +71,178 @@
 [data-theme="default"] {
 	color-scheme: light;
 
-	/* --- neutral (slate) ------------------------------------------------- */
-	--neutral-1: #fbfcfd;
-	--neutral-2: #f8f9fa;
-	--neutral-3: #f1f3f5;
-	--neutral-4: #eceef0;
-	--neutral-5: #e6e8eb;
-	--neutral-6: #dfe3e6;
-	--neutral-7: #d7dbdf;
-	--neutral-8: #c1c8cd;
-	--neutral-9: #889096;
-	--neutral-10: #7e868c;
-	--neutral-11: #687076;
-	--neutral-12: #11181c;
+	/* --- neutral (macOS system grays) ------------------------------------ */
+	/* Apple's grays are cooler and flatter than Radix's: a window is `#F5F5F7`,
+	 * a card lifts to near-white, and the text ramp is the five steps Finder
+	 * actually uses. Twelve steps are kept because the components address all
+	 * twelve, but they are spaced the way the system spaces them. */
+	--neutral-1: #ffffff;
+	--neutral-2: #fbfbfd;
+	--neutral-3: #f5f5f7;
+	--neutral-4: #eeeef0;
+	--neutral-5: #e5e5ea;
+	--neutral-6: #dcdce1;
+	--neutral-7: #c7c7cc;
+	--neutral-8: #aeaeb2;
+	--neutral-9: #8e8e93;
+	--neutral-10: #6e6e73;
+	--neutral-11: #515154;
+	--neutral-12: #1d1d1f;
 
-	/* --- info (blue) ----------------------------------------------------- */
-	--info-1: #fbfdff;
-	--info-2: #f4faff;
-	--info-3: #e6f4fe;
-	--info-4: #d5efff;
-	--info-5: #c2e5ff;
-	--info-6: #acd8fc;
-	--info-7: #8ec8f6;
-	--info-8: #5eb1ef;
-	--info-9: #0091ff;
-	--info-10: #0081f1;
-	--info-11: #006adc;
-	--info-12: #00254d;
+	/* --- info (macOS system blue) ---------------------------------------- */
+	--info-1: #f5faff;
+	--info-2: #eaf4ff;
+	--info-3: #d8eaff;
+	--info-4: #c2dcff;
+	--info-5: #a6cbff;
+	--info-6: #85b5ff;
+	--info-7: #5f9bff;
+	--info-8: #3b82f6;
+	--info-9: #007aff;
+	--info-10: #006ce0;
+	--info-11: #0058b8;
+	--info-12: #00234d;
 
-	/* --- primary (cyan) -------------------------------------------------- */
-	--primary-1: #fafdfe;
-	--primary-2: #f2fafb;
-	--primary-3: #def7f9;
-	--primary-4: #caf1f6;
-	--primary-5: #b5e9f0;
-	--primary-6: #9ddde7;
-	--primary-7: #7dcedc;
-	--primary-8: #3db9cf;
-	--primary-9: #05a2c2;
-	--primary-10: #0894b3;
-	--primary-11: #0c7792;
-	--primary-12: #04313c;
+	/* --- primary (macOS teal, for solid actions) ------------------------- */
+	--primary-1: #f2fdfd;
+	--primary-2: #e3fafb;
+	--primary-3: #c9f5f8;
+	--primary-4: #a8edf3;
+	--primary-5: #80e2ec;
+	--primary-6: #52d3e2;
+	--primary-7: #22bfd4;
+	--primary-8: #0aa5c2;
+	--primary-9: #00a6c8;
+	--primary-10: #0093b4;
+	--primary-11: #00738f;
+	--primary-12: #00303c;
 
-	/* --- accent (violet) ------------------------------------------------- */
-	--accent-1: #fdfcfe;
-	--accent-2: #faf8ff;
-	--accent-3: #f4f0fe;
-	--accent-4: #ebe4ff;
-	--accent-5: #e1d9ff;
-	--accent-6: #d4cafe;
-	--accent-7: #c2b5f5;
-	--accent-8: #aa99ec;
-	--accent-9: #6e56cf;
-	--accent-10: #644fc1;
-	--accent-11: #5746af;
-	--accent-12: #20134b;
+	/* --- accent (macOS purple, for the emphasis weight) ------------------ */
+	--accent-1: #faf7ff;
+	--accent-2: #f3ecff;
+	--accent-3: #e9dcff;
+	--accent-4: #dcc6ff;
+	--accent-5: #cbacff;
+	--accent-6: #b48cfa;
+	--accent-7: #9a6df0;
+	--accent-8: #8253e0;
+	--accent-9: #7d3fd4;
+	--accent-10: #6c2fc0;
+	--accent-11: #5a1fa6;
+	--accent-12: #2b0b52;
 
-	/* --- success (green) ------------------------------------------------- */
-	--success-1: #fbfefc;
-	--success-2: #f4fbf6;
-	--success-3: #e6f6eb;
-	--success-4: #d6f1df;
-	--success-5: #c4e8d1;
-	--success-6: #adddc0;
-	--success-7: #8eceaa;
-	--success-8: #5bb98b;
-	--success-9: #30a46c;
-	--success-10: #299764;
-	--success-11: #18794e;
-	--success-12: #153226;
+	/* --- success (macOS green) ------------------------------------------- */
+	--success-1: #f3fcf5;
+	--success-2: #e5f9ec;
+	--success-3: #cef2dc;
+	--success-4: #b0e8c7;
+	--success-5: #8cdbae;
+	--success-6: #63ca92;
+	--success-7: #3ab576;
+	--success-8: #1e9f60;
+	--success-9: #28a745;
+	--success-10: #1f933c;
+	--success-11: #146e2c;
+	--success-12: #062d10;
 
-	/* --- warning (amber) ------------------------------------------------- */
-	--warning-1: #fefdfb;
-	--warning-2: #fefbe9;
-	--warning-3: #fff7c2;
-	--warning-4: #ffee9c;
-	--warning-5: #fbe577;
-	--warning-6: #f3d673;
-	--warning-7: #e9c162;
-	--warning-8: #e2a336;
-	--warning-9: #ffb224;
-	--warning-10: #ffa01c;
-	--warning-11: #ad5700;
-	--warning-12: #4e2009;
+	/* --- warning (macOS orange) ------------------------------------------ */
+	--warning-1: #fffcf2;
+	--warning-2: #fff6de;
+	--warning-3: #ffeab8;
+	--warning-4: #ffdb8c;
+	--warning-5: #ffc95c;
+	--warning-6: #ffb52e;
+	--warning-7: #f29f05;
+	--warning-8: #dc8c00;
+	--warning-9: #ff9500;
+	--warning-10: #e88700;
+	--warning-11: #b86700;
+	--warning-12: #3d2200;
 
-	/* --- danger (red) ---------------------------------------------------- */
-	--danger-1: #fffcfc;
-	--danger-2: #fff7f7;
-	--danger-3: #feebec;
-	--danger-4: #ffdbdc;
-	--danger-5: #ffcdce;
-	--danger-6: #fdbdbe;
-	--danger-7: #f4a9aa;
-	--danger-8: #eb8e90;
-	--danger-9: #e5484d;
-	--danger-10: #dc3d43;
-	--danger-11: #cd2b31;
-	--danger-12: #381316;
+	/* --- danger (macOS red) ---------------------------------------------- */
+	--danger-1: #fff5f5;
+	--danger-2: #ffe9e9;
+	--danger-3: #ffd7d7;
+	--danger-4: #ffbebe;
+	--danger-5: #ff9e9e;
+	--danger-6: #ff7a7a;
+	--danger-7: #f75555;
+	--danger-8: #e93a3a;
+	--danger-9: #ff3b30;
+	--danger-10: #e62e24;
+	--danger-11: #b81f18;
+	--danger-12: #450603;
 
 	/* --- derived surfaces ------------------------------------------------ */
-	/* §16.4: the page is #f7f8fa rather than white, so a card has something
-	 * to be lighter than without needing a border to say so. */
-	--page: #f7f8fa;
+	/* The window is a very slightly cool paper, and a card is *translucent*
+	 * white over it: on a flat page the two would be indistinguishable from
+	 * the older opaque design, but anything scrolling underneath keeps its
+	 * colour through the blur, which is the whole point of the material. */
+	--page: #f5f5f7;
+	--page-top: #fbfbfd;
+	/* The two wallpaper blooms, kept as tokens so dark mode can dim them without
+	 * the component knowing which theme it is in. */
+	--bloom-cool: rgba(122, 168, 255, 0.55);
+	--bloom-warm: rgba(196, 168, 255, 0.45);
 	--low-contrast-page: #ffffff;
-	/* §2.6: one hover tint for every list row, grid cell and menu row in the
-	 * app — deliberately neutral, so a hovered row never reads as selected. */
-	--row-hover: rgba(132, 133, 141, 0.18);
-	--selection: rgba(46, 115, 252, 0.11);
-	--selection-border: rgba(98, 155, 255, 0.81);
-	--image-outline: rgba(0, 0, 0, 0.1);
+	/* One hover tint for every list row, grid cell and menu row — deliberately
+	 * neutral, so a hovered row never reads as selected. */
+	--row-hover: rgba(0, 0, 0, 0.045);
+	--row-active: rgba(0, 0, 0, 0.07);
+	--selection: rgba(0, 122, 255, 0.1);
+	--selection-border: rgba(0, 122, 255, 0.35);
+	--image-outline: rgba(0, 0, 0, 0.08);
 
 	/* §3.3: the search capsule and the layout switcher are the main colour at
 	 * 15%, deepening to 20% on hover. */
-	--main-color: var(--primary-9);
-	--main-soft: color-mix(in oklab, var(--main-color) 15%, transparent);
-	--main-soft-hover: color-mix(in oklab, var(--main-color) 20%, transparent);
+	--main-color: var(--info-9);
+	--main-soft: color-mix(in oklab, var(--main-color) 12%, transparent);
+	--main-soft-hover: color-mix(in oklab, var(--main-color) 18%, transparent);
+	/* --- material (the "glass" of the design language) ------------------- */
+	/* Three weights, by how much is happening underneath. `chrome` is the
+	 * header and the sidebar, over scrolling content; `panel` is a card that
+	 * sits on the page; `popover` is a menu or a dialog, which has to stay
+	 * legible over whatever it covers, so it is the least transparent. */
+	--material-chrome: rgba(255, 255, 255, 0.72);
+	--material-panel: rgba(255, 255, 255, 0.82);
+	--material-popover: rgba(252, 252, 253, 0.92);
+	--material-solid: #ffffff;
+	--material-blur: 28px;
+	--material-saturate: 180%;
+	/* A hairline that reads as an edge rather than as a drawn line. Apple's is
+	 * lighter at the top and darker at the bottom; one uniform value gets 90%
+	 * of the effect and does not fight `border-color` at the call site. */
+	--hairline: rgba(0, 0, 0, 0.08);
+	--hairline-strong: rgba(0, 0, 0, 0.14);
+	/* The specular rim: a white inset line on the top edge of a translucent
+	 * surface, which is what makes it read as glass over paper rather than as
+	 * a tinted rectangle. */
+	--glass-rim: inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
 
-	/* §16.3 shadows, in the spec's own values. */
-	--shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.09), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-	--shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.09), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-	--shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.09), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-	--shadow-bar: 0px 10px 30px -5px rgba(0, 0, 0, 0.3);
+	/* Shadows are shallow and wide, never dark: a card is separated from the
+	 * page by its border and its blur, and the shadow only confirms it. */
+	--shadow-sm: 0 0.5px 1px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.04);
+	--shadow-md: 0 1px 2px rgba(0, 0, 0, 0.05), 0 6px 16px -4px rgba(0, 0, 0, 0.09);
+	--shadow-lg: 0 1px 2px rgba(0, 0, 0, 0.05), 0 14px 38px -10px rgba(0, 0, 0, 0.16);
+	--shadow-bar: 0 1px 2px rgba(0, 0, 0, 0.06), 0 12px 32px -8px rgba(0, 0, 0, 0.2);
 
 	/* --- HeroUI bindings ------------------------------------------------- */
 	--background: var(--page);
-	--background-secondary: var(--neutral-2);
-	--background-tertiary: var(--neutral-3);
+	--background-secondary: var(--neutral-3);
+	--background-tertiary: var(--neutral-4);
 	--foreground: var(--neutral-12);
-	--surface: #ffffff;
+	--surface: var(--material-panel);
 	--surface-foreground: var(--neutral-12);
-	--surface-secondary: var(--neutral-2);
+	--surface-secondary: var(--neutral-3);
 	--surface-secondary-foreground: var(--neutral-12);
-	--surface-tertiary: var(--neutral-3);
+	--surface-tertiary: var(--neutral-4);
 	--surface-tertiary-foreground: var(--neutral-12);
-	--overlay: #ffffff;
+	--overlay: var(--material-popover);
 	--overlay-foreground: var(--neutral-12);
-	--muted: var(--neutral-11);
-	--border: var(--neutral-6);
-	--separator: var(--neutral-4);
-	--default: var(--neutral-3);
+	--muted: var(--neutral-10);
+	--border: var(--hairline);
+	--separator: var(--hairline);
+	--default: var(--neutral-4);
 	--default-foreground: var(--neutral-12);
 	/* The app's one interactive colour. §2.2 draws ordinary buttons in `info`
 	 * (blue) and reserves cyan for the solid "primary" weight, so `accent` —
@@ -223,161 +256,203 @@
 	--danger: var(--danger-9);
 	--danger-foreground: #ffffff;
 	--focus: var(--info-8);
-	--link: var(--info-11);
-	--backdrop: rgba(0, 0, 0, 0.5);
-	/* §2.4: fields are *filled*, not outlined — a neutral-3 well with no border
-	 * until focus. */
-	--field-background: var(--neutral-3);
+	--link: var(--info-9);
+	--backdrop: rgba(0, 0, 0, 0.28);
+	/* §2.4: fields are *filled*, not outlined — a recessed well with no border
+	 * until focus. macOS recesses rather than outlines, so the fill is a touch
+	 * darker than the surface it sits on. */
+	--field-background: rgba(120, 120, 128, 0.08);
 	--field-foreground: var(--neutral-12);
 	--field-placeholder: var(--neutral-9);
 	--field-border: transparent;
-	--field-hover: var(--neutral-4);
+	--field-hover: rgba(120, 120, 128, 0.12);
 	--field-shadow: none;
-	--scrollbar-thumb: rgba(0, 0, 0, 0.3);
-	--radius: 0.5rem;
+	--scrollbar-thumb: rgba(0, 0, 0, 0.22);
+	/* Apple's controls are one step rounder than Radix's at every size, and a
+	 * card is rounder still. */
+	--radius: 0.625rem;
 	--field-radius: 0.5rem;
 
 	/* §16.2 leaves the family to the platform, and names the stack. No webfont
 	 * is loaded, so this resolves to SF Pro on macOS and Segoe UI UI on
 	 * Windows, which is the intent. */
 	--font-sans:
-		-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
-		"Segoe UI Symbol";
+		-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji",
+		"Segoe UI Emoji", "Segoe UI Symbol";
+	/* Apple sets display sizes with the optical variant; when it is absent the
+	 * browser falls back to the same face, so the family list is all this is. */
+	--font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Helvetica, Arial, sans-serif;
+	/* Numbers in a column line up only with a tabular figure, which SF Pro
+	 * exposes under this name (and which falls back harmlessly elsewhere). */
+	--font-numeric: ui-monospace, "SF Mono", "SFProText-Regular", Menlo, Consolas, monospace;
 }
 
 .dark,
 [data-theme="dark"] {
 	color-scheme: dark;
 
-	--neutral-1: #151718;
-	--neutral-2: #1a1d1e;
-	--neutral-3: #202425;
-	--neutral-4: #26292b;
-	--neutral-5: #2b2f31;
-	--neutral-6: #313538;
-	--neutral-7: #3a3f42;
-	--neutral-8: #4c5155;
-	--neutral-9: #697177;
-	--neutral-10: #787f85;
-	--neutral-11: #9ba1a6;
-	--neutral-12: #ecedee;
+	/* macOS dark grays: a window is #1E1E1E–#2C2C2E, and the text ramp runs
+	 * from #1D1D1F to near-white. Apple's dark mode is *not* a dimmed light
+	 * mode — surfaces get lighter as they come forward, which is why
+	 * `--neutral-4` is lighter than `--neutral-2` here. */
+	--neutral-1: #1c1c1e;
+	--neutral-2: #212123;
+	--neutral-3: #2c2c2e;
+	--neutral-4: #343436;
+	--neutral-5: #3a3a3c;
+	--neutral-6: #48484a;
+	--neutral-7: #5a5a5e;
+	--neutral-8: #6e6e73;
+	--neutral-9: #8e8e93;
+	--neutral-10: #a1a1a6;
+	--neutral-11: #c7c7cc;
+	--neutral-12: #f5f5f7;
 
-	--info-1: #0d1520;
-	--info-2: #111927;
-	--info-3: #0d2847;
-	--info-4: #003362;
-	--info-5: #004074;
-	--info-6: #104d87;
-	--info-7: #205d9e;
-	--info-8: #2870bd;
-	--info-9: #0091ff;
-	--info-10: #369eff;
-	--info-11: #52a9ff;
-	--info-12: #eaf6ff;
+	--info-1: #0b1522;
+	--info-2: #0e1b2e;
+	--info-3: #102a4c;
+	--info-4: #133a68;
+	--info-5: #164a82;
+	--info-6: #1b5c9e;
+	--info-7: #2271bf;
+	--info-8: #2f83e0;
+	--info-9: #0a84ff;
+	--info-10: #409cff;
+	--info-11: #7ab8ff;
+	--info-12: #e5f1ff;
 
-	--primary-1: #0b161a;
-	--primary-2: #101b20;
-	--primary-3: #082c36;
-	--primary-4: #003848;
-	--primary-5: #004558;
-	--primary-6: #045468;
-	--primary-7: #12677e;
-	--primary-8: #11809c;
-	--primary-9: #05a2c2;
-	--primary-10: #00b1cc;
-	--primary-11: #00c2d7;
-	--primary-12: #e1f8fa;
+	--primary-1: #071619;
+	--primary-2: #0a1e23;
+	--primary-3: #0d3038;
+	--primary-4: #11414c;
+	--primary-5: #15525f;
+	--primary-6: #1a6573;
+	--primary-7: #20798a;
+	--primary-8: #2590a4;
+	--primary-9: #00a6c8;
+	--primary-10: #22bcd8;
+	--primary-11: #6ad8ea;
+	--primary-12: #e0f9fc;
 
-	--accent-1: #14121f;
-	--accent-2: #1b1525;
-	--accent-3: #291f43;
-	--accent-4: #33255b;
-	--accent-5: #3c2e69;
-	--accent-6: #473876;
-	--accent-7: #56468b;
-	--accent-8: #6958ad;
-	--accent-9: #6e56cf;
-	--accent-10: #7c66dc;
-	--accent-11: #9e8cfc;
-	--accent-12: #f1eefe;
+	--accent-1: #12101a;
+	--accent-2: #181423;
+	--accent-3: #251c3a;
+	--accent-4: #322550;
+	--accent-5: #3f2e64;
+	--accent-6: #4e387a;
+	--accent-7: #604694;
+	--accent-8: #7455b3;
+	--accent-9: #7d3fd4;
+	--accent-10: #9260e0;
+	--accent-11: #b18af0;
+	--accent-12: #f2eaff;
 
-	--success-1: #0e1512;
-	--success-2: #121b17;
-	--success-3: #132d21;
-	--success-4: #113b29;
-	--success-5: #174933;
-	--success-6: #20573e;
-	--success-7: #28684a;
-	--success-8: #2f7c57;
-	--success-9: #30a46c;
-	--success-10: #3cb179;
-	--success-11: #4cc38a;
-	--success-12: #e5fbeb;
+	--success-1: #08150d;
+	--success-2: #0b1d12;
+	--success-3: #0e2e1b;
+	--success-4: #123f25;
+	--success-5: #16502f;
+	--success-6: #1b643b;
+	--success-7: #217a49;
+	--success-8: #279358;
+	--success-9: #28a745;
+	--success-10: #35bd55;
+	--success-11: #6ddc88;
+	--success-12: #e4fbea;
 
-	--warning-1: #16120c;
-	--warning-2: #1d180f;
-	--warning-3: #302008;
-	--warning-4: #3f2700;
-	--warning-5: #4d3000;
-	--warning-6: #5c3d05;
-	--warning-7: #714f19;
-	--warning-8: #8f6424;
-	--warning-9: #ffb224;
-	--warning-10: #ffcb47;
-	--warning-11: #f1a10d;
-	--warning-12: #fef3dd;
+	--warning-1: #1a1205;
+	--warning-2: #241906;
+	--warning-3: #382707;
+	--warning-4: #4c3508;
+	--warning-5: #61440a;
+	--warning-6: #78550d;
+	--warning-7: #916811;
+	--warning-8: #b07f15;
+	--warning-9: #ff9500;
+	--warning-10: #ffab2e;
+	--warning-11: #ffc76b;
+	--warning-12: #fff1d8;
 
-	--danger-1: #191111;
-	--danger-2: #201314;
-	--danger-3: #3b1219;
-	--danger-4: #500f1c;
-	--danger-5: #611623;
-	--danger-6: #72232d;
-	--danger-7: #8c333a;
-	--danger-8: #b54548;
-	--danger-9: #e5484d;
-	--danger-10: #f2555a;
-	--danger-11: #ff6369;
-	--danger-12: #feecee;
+	--danger-1: #1d0908;
+	--danger-2: #280b0a;
+	--danger-3: #3f100e;
+	--danger-4: #551512;
+	--danger-5: #6c1b17;
+	--danger-6: #86221d;
+	--danger-7: #a42a24;
+	--danger-8: #c7332c;
+	--danger-9: #ff3b30;
+	--danger-10: #ff5f56;
+	--danger-11: #ff8b84;
+	--danger-12: #ffe5e3;
 
-	--page: var(--neutral-1);
-	--low-contrast-page: var(--neutral-1);
+	--page: #1c1c1e;
+	--page-top: #212123;
+	/* Dim but present: enough for the glass to pick up a tint at the edges, not
+	 * enough to be a visible shape behind the cards. */
+	--bloom-cool: rgba(40, 84, 168, 0.34);
+	--bloom-warm: rgba(92, 62, 150, 0.28);
+	--low-contrast-page: #1c1c1e;
 	--image-outline: rgba(255, 255, 255, 0.1);
+
+	/* Dark material is a light haze over the window rather than a dark tint:
+	 * a translucent black over black is invisible, so the fill carries the
+	 * separation and the blur only softens what passes under it. */
+	--material-chrome: rgba(38, 38, 40, 0.72);
+	--material-panel: rgba(44, 44, 46, 0.78);
+	--material-popover: rgba(48, 48, 50, 0.9);
+	--material-solid: #2c2c2e;
+	--hairline: rgba(255, 255, 255, 0.09);
+	--hairline-strong: rgba(255, 255, 255, 0.16);
+	--glass-rim: inset 0 1px 0 0 rgba(255, 255, 255, 0.07);
+
+	--shadow-sm: 0 0.5px 1px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+	--shadow-md: 0 1px 2px rgba(0, 0, 0, 0.45), 0 6px 16px -4px rgba(0, 0, 0, 0.55);
+	--shadow-lg: 0 1px 2px rgba(0, 0, 0, 0.5), 0 14px 38px -10px rgba(0, 0, 0, 0.7);
+	--shadow-bar: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 32px -8px rgba(0, 0, 0, 0.8);
 
 	--background: var(--page);
 	--background-secondary: var(--neutral-2);
 	--background-tertiary: var(--neutral-3);
 	--foreground: var(--neutral-12);
-	--surface: var(--neutral-3);
+	--surface: var(--material-panel);
 	--surface-foreground: var(--neutral-12);
-	--surface-secondary: var(--neutral-2);
+	--surface-secondary: var(--neutral-3);
 	--surface-secondary-foreground: var(--neutral-12);
 	--surface-tertiary: var(--neutral-4);
 	--surface-tertiary-foreground: var(--neutral-12);
-	--overlay: var(--neutral-3);
+	--overlay: var(--material-popover);
 	--overlay-foreground: var(--neutral-12);
-	--muted: var(--neutral-11);
-	--border: var(--neutral-6);
-	--separator: var(--neutral-4);
-	--default: var(--neutral-3);
+	--muted: var(--neutral-10);
+	--border: var(--hairline);
+	--separator: var(--hairline);
+	--default: var(--neutral-4);
 	--default-foreground: var(--neutral-12);
 	--accent: var(--info-9);
 	--accent-foreground: #ffffff;
 	--success: var(--success-9);
 	--success-foreground: #ffffff;
 	--warning: var(--warning-9);
-	--warning-foreground: var(--neutral-12);
+	--warning-foreground: #000000;
 	--danger: var(--danger-9);
 	--danger-foreground: #ffffff;
 	--focus: var(--info-8);
 	--link: var(--info-11);
-	--field-background: var(--neutral-2);
+	--field-background: rgba(120, 120, 128, 0.24);
 	--field-foreground: var(--neutral-12);
 	--field-placeholder: var(--neutral-9);
 	--field-border: transparent;
-	--field-hover: var(--neutral-4);
-	--scrollbar-thumb: #2d2d2d;
-	--row-hover: rgba(132, 133, 141, 0.24);
+	--field-hover: rgba(120, 120, 128, 0.32);
+	--scrollbar-thumb: rgba(255, 255, 255, 0.24);
+	--row-hover: rgba(255, 255, 255, 0.06);
+	--row-active: rgba(255, 255, 255, 0.1);
+	--selection: rgba(10, 132, 255, 0.22);
+	--selection-border: rgba(10, 132, 255, 0.5);
+	/* A 12% blue over a dark window is nearly invisible, so the capsule takes a
+	 * deeper fill and a lighter glyph: the tint has to be a *surface* here, not
+	 * a wash. */
+	--main-soft: color-mix(in oklab, var(--main-color) 26%, transparent);
+	--main-soft-hover: color-mix(in oklab, var(--main-color) 36%, transparent);
 }
 
 /*
@@ -398,7 +473,11 @@
 	--color-main-soft: var(--main-soft);
 	--color-main-soft-hover: var(--main-soft-hover);
 	--color-row-hover: var(--row-hover);
+	--color-row-active: var(--row-active);
 	--color-page: var(--page);
+	--color-hairline: var(--hairline);
+	--color-hairline-strong: var(--hairline-strong);
+	--color-spotlight: var(--spotlight);
 
 	--color-neutral-1: var(--neutral-1);
 	--color-neutral-2: var(--neutral-2);
@@ -491,15 +570,26 @@
 	--color-danger-11: var(--danger-11);
 	--color-danger-12: var(--danger-12);
 
-	/* §16.3: the radii ladder. `2xl` is the object card and `xl` a panel. */
-	--radius-xs: 2px;
-	--radius-sm: 4px;
-	--radius-md: 6px;
-	--radius-lg: 8px;
+	/* The radius ladder, in Apple's proportions: controls are 8, a card is 12,
+	 * a sheet is 16, and the window's largest grouping is 20. */
+	--radius-xs: 3px;
+	--radius-sm: 5px;
+	--radius-md: 7px;
+	--radius-lg: 9px;
 	--radius-xl: 12px;
 	--radius-2xl: 16px;
-	--radius-3xl: 24px;
-	--radius-control: 8px;
+	--radius-3xl: 22px;
+	--radius-control: 9px;
+
+	/* The type scale. Apple's default body size is 13 in a list and 15 in
+	 * content; Tailwind's 14–16 sits between them, which is why the interface
+	 * reads a little loose without these. */
+	--text-2xs: 0.6875rem;
+	/* Materials as Tailwind backgrounds, so `bg-material-chrome` works. */
+	--color-material-chrome: var(--material-chrome);
+	--color-material-panel: var(--material-panel);
+	--color-material-popover: var(--material-popover);
+	--color-material-solid: var(--material-solid);
 
 	/* §1.4, the overlay ladder. Named so a new layer does not have to invent a
 	 * number and hope it lands in the right place. The `z-index` namespace is
@@ -527,8 +617,10 @@
 }
 
 html {
-	/* The page background lives on `html` so a short page is still the page
-	 * colour past the end of its content, and so overscroll does not flash. */
+	/* The *window* colour, and only that. A page that paints its own wallpaper
+	 * (the sign-in screen) would be covered by anything opaque here, so this is
+	 * the colour a page without one falls back to — `WindowBackdrop` paints the
+	 * real background and sits above it. */
 	background-color: var(--background);
 }
 
@@ -536,7 +628,10 @@ body {
 	margin: 0;
 	min-width: 320px;
 	min-height: 100vh;
-	background-color: var(--background);
+	/* Transparent on purpose: the body's own background would paint over the
+	 * fixed backdrop, which is exactly the bug that made the wallpaper invisible.
+	 * `html` still carries the colour for overscroll. */
+	background-color: transparent;
 	color: var(--foreground);
 }
 
@@ -576,9 +671,15 @@ textarea {
 		color: var(--field-placeholder);
 	}
 
+	/* A macOS focus ring is a soft halo outside the field, not a hard border:
+	 * the fill stays, the edge stays, and a translucent ring appears around it
+	 * with a hairline of the accent to anchor it. */
 	&:focus {
-		border-color: var(--focus);
-		box-shadow: 0 0 0 1px var(--focus);
+		border-color: color-mix(in oklab, var(--focus) 60%, transparent);
+		box-shadow:
+			0 0 0 3px color-mix(in oklab, var(--focus) 22%, transparent),
+			inset 0 1px 1px rgb(0 0 0 / 0.03);
+		outline: none;
 	}
 
 	&:disabled {
@@ -684,51 +785,94 @@ input[type="checkbox"] {
 
 /* ------------------------------------------------------------- materials ---
  *
- * A material is a translucent surface over a blur: the floating tool cluster,
- * the selection bar, the translucent announcement. Kept as utilities so the
- * blur radius and the saturation cannot drift between three call sites.
+ * A material is a translucent surface over a blur. macOS calls this Liquid
+ * Glass: the surface takes its colour from what is behind it, keeps a hairline
+ * edge, and carries a specular rim on its top edge so it reads as a pane of
+ * something rather than as a tinted rectangle.
+ *
+ * Three weights, because "translucent" is not one value:
+ *
+ *   glass-chrome   header, sidebar, toolbars — content scrolls under it
+ *   glass-panel    a card resting on the page — nothing usually passes under it,
+ *                  but a sticky header may, and the blur is what keeps that legible
+ *   glass-popover  menus, dialogs, the tool cluster — must stay readable over
+ *                  anything, so it is the least transparent of the three
+ *
+ * `--glass-rim` is defined per theme: a white inset line in light mode, a very
+ * faint one in dark, where a bright rim looks like a seam.
  */
+@utility glass-chrome {
+	background-color: var(--material-chrome);
+	backdrop-filter: blur(var(--material-blur)) saturate(var(--material-saturate));
+	-webkit-backdrop-filter: blur(var(--material-blur)) saturate(var(--material-saturate));
+	box-shadow: var(--glass-rim);
+}
+
+@utility glass-panel {
+	background-color: var(--material-panel);
+	backdrop-filter: blur(20px) saturate(160%);
+	-webkit-backdrop-filter: blur(20px) saturate(160%);
+	box-shadow: var(--glass-rim);
+}
+
+@utility glass-popover {
+	background-color: var(--material-popover);
+	backdrop-filter: blur(32px) saturate(190%);
+	-webkit-backdrop-filter: blur(32px) saturate(190%);
+	box-shadow: var(--glass-rim);
+}
+
+/* The old names, still used by the floating cluster; one blur, one place. */
 @utility material {
-	backdrop-filter: blur(8px) saturate(160%);
+	background-color: var(--material-popover);
+	backdrop-filter: blur(20px) saturate(160%);
+	-webkit-backdrop-filter: blur(20px) saturate(160%);
 }
 
 @utility material-strong {
-	backdrop-filter: blur(24px) saturate(180%);
+	background-color: var(--material-chrome);
+	backdrop-filter: blur(var(--material-blur)) saturate(var(--material-saturate));
+	-webkit-backdrop-filter: blur(var(--material-blur)) saturate(var(--material-saturate));
 }
 
-/* §16.4: the scrollbar is 6px with a 2px-radius thumb, and it is the same on
- * every scroll container in the app. Firefox takes the two properties, WebKit
- * the pseudo-elements. */
+/* §16.4: the scrollbar is thin and only visible while hovering the container,
+ * which is how macOS draws it — a permanent 6px bar beside a translucent card
+ * is the single loudest thing on the page. Firefox takes the two properties,
+ * WebKit the pseudo-elements. */
 * {
 	scrollbar-width: thin;
+	scrollbar-color: transparent transparent;
+}
+
+*:hover {
 	scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 *::-webkit-scrollbar {
-	width: 6px;
-	height: 6px;
-}
-
-*::-webkit-scrollbar-thumb {
-	background-color: var(--scrollbar-thumb);
-	border-radius: 2px;
-}
-
-*::-webkit-scrollbar-thumb:hover {
-	background-color: rgba(0, 0, 0, 0.35);
-}
-
-.dark *::-webkit-scrollbar-thumb:hover {
-	background-color: #3a3a3a;
+	width: 9px;
+	height: 9px;
 }
 
 *::-webkit-scrollbar-track {
-	background-color: var(--neutral-4);
-	border-radius: 2px;
+	background-color: transparent;
 }
 
-.dark *::-webkit-scrollbar-track {
-	background-color: rgb(15, 15, 15);
+*::-webkit-scrollbar-thumb {
+	background-color: transparent;
+	border-radius: 999px;
+	border: 2px solid transparent;
+	background-clip: content-box;
+}
+
+*:hover::-webkit-scrollbar-thumb {
+	background-color: var(--scrollbar-thumb);
+	border: 2px solid transparent;
+	background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+	background-color: var(--hairline-strong);
+	background-clip: content-box;
 }
 
 /* Values that change in place — sizes, dates, counts, percentages — take

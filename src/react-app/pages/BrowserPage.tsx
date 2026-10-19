@@ -302,11 +302,14 @@ export function BrowserPage() {
 	const showSidebar = readShowSidebar();
 
 	return (
-		<div className="mx-auto flex min-h-dvh w-full max-w-[980px] flex-col px-[calc(2%+0.5rem)]">
-			{/* ---------------------------------------------------------- header (§3.3) */}
+		<div className="mx-auto flex min-h-dvh w-full max-w-[1000px] flex-col px-5 sm:px-7">
+			{/* ---------------------------------------------------------- header (§3.3)
+			    A floating glass toolbar rather than a full-bleed strip: it is inset
+			    from the window edge, rounded, and sits over the content with a
+			    shadow, which is how macOS draws a toolbar over a scrolling view. */}
 			<header
-				className={`-mx-[calc(2%+0.5rem)] flex items-center justify-between bg-background px-[calc(2%+0.5rem)] py-2 ${
-					sticky === "sticky" ? "sticky top-0 z-sticky" : ""
+				className={`glass-chrome sticky top-3 z-sticky mt-3 flex items-center justify-between gap-3 rounded-2xl border border-hairline px-3 py-2 shadow-md ${
+					sticky === "static" ? "relative" : ""
 				}`}
 			>
 				<button type="button" onClick={() => go("/")} className="tap flex items-center gap-2.5">
@@ -354,9 +357,9 @@ export function BrowserPage() {
 			{/* ------------------------------------------------------- breadcrumbs (§3.4) */}
 			<nav
 				aria-label="Breadcrumb"
-				className={`-mx-[calc(2%+0.5rem)] flex flex-wrap items-center gap-y-0 bg-background px-[calc(2%+0.5rem)] ${
+				className={`flex flex-wrap items-center gap-y-0 px-1 py-2 text-[13px] ${
 					sticky === "sticky"
-						? "sticky top-[60px] z-sticky"
+						? "sticky top-[68px] z-sticky"
 						: sticky === "only_navbar_sticky"
 							? "sticky top-0 z-sticky"
 							: ""
@@ -386,7 +389,7 @@ export function BrowserPage() {
 			</nav>
 
 			{/* -------------------------------------------------------- object card (§3.5) */}
-			<section className="mt-1 mb-2 flex w-full flex-col gap-1 overflow-hidden rounded-xl border border-border bg-surface">
+			<section className="mb-2 flex w-full flex-col overflow-hidden rounded-2xl border border-hairline bg-surface shadow-sm">
 				{error ? (
 					<StateMessage
 						icon="alert-triangle"

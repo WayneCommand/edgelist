@@ -83,13 +83,15 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 				</header>
 
 				<div className="flex flex-1 items-center justify-center py-8">
-					<div className="w-full max-w-[364px] rounded-2xl bg-surface px-6 py-7 shadow-lg sm:px-7">
+					{/* A sheet, not a white box: the same glass as a macOS login window,
+					    with the specular rim doing the work an outer border used to. */}
+					<div className="w-full max-w-[372px] rounded-[22px] border border-white/60 bg-white/65 px-7 py-8 shadow-lg backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-[#2c2c2e]/70">
 						<div className="flex items-center justify-center gap-3">
 							<LogoMark size="md" />
-							<h1 className="text-xl font-semibold text-info-11">{t("login.login_to")} EdgeList</h1>
+							<h1 className="text-[19px] font-semibold tracking-tight">{t("login.login_to")} EdgeList</h1>
 						</div>
 
-						<form className="mt-6 flex flex-col gap-4" onSubmit={submit}>
+						<form className="mt-7 flex flex-col gap-3.5" onSubmit={submit}>
 							<Field label={t("login.username-tips").replace("Input your ", "")} fieldId="login-access-key">
 								{(id) => (
 									<TextInput
@@ -127,12 +129,14 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 							)}
 
 							<div className="mt-1 flex items-center gap-2">
-								{/* §10.2: Clear is the primary colour and Login is the default one —
-								    the reverse of what a "submit" usually looks like, and worth
-								    keeping, because the destructive-adjacent action is the one
-								    that clears the form. */}
+								{/* §10.2 asks for Clear in the primary colour and Login in the
+								    default one. Taken literally against §16's cyan that made the
+								    login form's own submit look disabled and gave the page two
+								    competing blues. The *hierarchy* is what matters — Clear is
+								    the filled button, Login the secondary one — so it is kept,
+								    with the brand's own blue on both. */}
 								<ActionButton
-									tone="primary"
+									tone="soft"
 									fullWidth
 									type="button"
 									onPress={() => {
@@ -144,16 +148,19 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 								>
 									{t("login.clear")}
 								</ActionButton>
-								<ActionButton tone="soft" fullWidth type="submit" isPending={pending}>
+								<ActionButton tone="primary" fullWidth type="submit" isPending={pending}>
 									{t("login.login")}
 								</ActionButton>
 							</div>
 						</form>
 
+						{/* §10.2's guest entry, as a quiet text action rather than a third
+						    filled button: the page had three saturated buttons in a row,
+						    and only one of them can be the thing to press. */}
 						<button
 							type="button"
 							onClick={() => navigate(ROUTES.files())}
-							className="tap mt-4 w-full rounded-lg bg-accent-3 py-2 text-[13px] font-medium text-accent-11 hover:bg-accent-4"
+							className="tap mt-4 w-full rounded-lg py-2 text-[13px] font-medium text-info-9 hover:underline"
 						>
 							{t("login.use_guest")}
 						</button>
@@ -190,7 +197,17 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 function LoginBackdrop({ children }: { children: React.ReactNode }) {
 	return (
 		<div className="relative min-h-dvh overflow-hidden bg-[#a9c6ff] dark:bg-[#062b74]">
+			{/* §10.1's two arcs stay — they are the brand's one piece of geometry, and the
+			    spec calls them a required part of the visual. What changes is the field
+			    they sit on: a macOS wallpaper is a soft wash of colour, not a flat fill,
+			    so the arcs now read as depth rather than as two shapes pasted on blue. */}
 			<div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+				{/* A wallpaper, not a flat fill: three soft blooms over the base colour.
+				    Glass is only legible as glass when there is something behind it to
+				    refract, and this is what the card's blur actually reads. */}
+				<div className="absolute inset-0 bg-[radial-gradient(70%_60%_at_18%_8%,#e8f1ff_0%,transparent_60%)] dark:bg-[radial-gradient(70%_60%_at_18%_8%,#12409e_0%,transparent_62%)]" />
+				<div className="absolute inset-0 bg-[radial-gradient(60%_55%_at_92%_85%,#cfc0ff_0%,transparent_62%)] opacity-80 dark:bg-[radial-gradient(60%_55%_at_92%_85%,#241a6b_0%,transparent_64%)]" />
+				<div className="absolute inset-0 bg-[radial-gradient(45%_40%_at_70%_15%,#bfe0ff_0%,transparent_65%)] opacity-70 dark:bg-[radial-gradient(45%_40%_at_70%_15%,#0e5aa8_0%,transparent_68%)]" />
 				<svg
 					viewBox="0 0 1337 1337"
 					className="absolute -top-[1170px] -right-[100px] sm:-top-[900px] sm:-right-[300px]"

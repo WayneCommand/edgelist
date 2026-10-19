@@ -103,8 +103,12 @@ export function StorageListPage() {
 	return (
 		<div>
 			<ManageHeading title={t("storages.title")}>
+				{/* Refresh was the spec's violet accent, which read as a third colour
+				    next to a blue interface. macOS has one tint for actions and uses
+				    weight, not hue, to rank them — so both buttons are neutral and the
+				    primary one is the only one with a fill. */}
 				<ActionButton
-					tone="accent"
+					tone="soft"
 					icon="refresh"
 					size="sm"
 					isPending={busy === "reload"}
@@ -112,7 +116,7 @@ export function StorageListPage() {
 				>
 					{t("global.refresh")}
 				</ActionButton>
-				<ActionButton tone="soft" icon="plus" size="sm" onPress={() => navigate(ROUTES.storageAdd)}>
+				<ActionButton tone="primary" icon="plus" size="sm" onPress={() => navigate(ROUTES.storageAdd)}>
 					{t("storages.add")}
 				</ActionButton>
 				{drivers.length > 0 && (

@@ -41,7 +41,7 @@ export function Field({
 	const id = fieldId ?? `field-${generated}`;
 	return (
 		<div className={`flex flex-col gap-1.5 ${className}`}>
-			<label htmlFor={id} className="text-[13px] font-medium text-neutral-11">
+			<label htmlFor={id} className="text-[12px] font-medium tracking-[0.01em] text-neutral-10">
 				{label}
 				{required && <span className="ml-0.5 text-danger-9">*</span>}
 			</label>

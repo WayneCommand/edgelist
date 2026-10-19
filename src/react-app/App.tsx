@@ -4,6 +4,7 @@ import { ROUTES, routeFor } from "./routes";
 import { useAuth } from "./hooks/useStore";
 import { loadWorkspace, resetWorkspace } from "./lib/workspace";
 import { ConfirmHost, Toaster } from "./ui/Feedback";
+import { WindowBackdrop } from "./ui/PageShell";
 import { LoginPage } from "./pages/LoginPage";
 import { Loading } from "./ui/Field";
 
@@ -83,9 +84,19 @@ function BrowserRoute() {
 	return /\/[^/]*\.[^/]+$/.test(route.path) ? <FilePage /> : <BrowserPage />;
 }
 
+/**
+ * The sign-in screen paints its own wallpaper (§10.1's arcs and blooms), and the
+ * window backdrop would sit over it, so it is suppressed there.
+ */
+function ShellBackdrop() {
+	const { pathname } = useLocation();
+	return <WindowBackdrop bare={pathname === ROUTES.login} />;
+}
+
 export default function App() {
 	return (
 		<>
+			<ShellBackdrop />
 			<Toaster />
 			<ConfirmHost />
 			<RouteProgress />

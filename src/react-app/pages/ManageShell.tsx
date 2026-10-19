@@ -74,8 +74,11 @@ export function ManageShell() {
 	}
 
 	return (
-		<div className="min-h-dvh bg-background">
-			<header className="material-strong sticky top-0 z-sticky flex h-16 items-center justify-between gap-4 bg-background/80 px-4 shadow-md">
+		<div className="flex min-h-dvh flex-col">
+			{/* §12.1: a glass toolbar over the window, not a coloured bar. The
+			    sidebar below it is the same material, so the two read as one
+			    chrome rather than as two panels that happen to touch. */}
+			<header className="glass-chrome sticky top-0 z-sticky flex h-14 items-center justify-between gap-4 border-b border-hairline px-4">
 				<div className="flex min-w-0 items-center gap-3">
 					{/* Only below `sm`, where the sidebar is a drawer (§12.1). */}
 					<button
@@ -88,7 +91,7 @@ export function ManageShell() {
 					</button>
 					<Link to={ROUTES.profile} className="tap flex min-w-0 items-center gap-2.5">
 						<LogoMark />
-						<span className="truncate text-lg font-semibold text-info-11">{t("manage.title")}</span>
+						<span className="truncate text-[15px] font-semibold tracking-tight">{t("manage.title")}</span>
 					</Link>
 				</div>
 				<div className="flex items-center gap-1">
@@ -107,11 +110,13 @@ export function ManageShell() {
 				</div>
 			</header>
 
-			<div className="flex" style={{ height: "calc(100dvh - 4rem)" }}>
-				{/* The desktop sidebar. Hidden below `sm`, where the same list is a drawer. */}
+			<div className="flex min-h-0 flex-1" style={{ height: "calc(100dvh - 3.5rem)" }}>
+				{/* The desktop sidebar. Hidden below `sm`, where the same list is a drawer.
+				    A translucent panel inset from the edge, the way a macOS source list
+				    sits inside the window rather than flush against it. */}
 				<nav
 					aria-label={t("manage.menu")}
-					className="hidden w-56 shrink-0 overflow-y-auto bg-background px-2 py-2 shadow-md sm:block"
+					className="hidden w-60 shrink-0 overflow-y-auto border-r border-hairline px-2.5 py-3 sm:block"
 				>
 					<MenuList currentPath={currentPath} onNavigate={(path) => navigate(path)} />
 					<div className="mt-4 flex items-center justify-center gap-4 border-t border-hairline py-2 text-neutral-11">
@@ -181,9 +186,22 @@ function MenuList({ currentPath, onNavigate }: { currentPath: string; onNavigate
 	return (
 		<ul className="flex flex-col gap-0.5 text-[13px] text-neutral-11">
 			{MENU.map((item) => {
-				const active = !item.external && (item.exact ? currentPath === item.path : currentPath.startsWith(item.path));
-				const className = `flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left ${
-					active ? "bg-info-4 font-medium text-info-11" : "hover:bg-row-hover hover:text-foreground"
+				// `Home` lives at `/`, and every path starts with `/` — so a plain
+				// `startsWith` marked Home as current on every management page. The
+				// files root only matches itself.
+				const path = item.path;
+				const active =
+					!item.external &&
+					(item.exact || path === ROUTES.files()
+						? currentPath === path
+						: currentPath === path || currentPath.startsWith(`${path}/`));
+				// A macOS source-list row: the selected item is a filled pill, not a
+				// tinted background with coloured text. Rounder than the other
+				// controls, because it is a navigation target rather than a button.
+				const className = `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-left transition-colors duration-100 ${
+					active
+						? "bg-info-9 font-medium text-white shadow-sm"
+						: "hover:bg-row-hover hover:text-foreground active:bg-row-active"
 				}`;
 
 				if (item.external) {
