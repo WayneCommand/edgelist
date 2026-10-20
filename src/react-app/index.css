@@ -656,8 +656,14 @@ textarea {
 }
 
 /* The app's own fields, for the places a HeroUI `Input` is the wrong shape
- * (a dense inline field inside a toolbar, a translucent field in a dialog). */
-:where(input:not([type="file"], [type="checkbox"], [type="radio"]), select, textarea) {
+ * (a dense inline field inside a toolbar, a translucent field in a dialog).
+ *
+ * `[data-plain]` is the escape hatch: a field that wants to draw its own surface
+ * — the text editor's `textarea`, which sits on the card colour and takes the
+ * gutter as its border — opts out of the well, the border and the radius. Without
+ * it this rule wins over the utility classes, because it is unlayered and they
+ * are in `utilities`. */
+:where(input:not([type="file"], [type="checkbox"], [type="radio"]), select, textarea):not([data-plain]) {
 	background-color: var(--field-background);
 	border: 1px solid var(--field-border);
 	border-radius: var(--field-radius);

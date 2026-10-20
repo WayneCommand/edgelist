@@ -440,6 +440,11 @@ export function previewersFor(
 			list.push({ key: "html", label: "preview.names.html" });
 			break;
 		case "markdown":
+			// A Markdown file opens in the editor, with the rendered view available
+			// as a mode inside it (see TextEditor). It used to open on the renderer,
+			// which is the wrong default for the file you are most likely to want to
+			// *change*; §5.1's order still offers the renderer as the second choice.
+			list.push({ key: "text_editor", label: "preview.names.text_editor" });
 			list.push({ key: "markdown", label: "preview.names.markdown" });
 			break;
 		case "image":

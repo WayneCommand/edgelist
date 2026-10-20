@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { FileObject } from "../../lib/types";
 import { writeFile } from "../../lib/api";
 import { languageFor } from "../../lib/format";
@@ -7,6 +7,7 @@ import { getPreference, setPreference } from "../../lib/preferences";
 import { usePreference, useT } from "../../hooks/useStore";
 import { IconButton, ActionButton } from "../../ui/ActionButton";
 import { NumberStepper } from "../../ui/Field";
+import { MarkdownViewer } from "./MarkdownViewer";
 
 /**
  * The text editor (§5.10).
@@ -58,8 +59,14 @@ export function TextEditor({
 	const [saving, setSaving] = useState(false);
 	const [wordWrap, setWordWrap] = useState(() => getPreference("editor_word_wrap") === "on");
 	const [minimap, setMinimap] = useState(() => getPreference("editor_minimap") === "on");
+	// A Markdown file opens in the editor, and the preview is a *mode* rather than
+	// another entry in the previewer list: flipping between them must not lose the
+	// buffer, which is exactly what selecting a different previewer would do.
+	const isMarkdown = languageFor(item.name) === "markdown";
+	const [preview, setPreview] = useState(false);
 	const font = usePreference("editor_font_size");
 	const area = useRef<HTMLTextAreaElement>(null);
+	const gutter = useRef<HTMLDivElement>(null);
 	const dirty = revision !== savedRevision;
 
 	// §5.10: the browser's own prompt when the tab is closed, and only while there
@@ -114,6 +121,67 @@ export function TextEditor({
 		return () => node?.removeEventListener("keydown", onKey);
 	}, [save]);
 
+	const lines = useMemo(() => countLines(buffer), [buffer]);
+	const numbers = useMemo(() => Array.from({ length: lines }, (_, index) => index + 1), [lines]);
+	const gutterInner = useRef<HTMLDivElement>(null);
+	const mirror = useRef<HTMLDivElement>(null);
+
+	// The gutter and the text area scroll together. They are one scroller in
+	// effect, but two elements, because a `<textarea>` cannot draw its own margin.
+	// The offset goes in as a transform rather than `scrollTop` so the numbers can
+	// be laid out absolutely — see `alignNumbers`.
+	const syncScroll = useCallback(() => {
+		if (gutterInner.current && area.current) {
+			gutterInner.current.style.transform = `translateY(${-area.current.scrollTop}px)`;
+		}
+	}, []);
+
+	/**
+	 * Puts each number beside the row its line starts on.
+	 *
+	 * With wrapping on, a line occupies as many rows as it needs, so number *n* is
+	 * not at `n × lineHeight` — a three-row paragraph pushes every number below it
+	 * down. The mirror is an invisible copy of the buffer laid out with the same
+	 * font, padding and wrapping as the field, so each line's `offsetTop` is where
+	 * that line actually begins; the numbers are positioned to match.
+	 *
+	 * This is done by writing `style.top` directly instead of through state: the
+	 * values are only ever used by the DOM, and a re-render per measured line would
+	 * be work the browser has to undo on the next frame anyway.
+	 */
+	const alignNumbers = useCallback(() => {
+		const node = area.current;
+		const rows = mirror.current?.children;
+		const cells = gutterInner.current?.children;
+		if (!node || !rows || !cells) return;
+		// The mirror has to wrap at the same column as the field: its width is the
+		// field's *content* width, which is what is left after the padding — so the
+		// padding is applied to the mirror and taken out of the width here.
+		const style = getComputedStyle(node);
+		const paddingX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+		mirror.current!.style.width = `${node.clientWidth - paddingX}px`;
+		for (let index = 0; index < cells.length && index < rows.length; index += 1) {
+			// `offsetTop` is measured from the mirror's border box, which already
+			// includes its top padding, so the numbers land on the same baseline.
+			(cells[index] as HTMLElement).style.top = `${(rows[index] as HTMLElement).offsetTop}px`;
+		}
+	}, []);
+
+	useLayoutEffect(() => {
+		alignNumbers();
+		syncScroll();
+	}, [alignNumbers, syncScroll, buffer, wordWrap, font, preview]);
+
+	// A window resize changes how the text wraps, which moves every number below
+	// the first affected line.
+	useEffect(() => {
+		const node = area.current;
+		if (!node || preview) return;
+		const observer = new ResizeObserver(() => alignNumbers());
+		observer.observe(node);
+		return () => observer.disconnect();
+	}, [alignNumbers, preview]);
+
 	async function copy() {
 		try {
 			await navigator.clipboard.writeText(buffer);
@@ -139,8 +207,8 @@ export function TextEditor({
 	}
 
 	return (
-		<div className={`flex flex-col overflow-hidden rounded-xl border border-border ${className}`}>
-			<div className="flex flex-wrap items-center gap-1 overflow-x-auto border-b border-neutral-4 bg-neutral-2 px-2 py-1.5">
+		<div className={`flex flex-col overflow-hidden rounded-xl border border-hairline bg-surface ${className}`}>
+			<div className="flex flex-wrap items-center gap-1 border-b border-hairline bg-neutral-2 px-2 py-1.5">
 				{canWrite && (
 					<>
 						<ActionButton
@@ -156,84 +224,184 @@ export function TextEditor({
 						<div className="mx-0.5 h-5 w-px bg-neutral-5" />
 					</>
 				)}
+				{isMarkdown && (
+					<>
+						<button
+							type="button"
+							onClick={() => setPreview(false)}
+							aria-pressed={!preview}
+							className={`tap rounded-md px-2 py-1 text-[12px] ${!preview ? "bg-surface font-medium text-foreground shadow-sm" : "text-neutral-11 hover:text-foreground"}`}
+						>
+							{t("preview.editor.edit")}
+						</button>
+						<button
+							type="button"
+							onClick={() => setPreview(true)}
+							aria-pressed={preview}
+							className={`tap rounded-md px-2 py-1 text-[12px] ${preview ? "bg-surface font-medium text-foreground shadow-sm" : "text-neutral-11 hover:text-foreground"}`}
+						>
+							{t("preview.editor.preview")}
+						</button>
+						<div className="mx-0.5 h-5 w-px bg-neutral-5" />
+					</>
+				)}
 				<IconButton icon="copy" label={t("global.copy")} size="sm" onPress={() => void copy()} />
 				{canWrite && <IconButton icon="clipboard" label={t("global.paste")} size="sm" onPress={() => void paste()} />}
-				<div className="mx-0.5 h-5 w-px bg-neutral-5" />
-				<IconButton
-					icon="list"
-					label={t("preview.editor.wrap")}
-					size="sm"
-					active={wordWrap}
-					onPress={() => {
-						const next = !wordWrap;
-						setWordWrap(next);
-						setPreference("editor_word_wrap", next ? "on" : "off");
-					}}
-				/>
-				<IconButton
-					icon="layers"
-					label={t("preview.editor.minimap")}
-					size="sm"
-					active={minimap}
-					onPress={() => {
-						const next = !minimap;
-						setMinimap(next);
-						setPreference("editor_minimap", next ? "on" : "off");
-					}}
-				/>
-				<div className="mx-0.5 hidden h-5 w-px bg-neutral-5 sm:block" />
-				<NumberStepper
-					className="hidden sm:inline-flex"
-					value={font}
-					min={8}
-					max={40}
-					label={t("local.editor_font_size")}
-					onChange={(value) => setPreference("editor_font_size", value)}
-				/>
+				{!preview && (
+					<>
+						<div className="mx-0.5 h-5 w-px bg-neutral-5" />
+						<IconButton
+							icon="list"
+							label={t("preview.editor.wrap")}
+							size="sm"
+							active={wordWrap}
+							onPress={() => {
+								const next = !wordWrap;
+								setWordWrap(next);
+								setPreference("editor_word_wrap", next ? "on" : "off");
+							}}
+						/>
+						<IconButton
+							icon="layers"
+							label={t("preview.editor.minimap")}
+							size="sm"
+							active={minimap}
+							onPress={() => {
+								const next = !minimap;
+								setMinimap(next);
+								setPreference("editor_minimap", next ? "on" : "off");
+							}}
+						/>
+						<div className="mx-0.5 hidden h-5 w-px bg-neutral-5 sm:block" />
+						<NumberStepper
+							className="hidden sm:inline-flex"
+							value={font}
+							min={8}
+							max={40}
+							label={t("local.editor_font_size")}
+							onChange={(value) => setPreference("editor_font_size", value)}
+						/>
+					</>
+				)}
 				{!canWrite && <span className="ml-auto text-[11px] text-neutral-10">{t("preview.editor.read_only")}</span>}
 				{dirty && <span className="ml-auto size-1.5 rounded-full bg-info-9" title="Unsaved" />}
 			</div>
 
-			<div className="flex min-h-0 flex-1">
-				<textarea
-					ref={area}
-					value={buffer}
-					readOnly={!canWrite}
-					spellCheck={false}
-					onChange={(event) => {
-						setBuffer(event.target.value);
-						setRevision((value) => value + 1);
-					}}
-					className={`min-h-[55vh] flex-1 resize-none rounded-none border-0 bg-surface px-3 py-2 font-mono leading-relaxed outline-none ${wordWrap ? "whitespace-pre-wrap" : "whitespace-pre"}`}
-					style={{ fontSize: `${font}px`, tabSize: 2 }}
-					aria-label={item.name}
-					data-language={languageFor(item.name)}
-				/>
-				{/* §5.10's minimap is an indicator of length and position, which is
-				    what a minimap is for; rendering every line as a bar would be a
-				    glyph per line and no more useful. */}
-				{minimap && (
+			{preview ? (
+				/* The preview is the same document the editor holds, not a re-read of
+				   the file, so an unsaved edit is previewable. `wordWrap` is always on
+				   here: a preview that scrolls sideways is not a preview. */
+				<div className="max-h-[70vh] min-h-[55vh] overflow-y-auto bg-surface px-6 py-5">
+					<MarkdownViewer text={buffer} wordWrap />
+				</div>
+			) : (
+				<div className="relative flex min-h-0 flex-1 bg-surface">
+					{/* The gutter is a sibling of the textarea, not part of it: text in a
+					   `textarea` is user-selectable and copyable, so a line number drawn
+					   inside the field would end up on the clipboard. It is also
+					   `aria-hidden`, because the numbers are a visual aid to the text,
+					   not content of their own. */}
 					<div
+						ref={gutter}
 						aria-hidden="true"
-						className="hidden w-14 shrink-0 border-l border-hairline bg-neutral-1 px-1 py-2 lg:block"
+						className="relative shrink-0 overflow-hidden border-r border-hairline bg-neutral-2/70 select-none"
+						style={{ width: `${String(lines).length + 2}ch`, fontSize: `${font}px` }}
 					>
-						<div className="flex flex-col gap-[2px]">
-							{buffer
-								.split("\n")
-								.slice(0, 400)
-								.map((line, index) => (
-									<div
-										key={index}
-										className="h-[2px] rounded-full bg-neutral-6"
-										style={{ width: `${Math.min(100, Math.max(8, line.length * 1.4))}%` }}
-									/>
-								))}
+						<div ref={gutterInner} className="absolute inset-x-0 top-0">
+							{numbers.map((line) => (
+								<div
+									key={line}
+									className="absolute right-0 h-[1.625em] px-1.5 font-mono leading-relaxed text-neutral-9 tabular-nums"
+								>
+									{line}
+								</div>
+							))}
 						</div>
 					</div>
-				)}
-			</div>
+					{/* The mirror: the same text, same metrics, same wrapping, laid out
+					   invisibly so each line's real `offsetTop` can be measured. It is
+					   `aria-hidden` and not focusable; `display: flow-root` keeps its
+					   children's margins inside it. */}
+					<div
+						ref={mirror}
+						aria-hidden="true"
+						className="pointer-events-none invisible absolute top-0 left-0 min-h-[55vh] px-3 py-2 font-mono leading-relaxed break-words"
+						style={{
+							fontSize: `${font}px`,
+							tabSize: 2,
+							width: "1px",
+							whiteSpace: wordWrap ? "pre-wrap" : "pre",
+						}}
+					>
+						{buffer.split("\n").map((line, index) => (
+							<div key={index}>{line || " "}</div>
+						))}
+					</div>
+					<textarea
+						ref={area}
+						data-plain
+						value={buffer}
+						readOnly={!canWrite}
+						spellCheck={false}
+						onScroll={syncScroll}
+						onChange={(event) => {
+							setBuffer(event.target.value);
+							setRevision((value) => value + 1);
+						}}
+						/* `whiteSpace` is inline, not two utility classes: both
+						   `whitespace-pre` and `whitespace-pre-wrap` end up in the
+						   stylesheet, so which one wins depends on their order in the
+						   build rather than on the state — the toggle silently did
+						   nothing. */
+						className="min-h-[55vh] flex-1 resize-none rounded-none border-0 bg-transparent px-3 py-2 font-mono leading-relaxed break-words outline-none"
+						style={{
+							fontSize: `${font}px`,
+							tabSize: 2,
+							whiteSpace: wordWrap ? "pre-wrap" : "pre",
+						}}
+						aria-label={item.name}
+						data-language={languageFor(item.name)}
+					/>
+					{/* §5.10's minimap is an indicator of length and position, which is
+					    what a minimap is for; rendering every line as a bar would be a
+					    glyph per line and no more useful. */}
+					{minimap && (
+						<div
+							aria-hidden="true"
+							className="hidden w-14 shrink-0 overflow-hidden border-l border-hairline bg-neutral-1 px-1 py-2 lg:block"
+						>
+							<div className="flex flex-col gap-[2px]">
+								{buffer
+									.split("\n")
+									.slice(0, 400)
+									.map((line, index) => (
+										<div
+											key={index}
+											className="h-[2px] rounded-full bg-neutral-6"
+											style={{ width: `${Math.min(100, Math.max(8, line.length * 1.4))}%` }}
+										/>
+									))}
+							</div>
+						</div>
+					)}
+				</div>
+			)}
 		</div>
 	);
+}
+
+/**
+ * How many lines the buffer has.
+ *
+ * `split("\n").length` is not the answer a reader expects: a file that ends with a
+ * newline — which is most of them — reports one more line than it shows. The count
+ * here is the number of lines the editor *draws*, so the last number lines up with
+ * the last line of text.
+ */
+function countLines(text: string): number {
+	if (!text) return 1;
+	const total = text.split("\n").length;
+	return text.endsWith("\n") ? total - 1 : total;
 }
 
 /** Asks before discarding unsaved edits (§5.10). */
