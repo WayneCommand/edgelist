@@ -95,6 +95,22 @@ export function publicFilePath(parentPath: string, name: string) {
 	return normalizePath(`${parentPath}/${name}`);
 }
 
+/**
+ * The virtual path of an object an adapter answered for, given the path asked for.
+ *
+ * Adapters work in mount-relative paths — the S3 one looks up `token.md` for a file
+ * at `/waynecos/token.md` — and they echo that relative path back in `name`. Rebuilding
+ * from the adapter's answer is wrong in both directions: taking it verbatim makes a
+ * download point at `/d/token.md`, and prefixing the *requested* path to it doubles
+ * the last segment (`/waynecos/token.md/token.md`). The only reliable source is the
+ * request: the file's own name, under the directory it was asked for.
+ */
+export function virtualPathFor(requestedPath: string, answeredName: string): { name: string; path: string } {
+	const name = answeredName.split("/").filter(Boolean).pop() ?? answeredName;
+	const parent = requestedPath.slice(0, requestedPath.lastIndexOf("/")) || "/";
+	return { name, path: publicFilePath(parent, name) };
+}
+
 async function body<T>(c: FsContext): Promise<T> {
 	return c.req.json<T>();
 }
@@ -195,7 +211,14 @@ export async function fsGet(c: FsContext) {
 			return respond(c, virtual ?? fallback);
 		}
 		const resolved = await resolveStorage(c.env, input.path ?? "/");
-		return respond(c, await resolved.adapter.get(resolved.path));
+		const object = await resolved.adapter.get(resolved.path);
+		// The adapter answers with the path it looked the object up by, which is
+		// relative to the *mount* (`/token.md` for a file at `/waynecos/token.md`).
+		// Callers need the virtual path they asked for, so it is rebuilt from the
+		// request rather than from the adapter's answer — re-prefixing `object.name`
+		// would double the segment, and returning the adapter's path verbatim made
+		// every download point at `/d/token.md` and 404.
+		return respond(c, { ...object, ...virtualPathFor(requestedPath, object.name) });
 	} catch (error) {
 		return failure(error instanceof Error ? error.message : "Unable to get path", 404);
 	}
