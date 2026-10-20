@@ -31,6 +31,8 @@ const MetaListPage = lazy(() => import("./pages/MetaListPage").then((m) => ({ de
 const MetaFormPage = lazy(() => import("./pages/MetaFormPage").then((m) => ({ default: m.MetaFormPage })));
 const BackupPage = lazy(() => import("./pages/BackupPage").then((m) => ({ default: m.BackupPage })));
 const AboutPage = lazy(() => import("./pages/AboutPage").then((m) => ({ default: m.AboutPage })));
+const ShareListPage = lazy(() => import("./pages/ShareListPage").then((m) => ({ default: m.ShareListPage })));
+const SharePage = lazy(() => import("./pages/SharePage").then((m) => ({ default: m.SharePage })));
 
 /** A chunk's loading state: full-height, centred, and the same spinner as the first paint. */
 function RouteFallback() {
@@ -90,7 +92,8 @@ function BrowserRoute() {
  */
 function ShellBackdrop() {
 	const { pathname } = useLocation();
-	return <WindowBackdrop bare={pathname === ROUTES.login} />;
+	// The share page and the sign-in screen both paint their own surface.
+	return <WindowBackdrop bare={pathname === ROUTES.login || pathname.startsWith("/s/")} />;
 }
 
 export default function App() {
@@ -102,6 +105,10 @@ export default function App() {
 			<RouteProgress />
 			<Routes>
 				<Route path={ROUTES.login} element={<SignIn />} />
+				{/* Public on purpose: a share is the one page reached without a session.
+				    It is declared outside `RequireAuth` so a visitor is never bounced
+				    to the sign-in screen for following a link they were given. */}
+				<Route path="/s/:id" element={page(<SharePage />)} />
 				<Route element={<RequireAuth />}>
 					<Route element={<WorkspaceGate />}>
 						<Route
@@ -120,6 +127,7 @@ export default function App() {
 							<Route path="metas/add" element={page(<MetaFormPage />)} />
 							<Route path="metas/edit/:id" element={page(<MetaFormPage />)} />
 							<Route path="backup-restore" element={page(<BackupPage />)} />
+							<Route path="shares" element={page(<ShareListPage />)} />
 							<Route path="about" element={page(<AboutPage />)} />
 							{/* §1.2: an unmatched management path is still management; sending it to the
 							    browser would list it as a folder called `@manage`. */}

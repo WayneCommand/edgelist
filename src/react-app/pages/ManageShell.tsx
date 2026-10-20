@@ -42,6 +42,7 @@ const MENU: MenuItem[] = [
 	{ label: "manage.sidemenu.profile", path: ROUTES.profile, icon: "user", exact: true },
 	{ label: "manage.sidemenu.storages", path: ROUTES.storages, icon: "database" },
 	{ label: "manage.sidemenu.metas", path: ROUTES.metas, icon: "tag" },
+	{ label: "manage.sidemenu.shares", path: ROUTES.shares, icon: "share" },
 	{ label: "manage.sidemenu.backup", path: ROUTES.backup, icon: "archive" },
 	{ label: "manage.sidemenu.about", path: ROUTES.about, icon: "info" },
 	{ label: "manage.sidemenu.home", path: ROUTES.files(), icon: "home" },

@@ -42,6 +42,7 @@ import {
 	storageUpdate,
 } from "./admin";
 import { backupExport, backupRestore } from "./backup";
+import { shareCreate, shareDelete, shareDownload, shareGet, shareList, shareState, shareUpdate } from "./share";
 
 const app = new Hono<{ Bindings: Env & EdgeListBindings }>();
 
@@ -92,5 +93,17 @@ app.post("/api/admin/backup/restore", requireAuth, backupRestore);
 app.get("/api/admin/driver/names", requireAuth, driverNames);
 app.get("/api/admin/driver/list", requireAuth, driverList);
 app.get("/api/admin/driver/info", requireAuth, driverInfo);
+
+// Shares. Management is authenticated; the two public routes are not — that is
+// the entire point of a share. `/s/:id` is the direct link and answers with the
+// file itself, so pasting it into a chat window downloads without a session.
+app.get("/api/share/list", requireAuth, shareList);
+app.post("/api/share/create", requireAuth, shareCreate);
+app.post("/api/share/update", requireAuth, shareUpdate);
+app.post("/api/share/delete", requireAuth, shareDelete);
+app.post("/api/share/state", requireAuth, shareState);
+app.get("/api/s/:id", shareGet);
+app.get("/s/:id", shareDownload);
+app.get("/s/:id/download", shareDownload);
 
 export default app;

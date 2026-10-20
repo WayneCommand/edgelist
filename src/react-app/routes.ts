@@ -19,6 +19,8 @@ export type Route =
 	| { kind: "meta-edit"; id: number }
 	| { kind: "backup" }
 	| { kind: "profile" }
+	| { kind: "shares" }
+	| { kind: "share"; id: string }
 	| { kind: "about" };
 
 export const ROUTES = {
@@ -31,6 +33,7 @@ export const ROUTES = {
 	metas: "/@manage/metas",
 	metaAdd: "/@manage/metas/add",
 	metaEdit: (id: number | string) => `/@manage/metas/edit/${id}`,
+	shares: "/@manage/shares",
 	backup: "/@manage/backup-restore",
 	about: "/@manage/about",
 } as const;
@@ -63,6 +66,13 @@ export function routeFor(pathname: string): Route {
 	if (path === ROUTES.metaAdd) return { kind: "meta-add" };
 	if (path === ROUTES.backup) return { kind: "backup" };
 	if (path === ROUTES.about) return { kind: "about" };
+	if (path === ROUTES.shares) return { kind: "shares" };
+
+	// A share link is a page of its own, not a path in the file namespace: it is
+	// public, and treating `/s/token` as a file called `s/token` is how a visitor
+	// would land on a sign-in screen for a link they were given.
+	const share = /^\/s\/([^/]+)$/.exec(path);
+	if (share) return { kind: "share", id: share[1] };
 
 	const storageEdit = /^\/@manage\/storages\/edit\/(\d+)$/.exec(path);
 	if (storageEdit) return { kind: "storage-edit", id: Number(storageEdit[1]) };
@@ -85,5 +95,5 @@ export function filesPathFor(pathname: string): string {
 
 /** Whether a route is inside the management shell. */
 export function isManageRoute(route: Route): boolean {
-	return route.kind !== "files" && route.kind !== "login";
+	return route.kind !== "files" && route.kind !== "login" && route.kind !== "share";
 }

@@ -14,6 +14,7 @@ import { DownloadPanel, HtmlViewer, MediaViewer } from "../components/preview/Me
 import { PageShell } from "../ui/PageShell";
 import { Icon } from "../ui/Icon";
 import { TextEditor } from "../components/preview/TextEditor";
+import { ShareDialog } from "../components/ShareDialog";
 import { useFileContents, ViewerFrame } from "../components/preview/ViewerFrame";
 
 /**
@@ -224,6 +225,7 @@ function useBackGuard(dirty: boolean, target: string) {
  */
 function FileHeader({ item, onBack }: { item: FileObject; onBack: () => void }) {
 	const t = useT();
+	const [sharing, setSharing] = useState(false);
 	return (
 		<header className="flex items-center gap-2 py-2">
 			<button
@@ -240,6 +242,22 @@ function FileHeader({ item, onBack }: { item: FileObject; onBack: () => void }) 
 			<span className="min-w-0 flex-1 truncate text-[13px] font-medium" title={item.path}>
 				{item.name}
 			</span>
+			{/* §6.4 puts Share on the file's own menu. The file page had no menu, so
+			    the action lives in its one bar — a link is the thing a person wants
+			    from a file they are looking at. */}
+			{!item.is_dir && (
+				<>
+					<button
+						type="button"
+						onClick={() => setSharing(true)}
+						className="tap flex items-center gap-1.5 rounded-md px-2 py-1 text-[12.5px] text-neutral-11 hover:bg-row-hover hover:text-foreground"
+					>
+						<Icon name="share" className="size-4" />
+						{t("toolbar.share")}
+					</button>
+					{sharing && <ShareDialog path={item.path} name={item.name} state={null} onClose={() => setSharing(false)} />}
+				</>
+			)}
 		</header>
 	);
 }

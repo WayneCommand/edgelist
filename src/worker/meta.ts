@@ -18,6 +18,31 @@ export interface MetaConfig {
 	r_sub?: boolean;
 	header?: string;
 	header_sub?: boolean;
+	/**
+	 * Whether the file at this exact path may be fetched without a session.
+	 *
+	 * Shares are metadata records rather than a table of their own: a rule whose
+	 * `share` is true *is* the share. That keeps one concept in one place — the
+	 * file's path, its password, its header and whether it is public are all on
+	 * the same record, and the existing admin screen can manage them without a
+	 * second CRUD surface. The default is false, and deliberately so: a file is
+	 * private until a rule says otherwise, so an empty rule and a missing rule
+	 * both mean "no".
+	 */
+	share?: boolean;
+	/** Random token in the public URL. Absent means "use the path itself". */
+	share_id?: string;
+	/** Hits so far, and the ceiling (0 = unlimited). */
+	share_views?: number;
+	share_max_views?: number;
+	/** ISO timestamp, or empty for no expiry. */
+	share_expires?: string;
+	/** `false` disables without deleting. */
+	share_enabled?: boolean;
+	/** An optional share code, separate from the directory password. */
+	share_code?: string;
+	/** Shown on the share page by the client. */
+	share_remark?: string;
 	[key: string]: unknown;
 }
 
@@ -165,4 +190,63 @@ export function metaReadme(meta: MetaConfig | null, path: string): string {
 export function metaHeader(meta: MetaConfig | null, path: string): string {
 	if (meta && metaCoversPath(meta.path, path, meta.header_sub ?? false)) return meta.header ?? "";
 	return "";
+}
+
+/* ---------------------------------------------------------------------- shares */
+
+/**
+ * Why a share cannot be served, or `null` when it can.
+ *
+ * The reasons are separate rather than one boolean because the browser has to
+ * say *which* thing is wrong: "expired" is not the same message as "used up",
+ * and a disabled share is not a missing one. The order matters — an expired
+ * share has also usually been used at least once, and reporting "disabled" for
+ * something the owner simply let lapse would be the wrong sentence.
+ */
+export type ShareFailure = "not_shared" | "disabled" | "expired" | "exhausted";
+
+export function shareFailure(meta: MetaConfig | null, now = Date.now()): ShareFailure | null {
+	if (!meta || meta.share !== true) return "not_shared";
+	// `false` is the only value that disables: an absent flag is a share that was
+	// never switched off, which is what every record written before this field
+	// existed looks like.
+	if (meta.share_enabled === false) return "disabled";
+	if (meta.share_expires) {
+		const expiry = Date.parse(meta.share_expires);
+		// An unparsable date is treated as no expiry rather than as an immediate
+		// one: a typo in a share's settings should not make the owner think the
+		// link broke on its own.
+		if (Number.isFinite(expiry) && expiry <= now) return "expired";
+	}
+	const maximum = meta.share_max_views ?? 0;
+	if (maximum > 0 && (meta.share_views ?? 0) >= maximum) return "exhausted";
+	return null;
+}
+
+/** Whether a path is public at all, without counting the hit. */
+export function isShared(meta: MetaConfig | null, now = Date.now()): boolean {
+	return shareFailure(meta, now) === null;
+}
+
+/**
+ * The identifier a share is addressed by.
+ *
+ * A share with no `share_id` is addressed by its own name, which is what makes
+ * the link readable — `/s/docs/token.md` rather than `/s/9f3a…`. The record's
+ * `path` is the authority either way; the id is only the lookup key.
+ */
+export function shareIdOf(meta: MetaConfig): string {
+	const id = (meta.share_id ?? "").trim();
+	if (id) return id;
+	return meta.path.split("/").filter(Boolean).pop() ?? "";
+}
+
+/** A share code that cannot be guessed by reading the URL. */
+export function randomShareId(length = 8): string {
+	// Crockford's alphabet minus the letters that are easy to misread, because a
+	// share id gets typed out of a chat window more often than it gets clicked.
+	const alphabet = "23456789abcdefghjkmnpqrstuvwxyz";
+	const bytes = new Uint8Array(length);
+	crypto.getRandomValues(bytes);
+	return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
 }

@@ -295,6 +295,63 @@ export function fileUrl(path: string): string {
 	return new URL(`/d${encodeURI(path)}`, globalThis.location?.origin ?? "https://localhost").href;
 }
 
+/* -------------------------------------------------------------------- shares */
+
+export type ShareView = {
+	id: string;
+	path: string;
+	name: string;
+	url: string;
+	download_url: string;
+	remark: string;
+	code_required: boolean;
+	expires: string;
+	views: number;
+	max_views: number;
+	enabled: boolean;
+};
+
+export type ShareState = {
+	shared: boolean;
+	/** `work`, `disabled`, `expired`, `exhausted` — or absent when not shared. */
+	state?: string;
+	share: ShareView | null;
+};
+
+export function listShares(): Promise<{ content: (ShareView & { state: string })[]; total: number }> {
+	return request<{ content: (ShareView & { state: string })[]; total: number }>("/api/share/list");
+}
+
+export function shareStateOf(path: string): Promise<ShareState> {
+	return post<ShareState>("/api/share/state", { path });
+}
+
+export function createShare(input: {
+	path: string;
+	share_id?: string;
+	share_code?: string;
+	share_expires?: string;
+	share_max_views?: number;
+	share_remark?: string;
+}): Promise<ShareView> {
+	return post<ShareView>("/api/share/create", input);
+}
+
+export function updateShare(input: {
+	path: string;
+	share_enabled?: boolean;
+	share_code?: string;
+	share_expires?: string;
+	share_max_views?: number;
+	share_remark?: string;
+}): Promise<ShareView> {
+	return post<ShareView>("/api/share/update", input);
+}
+
+export function deleteShare(path: string): Promise<null> {
+	return post<null>("/api/share/delete", { path });
+}
+
 /* -------------------------------------------------------------------- admin */
 
 export function listStorages(): Promise<StorageList> {

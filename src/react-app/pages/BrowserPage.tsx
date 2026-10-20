@@ -25,6 +25,7 @@ import { Icon, MOD_KEY } from "../ui/Icon";
 import { MenuEntries } from "../ui/Chrome";
 import { Dropdown, DropdownPopover, DropdownTrigger } from "@heroui/react/dropdown";
 import { ContextMenu, type MenuEntry } from "../components/ContextMenu";
+import { ShareDialog } from "../components/ShareDialog";
 import { DirectorySkeleton } from "../components/Skeletons";
 import { DirectoryTree } from "../components/DirectoryTree";
 import { FileGrid, FileImages, FileList, type ItemHandlers } from "../components/FileViews";
@@ -76,6 +77,7 @@ type ActiveDialog =
 	| { kind: "search" }
 	| { kind: "transfer"; mode: "copy" | "move" } // alias kept off the union's face
 	| { kind: "batch-rename" }
+	| { kind: "share"; item: FileObject }
 	| { kind: "recursive-move" };
 
 export function BrowserPage() {
@@ -245,6 +247,14 @@ export function BrowserPage() {
 				icon: "trash",
 				danger: true,
 				onSelect: () => setDialog({ kind: "delete" }),
+			});
+		}
+		if (allows.share.allowed) {
+			entries.push({
+				label: t("toolbar.share"),
+				icon: "share",
+				separatorBefore: true,
+				onSelect: () => setDialog({ kind: "share", item }),
 			});
 		}
 		if (chosen.length === 1) {
@@ -775,6 +785,15 @@ export function BrowserPage() {
 							notify.error(reason);
 						}
 					}}
+				/>
+			)}
+
+			{dialog.kind === "share" && (
+				<ShareDialog
+					path={dialog.item.path}
+					name={dialog.item.name}
+					state={null}
+					onClose={() => setDialog({ kind: "none" })}
 				/>
 			)}
 
