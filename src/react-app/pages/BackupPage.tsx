@@ -7,6 +7,7 @@ import { useT } from "../hooks/useStore";
 import { ActionButton } from "../ui/ActionButton";
 import { Checkbox, Field, TextInput } from "../ui/Field";
 import { ManageHeading } from "./ManageShell";
+import { saveBlob } from "../lib/download";
 import { Card } from "../ui/PageShell";
 import { Icon } from "../ui/Icon";
 
@@ -55,13 +56,8 @@ export function BackupPage() {
 			// The three sections the Worker writes, logged individually so a partial
 			// failure is visible rather than a single "backup failed".
 			const response = await exportBackup(password);
-			const blob = await response.blob();
-			const url = URL.createObjectURL(blob);
-			const link = document.createElement("a");
-			link.href = url;
-			link.download = `openlist_backup_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
-			link.click();
-			setTimeout(() => URL.revokeObjectURL(url), 4000);
+			const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+			saveBlob(await response.blob(), `openlist_backup_${stamp}.json`);
 			for (const item of [t("backup.settings"), t("backup.storages"), t("backup.metas")]) {
 				append("ok", t("backup.item_success", { item }));
 			}

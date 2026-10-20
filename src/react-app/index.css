@@ -1009,6 +1009,42 @@ input[type="checkbox"] {
 	transition: none !important;
 }
 
+/* ---------------------------------------------------------------- skeleton ---
+ *
+ * A loading placeholder is a *shape*, not a grey box: it exists so the page does
+ * not jump when the real content arrives, and a shimmer that sweeps is how Apple
+ * shows one. The sweep is one gradient moved by `background-position`, which the
+ * compositor can run without repainting the text around it.
+ */
+@utility skeleton {
+	background-color: var(--neutral-4);
+	background-image: linear-gradient(
+		90deg,
+		var(--neutral-4) 0%,
+		color-mix(in oklab, var(--neutral-4) 55%, var(--neutral-1)) 50%,
+		var(--neutral-4) 100%
+	);
+	background-size: 200% 100%;
+	background-repeat: no-repeat;
+	animation: skeleton-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-sweep {
+	0% {
+		background-position: 150% 0;
+	}
+	100% {
+		background-position: -50% 0;
+	}
+}
+
+/* Motion is decoration here; the shape is the information. */
+@media (prefers-reduced-motion: reduce) {
+	.skeleton {
+		animation: none;
+	}
+}
+
 /* §1.1's route bar: it fades out on its own after a beat, so nothing has to unmount it. */
 @keyframes progress-fade {
 	0%,

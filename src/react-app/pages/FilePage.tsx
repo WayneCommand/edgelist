@@ -116,9 +116,21 @@ export function FilePage() {
 	);
 
 	if (pending) {
+		/* The bar and the body are both placeholders: a file page is a title, a
+		   switcher and a viewer, and drawing their shapes costs nothing while the
+		   `fs/get` is in flight — while a spinner in the middle would move
+		   everything down the moment the real bar appears. */
 		return (
-			<PageShell>
-				<div className="flex min-h-[50vh] items-center justify-center">
+			<PageShell className="min-h-dvh">
+				<div role="status" aria-label={t("global.loading")} className="flex items-center gap-2 py-2">
+					<div className="skeleton h-5 w-16 rounded-md" />
+					<div className="skeleton h-4 w-32 rounded-full" />
+				</div>
+				<div className="mb-3 flex gap-1.5" aria-hidden="true">
+					<div className="skeleton h-7 w-24 rounded-md" />
+					<div className="skeleton h-7 w-28 rounded-md" />
+				</div>
+				<div className="glass-panel flex min-h-[45vh] items-center justify-center rounded-2xl border border-hairline shadow-sm">
 					<Loading size="lg" />
 				</div>
 			</PageShell>
@@ -275,19 +287,16 @@ function FilePreview({
 				<DownloadPanel
 					item={item}
 					onDownload={() => {
-						// A download is a navigation with a `download` hint: the browser
-						// fetches `/d/*` with the session cookie-less header it cannot
-						// add, so the bytes are read through the API client and handed
-						// over as a blob instead.
+						// `/d/*` authenticates by header, so the bytes come through the
+						// api client and are handed to the browser as a blob.
 						void (async () => {
-							const { readFile } = await import("../lib/api");
-							const blob = await (await readFile(item.path)).blob();
-							const url = URL.createObjectURL(blob);
-							const link = document.createElement("a");
-							link.href = url;
-							link.download = item.name;
-							link.click();
-							setTimeout(() => URL.revokeObjectURL(url), 4000);
+							const { saveFile } = await import("../lib/download");
+							const { notify } = await import("../lib/feedback");
+							try {
+								await saveFile(item.path, item.name);
+							} catch (reason) {
+								notify.error(reason);
+							}
 						})();
 					}}
 				/>

@@ -20,11 +20,12 @@ import { useLayoutFor, useSortFor, useT, useWorkspace } from "../hooks/useStore"
 import { useSelection } from "../hooks/useSelection";
 import { ROUTES } from "../routes";
 import { ActionButton } from "../ui/ActionButton";
-import { Loading, StateMessage } from "../ui/Field";
+import { StateMessage } from "../ui/Field";
 import { Icon, MOD_KEY } from "../ui/Icon";
 import { MenuEntries } from "../ui/Chrome";
 import { Dropdown, DropdownPopover, DropdownTrigger } from "@heroui/react/dropdown";
 import { ContextMenu, type MenuEntry } from "../components/ContextMenu";
+import { DirectorySkeleton } from "../components/Skeletons";
 import { DirectoryTree } from "../components/DirectoryTree";
 import { FileGrid, FileImages, FileList, type ItemHandlers } from "../components/FileViews";
 import { LocalSettingsDrawer } from "../components/LocalSettingsDrawer";
@@ -260,19 +261,13 @@ export function BrowserPage() {
 	/* -------------------------------------------------------------------- actions */
 
 	async function download(targets: FileObject[]) {
+		const { saveFile } = await import("../lib/download");
 		// Sequential on purpose: browsers throttle parallel blob downloads, and a
 		// failure on one entry should not abort the rest.
 		for (const item of targets) {
 			if (item.is_dir) continue;
 			try {
-				const { readFile } = await import("../lib/api");
-				const blob = await (await readFile(item.path)).blob();
-				const url = URL.createObjectURL(blob);
-				const link = document.createElement("a");
-				link.href = url;
-				link.download = item.name;
-				link.click();
-				setTimeout(() => URL.revokeObjectURL(url), 4000);
+				await saveFile(item.path, item.name);
 			} catch (reason) {
 				notify.error(reason);
 			}
@@ -408,9 +403,10 @@ export function BrowserPage() {
 						}
 					/>
 				) : loading ? (
-					<div className="flex items-center justify-center py-8">
-						<Loading size="lg" />
-					</div>
+					/* The skeleton takes the place of the list rather than sitting
+					   inside it, so the card is already the right height when the rows
+					   arrive and nothing below it moves. */
+					<DirectorySkeleton layout={layout} itemSize={readGridSize()} checkbox={checkboxMode} />
 				) : (
 					<>
 						<DirectoryReadme slot="header" path={path} items={items} inline={header} onNavigate={go} />
