@@ -4,6 +4,7 @@ import { CONFIG_KEYS, readConfig } from "./env";
 import { failure, respond } from "./response";
 import { isShared, randomShareId, shareFailure, shareIdOf, type MetaConfig } from "./meta";
 import { resolveStorage } from "./storage/factory";
+import { contentTypeFor, isViewableType } from "./content-type";
 import { normalizePath } from "./storage/types";
 
 /**
@@ -79,7 +80,11 @@ function shareView(meta: MetaConfig, origin: string) {
 		path: meta.path,
 		name: meta.path.split("/").filter(Boolean).pop() ?? meta.path,
 		url: `${origin}/s/${encodeURIComponent(id)}`,
-		download_url: `${origin}/s/${encodeURIComponent(id)}?download=1`,
+		// The address a third-party app should be given: the page is for a person,
+		// this is the file. Separate paths so neither can shadow the other — a
+		// browser opening `/s/<id>` has to get the page, and `curl`ing the same URL
+		// has to get the file, which one route cannot decide on its own.
+		raw_url: `${origin}/s/${encodeURIComponent(id)}/f`,
 		remark: meta.share_remark ?? "",
 		code_required: Boolean((meta.share_code ?? "").trim()),
 		expires: meta.share_expires ?? "",
@@ -322,19 +327,46 @@ export async function shareGet(c: ShareContext) {
 }
 
 /**
- * `GET /s/:id` — the public download.
+ * `GET /s/:id` — the public download, and the direct link.
  *
- * Deliberately not `/d/*`: that route requires a session and is the authenticated
- * form. Keeping the public one on its own path means a revoked share cannot be
- * reached through a URL somebody bookmarked from the private side, and it makes
- * the access log readable.
+ * A third-party app should be able to take the *original* file from this URL, so
+ * three things matter beyond serving the bytes:
+ *
+ * **Range is forwarded.** A media player seeks, a download manager resumes, and a
+ * `PDF` viewer requests a window of the file. The adapter passes the header
+ * upstream and the `206` comes back with `Content-Range` intact.
+ *
+ * **The type is the file's.** Object stores often answer
+ * `application/octet-stream` for everything, which makes a `.png` link download
+ * instead of display. The extension is consulted when the store is silent, and a
+ * type the store *did* record is left alone.
+ *
+ * **CORS is open.** A link is meant to be embedded — an `<img>`, a `<video>`, a
+ * `fetch` from another origin. Without `Access-Control-Allow-Origin` those fail
+ * even though the file is public, because the browser enforces the policy on the
+ * page's origin, not the server's intent. `*` is right here and only here: the
+ * route serves one file whose owner explicitly published it, carries no cookies,
+ * no credentials and no other user's data, and the code is a query parameter
+ * rather than a session.
  */
 export async function shareDownload(c: ShareContext) {
 	const id = c.req.param("id") ?? "";
-	const opened = await openShare(c, id, c.req.header("X-Share-Code") ?? c.req.query("code"));
+	const origin = c.req.header("Origin");
+	const cors = corsHeaders(origin);
+	if (c.req.method === "OPTIONS") {
+		// A preflight from an embedding page: answer it without opening the share,
+		// so an aborted preflight cannot spend a view.
+		return new Response(null, { status: 204, headers: cors });
+	}
+	// A `HEAD` is a client asking whether the link works and how big the file is —
+	// a link checker, a player probing before it plays. It carries no body, so it
+	// is not a download and must not consume one.
+	const opened = await openShare(c, id, c.req.header("X-Share-Code") ?? c.req.query("code"), c.req.method !== "HEAD");
 	if (opened.error) {
 		const known = SHARE_MESSAGES[opened.error] ?? { message: "Share not found", status: 404 };
-		return failure(known.message, known.status);
+		const denied = failure(known.message, known.status);
+		for (const [key, value] of Object.entries(cors)) denied.headers.set(key, value);
+		return denied;
 	}
 	const meta = opened.meta!;
 	try {
@@ -348,14 +380,55 @@ export async function shareDownload(c: ShareContext) {
 			(char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
 		);
 		const headers = new Headers(response.headers);
-		headers.set("Content-Disposition", `attachment; filename="${encoded}"; filename*=UTF-8''${encoded}`);
+		for (const [key, value] of Object.entries(cors)) headers.set(key, value);
+
+		// The store's own type wins when it has one; a generic type is replaced by
+		// what the extension implies, so an image stays an image. This is decided
+		// from the *name*, before the read, so a link's headers do not depend on
+		// whether the storage happened to answer.
+		const upstreamType = headers.get("content-type") ?? "";
+		const type = !upstreamType || upstreamType === "application/octet-stream" ? contentTypeFor(fileName) : upstreamType;
+		headers.set("content-type", type);
+
+		// `inline` for what a browser can show, `attachment` for everything else.
+		// The bytes do not change; only whether the link opens or saves.
+		headers.set(
+			"Content-Disposition",
+			`${isViewableType(type) ? "inline" : "attachment"}; filename="${encoded}"; filename*=UTF-8''${encoded}`,
+		);
+		// Range needs to be advertised, or a client does not know it may ask.
+		headers.set("Accept-Ranges", "bytes");
 		// A share is public, so it must not be cached by an intermediary past the
 		// point the owner revokes it.
 		headers.set("Cache-Control", "no-store");
-		return new Response(response.body, { status: response.status, headers });
+		return new Response(c.req.method === "HEAD" ? null : response.body, { status: response.status, headers });
 	} catch (error) {
-		return failure(error instanceof Error ? error.message : "Unable to download the file", 404);
+		const failed = failure(error instanceof Error ? error.message : "Unable to download the file", 404);
+		for (const [key, value] of Object.entries(cors)) failed.headers.set(key, value);
+		return failed;
 	}
+}
+
+/**
+ * The CORS headers a public link answers with.
+ *
+ * `*` rather than the request's origin: a share has no session to protect and no
+ * per-origin policy to enforce, and reflecting the origin would only make caching
+ * and `curl` more complicated for no gain. `expose-headers` is what lets a
+ * JavaScript client read the size and the range back — without it `fetch` sees
+ * them as opaque and a resuming downloader has nothing to resume from.
+ */
+function corsHeaders(origin: string | undefined): Record<string, string> {
+	return {
+		"Access-Control-Allow-Origin": "*",
+		"Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+		"Access-Control-Allow-Headers": "Range, X-Share-Code, If-None-Match, If-Modified-Since",
+		"Access-Control-Expose-Headers":
+			"Content-Length, Content-Range, Content-Type, Content-Disposition, Accept-Ranges, ETag, Last-Modified",
+		// A private-network call from a public page would still be blocked, which is
+		// the one place an explicit hint helps.
+		"Access-Control-Max-Age": origin ? "86400" : "0",
+	};
 }
 
 /**

@@ -103,7 +103,15 @@ app.post("/api/share/update", requireAuth, shareUpdate);
 app.post("/api/share/delete", requireAuth, shareDelete);
 app.post("/api/share/state", requireAuth, shareState);
 app.get("/api/s/:id", shareGet);
-app.get("/s/:id", shareDownload);
-app.get("/s/:id/download", shareDownload);
+// The page a person opens, and the raw file a program fetches. Two paths on
+// purpose: `/s/:id` has to render the app's share screen for a browser, and it
+// cannot also be the file — whichever one it answered, the other would be
+// unreachable. `/s/:id/f` is the direct link to hand to a third-party app.
+//
+// `OPTIONS` is routed here rather than left to the asset handler: a link meant to
+// be embedded has to answer its own preflight, and the Worker is the only thing
+// that knows the share's CORS policy.
+app.on(["GET", "HEAD", "OPTIONS"], "/s/:id/f", shareDownload);
+app.on(["GET", "HEAD", "OPTIONS"], "/s/:id/download", shareDownload);
 
 export default app;

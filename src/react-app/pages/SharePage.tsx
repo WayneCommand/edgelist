@@ -24,7 +24,7 @@ type SharePageData = {
 	path: string;
 	name: string;
 	url: string;
-	download_url: string;
+	raw_url: string;
 	remark: string;
 	code_required: boolean;
 	expires: string;
@@ -181,7 +181,7 @@ export function SharePage() {
 				{/* A plain anchor, not a fetched blob: the route is public, so the
 				    browser can stream straight from it. */}
 				<a
-					href={`${data.download_url}${code ? `&code=${encodeURIComponent(code)}` : ""}`}
+					href={`${data.raw_url}${code ? `?code=${encodeURIComponent(code)}` : ""}`}
 					className="tap inline-flex items-center justify-center gap-2 rounded-lg bg-info-9 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-info-10"
 				>
 					{t("share.page_download")}

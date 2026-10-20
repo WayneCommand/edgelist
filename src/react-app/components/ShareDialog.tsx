@@ -117,10 +117,9 @@ export function ShareDialog({
 		}
 	}
 
-	async function copy() {
-		if (!share) return;
+	async function copyValue(value: string) {
 		try {
-			await navigator.clipboard.writeText(share.url);
+			await navigator.clipboard.writeText(value);
 			notify.success(t("global.copied"));
 		} catch {
 			notify.error(t("global.clipboard_denied"));
@@ -161,14 +160,26 @@ export function ShareDialog({
 
 					{share && (
 						<div className="rounded-lg border border-hairline bg-neutral-2 px-3 py-2">
-							<div className="mb-1 text-[11px] font-semibold tracking-[0.04em] text-neutral-10 uppercase">
-								{t("share.link")}
-							</div>
-							<div className="flex items-center gap-2">
-								<code className="min-w-0 flex-1 truncate font-mono text-[12px] text-info-11">{share.url}</code>
-								<ActionButton tone="soft" size="sm" icon="copy" onPress={() => void copy()}>
-									{t("share.copy_link")}
-								</ActionButton>
+							{/* Two links, because they answer two different questions.
+							    The page is what a person opens; the direct link is what an
+							    app, a player or a download manager is given, and it serves
+							    the original bytes with Range support. Printing only one of
+							    them makes the other unguessable. */}
+							<LinkRow
+								label={t("share.link")}
+								value={share.url}
+								hint={t("share.link_help")}
+								onCopy={() => void copyValue(share.url)}
+								copyLabel={t("share.copy_link")}
+							/>
+							<div className="mt-2 border-t border-hairline pt-2">
+								<LinkRow
+									label={t("share.raw_link")}
+									value={share.raw_url}
+									hint={t("share.raw_link_help")}
+									onCopy={() => void copyValue(share.raw_url)}
+									copyLabel={t("global.copy")}
+								/>
 							</div>
 							<div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-neutral-10">
 								<Chip tone={stateTone(share, state?.state)}>
@@ -296,4 +307,32 @@ function fromLocalInput(value: string): string {
 	if (!value) return "";
 	const date = new Date(value);
 	return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+}
+
+/** One labelled URL with its own copy button and a line saying what it is for. */
+function LinkRow({
+	label,
+	value,
+	hint,
+	onCopy,
+	copyLabel,
+}: {
+	label: string;
+	value: string;
+	hint: string;
+	onCopy: () => void;
+	copyLabel: string;
+}) {
+	return (
+		<div>
+			<div className="mb-1 text-[11px] font-semibold tracking-[0.04em] text-neutral-10 uppercase">{label}</div>
+			<div className="flex items-center gap-2">
+				<code className="min-w-0 flex-1 truncate font-mono text-[12px] text-info-11">{value}</code>
+				<ActionButton tone="soft" size="sm" icon="copy" onPress={onCopy}>
+					{copyLabel}
+				</ActionButton>
+			</div>
+			<p className="mt-1 text-[11px] leading-snug text-neutral-10">{hint}</p>
+		</div>
+	);
 }

@@ -71,6 +71,8 @@ export function routeFor(pathname: string): Route {
 	// A share link is a page of its own, not a path in the file namespace: it is
 	// public, and treating `/s/token` as a file called `s/token` is how a visitor
 	// would land on a sign-in screen for a link they were given.
+	// `/s/<id>` is the page; `/s/<id>/f` is the raw file and is answered by the
+	// Worker before the SPA ever sees it, so only the page-shaped path routes here.
 	const share = /^\/s\/([^/]+)$/.exec(path);
 	if (share) return { kind: "share", id: share[1] };
 

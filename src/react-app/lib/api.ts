@@ -301,8 +301,10 @@ export type ShareView = {
 	id: string;
 	path: string;
 	name: string;
+	/** The share page, for a person. */
 	url: string;
-	download_url: string;
+	/** The raw file, for a program. */
+	raw_url: string;
 	remark: string;
 	code_required: boolean;
 	expires: string;
