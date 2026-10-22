@@ -46,7 +46,6 @@ const MENU: MenuItem[] = [
 	{ label: "manage.sidemenu.backup", path: ROUTES.backup, icon: "archive" },
 	{ label: "manage.sidemenu.about", path: ROUTES.about, icon: "info" },
 	{ label: "manage.sidemenu.home", path: ROUTES.files(), icon: "home" },
-	{ label: "manage.sidemenu.documentation", path: "https://doc.oplist.org", icon: "file-text", external: true },
 ];
 
 export function ManageShell() {

@@ -73,7 +73,7 @@ export async function backupExport(c: BackupContext) {
 		return new Response(JSON.stringify(backup, null, 2), {
 			headers: {
 				"content-type": "application/json; charset=utf-8",
-				"content-disposition": `attachment; filename="openlist_backup.json"`,
+				"content-disposition": `attachment; filename="edgelist_backup.json"`,
 			},
 		});
 	} catch (error) {

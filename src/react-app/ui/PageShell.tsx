@@ -71,14 +71,14 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
 /**
  * A page footer (§3.7).
  *
- * The same "Powered by OpenList | Manage" line the browser page has always drawn,
- * now shared, because the management pages were each ending without one — a page
+ * The same "EdgeList | Manage" line the browser page has always drawn, now
+ * shared, because the management pages were each ending without one — a page
  * that stops mid-air reads as unfinished.
  */
 export function PageFooter({ children }: { children?: ReactNode }) {
 	return (
 		<footer className="flex items-center justify-center gap-2 py-6 text-[12px] text-neutral-10">
-			{children ?? <span>Powered by OpenList</span>}
+			{children ?? <span>EdgeList</span>}
 		</footer>
 	);
 }

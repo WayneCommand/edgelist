@@ -489,9 +489,7 @@ export function BrowserPage() {
 			    with three entries does not leave a card floating over empty space
 			    with the footer immediately under it. */}
 			<footer className="mt-auto flex items-center justify-center gap-2 py-6 text-xs text-neutral-11">
-				<a href="https://doc.oplist.org" target="_blank" rel="noreferrer" className="hover:underline">
-					{t("home.footer.powered_by")}
-				</a>
+				<span className="font-medium">EdgeList</span>
 				<span aria-hidden="true">|</span>
 				<button type="button" onClick={() => navigate(ROUTES.profile)} className="tap hover:underline">
 					{t("home.footer.manage")}

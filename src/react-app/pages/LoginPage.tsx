@@ -224,21 +224,12 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 						</div>
 
 						<div className="mt-5 flex items-center justify-evenly border-t border-hairline pt-4 text-xs text-neutral-10">
-							<span>{t("about.tagline")}</span>
+							<span>{t("login.tagline")}</span>
 						</div>
 					</div>
 				</div>
 
-				<footer className="text-center text-[11px] text-neutral-10">
-					<a
-						href="https://doc.oplist.org"
-						target="_blank"
-						rel="noreferrer"
-						className="tap hover:text-neutral-12 hover:underline"
-					>
-						OpenList
-					</a>
-				</footer>
+				<footer className="text-center text-[11px] text-neutral-10">EdgeList</footer>
 			</main>
 		</div>
 	);

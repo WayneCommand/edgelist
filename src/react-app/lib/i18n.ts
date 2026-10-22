@@ -77,6 +77,7 @@ export const EN = {
 
 	// --------------------------------------------------------------- §17.2 ---
 	"login.login_to": "Login to the",
+	"login.tagline": "A file manager on Cloudflare Workers",
 	"login.username-tips": "Input your username",
 	"login.password-tips": "Input your password",
 	"login.otp-tips": "Input your OTP Code",
@@ -114,7 +115,6 @@ export const EN = {
 	"home.layouts.list": "List View",
 	"home.layouts.grid": "Grid View",
 	"home.layouts.image": "Image View",
-	"home.footer.powered_by": "Powered by OpenList",
 	"home.footer.login": "Login",
 	"home.footer.manage": "Manage",
 	"home.home": "Home",
@@ -299,7 +299,7 @@ export const EN = {
 
 	// --------------------------------------------------------------- §17.4 ---
 	"manage.settings_stored_in_kv": "configuration stored in Cloudflare KV",
-	"manage.title": "OpenList Management",
+	"manage.title": "Management",
 	"manage.logout": "Log out",
 	"manage.logout_success": "Logout successful",
 	"manage.signed_in_as": "Signed in as",
@@ -311,7 +311,6 @@ export const EN = {
 	"manage.sidemenu.backup": "Backup & Restore",
 	"manage.sidemenu.about": "About",
 	"manage.sidemenu.home": "Home",
-	"manage.sidemenu.documentation": "Documentation",
 	"manage.profile.description": "One access-key pair, held in KV and checked by the Worker.",
 	"manage.profile.title": "Update Profile",
 	"manage.profile.username": "Change Username",
@@ -462,7 +461,7 @@ export const EN = {
 	"metas.load_failed": "Unable to load metadata",
 	"metas.path_placeholder": "Path, e.g. /private",
 	"metas.no_users":
-		"This deployment has no user directory; the permission lists are OpenList-compatible fields kept for import and export.",
+		"This deployment has no user directory; the permission lists are compatibility fields kept for import and export.",
 
 	"backup.description": "Export the whole configuration, or merge one back in.",
 	"backup.title": "Backup & Restore",
@@ -584,6 +583,7 @@ export const ZH: Partial<Record<MessageKey, string>> = {
 	"global.select_folder": "选择文件夹",
 
 	"login.login_to": "登录",
+	"login.tagline": "运行在 Cloudflare Workers 上的文件管理",
 	"login.username-tips": "请输入用户名",
 	"login.password-tips": "请输入密码",
 	"login.otp-tips": "请输入动态验证码",
@@ -620,7 +620,6 @@ export const ZH: Partial<Record<MessageKey, string>> = {
 	"home.layouts.list": "列表视图",
 	"home.layouts.grid": "网格视图",
 	"home.layouts.image": "图片视图",
-	"home.footer.powered_by": "Powered by OpenList",
 	"home.footer.login": "登录",
 	"home.footer.manage": "管理",
 	"home.home": "首页",
@@ -801,7 +800,7 @@ export const ZH: Partial<Record<MessageKey, string>> = {
 	"preview.editor.discard": "放弃",
 
 	"manage.settings_stored_in_kv": "配置存储于 Cloudflare KV",
-	"manage.title": "OpenList 管理",
+	"manage.title": "管理中心",
 	"manage.logout": "退出登录",
 	"manage.logout_success": "退出成功",
 	"manage.signed_in_as": "当前登录",
@@ -813,7 +812,6 @@ export const ZH: Partial<Record<MessageKey, string>> = {
 	"manage.sidemenu.backup": "备份与还原",
 	"manage.sidemenu.about": "关于",
 	"manage.sidemenu.home": "首页",
-	"manage.sidemenu.documentation": "文档",
 	"manage.profile.description": "单组 access-key 凭据，存于 KV 并由 Worker 校验。",
 	"manage.profile.title": "更新资料",
 	"manage.profile.username": "修改用户名",
@@ -956,7 +954,7 @@ export const ZH: Partial<Record<MessageKey, string>> = {
 	"metas.delete_failed": "无法删除规则",
 	"metas.load_failed": "无法加载元信息",
 	"metas.path_placeholder": "路径，例如 /private",
-	"metas.no_users": "本部署没有用户目录；权限列表是为导入导出保留的 OpenList 兼容字段。",
+	"metas.no_users": "本部署没有用户目录；权限列表是为导入导出保留的兼容字段。",
 
 	"backup.description": "导出完整配置，或将一份配置合并回来。",
 	"backup.title": "备份与还原",

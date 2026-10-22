@@ -57,7 +57,7 @@ export function BackupPage() {
 			// failure is visible rather than a single "backup failed".
 			const response = await exportBackup(password);
 			const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-			saveBlob(await response.blob(), `openlist_backup_${stamp}.json`);
+			saveBlob(await response.blob(), `edgelist_backup_${stamp}.json`);
 			for (const item of [t("backup.settings"), t("backup.storages"), t("backup.metas")]) {
 				append("ok", t("backup.item_success", { item }));
 			}

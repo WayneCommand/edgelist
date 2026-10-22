@@ -14,10 +14,9 @@ import { LogoMark } from "../ui/Chrome";
  * does not do.
  *
  * The "does not do" list is the important half. Every omission in this interface has a
- * reason that belongs somewhere a user can find it, and this is that place: no shares, no
- * task queue, no index, no user directory, no archive or Office previewer. A reader who
- * goes looking for the Shares menu should be able to learn here that it is not missing by
- * accident.
+ * reason that belongs somewhere a user can find it, and this is that place: no task
+ * queue, no index, no user directory, no archive or Office previewer. A reader who goes
+ * looking for something should be able to learn here that it is not missing by accident.
  */
 export function AboutPage() {
 	const t = useT();
@@ -109,10 +108,6 @@ function Value({ children }: { children: React.ReactNode }) {
  * menu item is not the feature, and saying "no Shares page" would imply the rest exists.
  */
 const LIMITS = [
-	{
-		title: "Shares",
-		reason: "no share records, no public `/s/*` route, and no per-share permissions — every read is authenticated",
-	},
 	{
 		title: "Offline downloads and a task queue",
 		reason: "a Worker has no scheduler or background process to run one in",
