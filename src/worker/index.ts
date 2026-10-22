@@ -95,23 +95,24 @@ app.get("/api/admin/driver/list", requireAuth, driverList);
 app.get("/api/admin/driver/info", requireAuth, driverInfo);
 
 // Shares. Management is authenticated; the two public routes are not — that is
-// the entire point of a share. `/s/:id` is the direct link and answers with the
-// file itself, so pasting it into a chat window downloads without a session.
+// the entire point of a share. The address is the file's own path, so a nested
+// file keeps its shape: `/s/waynecos/token.md` is the page and
+// `/s/waynecos/token.md/download` is the file.
 app.get("/api/share/list", requireAuth, shareList);
 app.post("/api/share/create", requireAuth, shareCreate);
 app.post("/api/share/update", requireAuth, shareUpdate);
 app.post("/api/share/delete", requireAuth, shareDelete);
 app.post("/api/share/state", requireAuth, shareState);
-app.get("/api/s/:id", shareGet);
-// The page a person opens, and the raw file a program fetches. Two paths on
-// purpose: `/s/:id` has to render the app's share screen for a browser, and it
-// cannot also be the file — whichever one it answered, the other would be
-// unreachable. `/s/:id/f` is the direct link to hand to a third-party app.
+app.get("/api/s/:path{.*}", shareGet);
+// A browser opening `/s/.../download` is a *navigation* request, and the asset
+// router would answer it with `index.html` without ever invoking this Worker
+// when `not_found_handling` is `single-page-application` — which is why the
+// direct link used to land on the sign-in screen. `wrangler.json` runs the
+// Worker first for this path so the route below is actually reached.
 //
 // `OPTIONS` is routed here rather than left to the asset handler: a link meant to
 // be embedded has to answer its own preflight, and the Worker is the only thing
 // that knows the share's CORS policy.
-app.on(["GET", "HEAD", "OPTIONS"], "/s/:id/f", shareDownload);
-app.on(["GET", "HEAD", "OPTIONS"], "/s/:id/download", shareDownload);
+app.on(["GET", "HEAD", "OPTIONS"], "/s/:path{.*}/download", shareDownload);
 
 export default app;

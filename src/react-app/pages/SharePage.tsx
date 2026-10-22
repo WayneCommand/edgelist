@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router";
+import { useLocation } from "react-router";
 import { ApiError } from "../lib/api";
 import { formatDate, formatSize } from "../lib/format";
 import { useT } from "../hooks/useStore";
@@ -7,24 +7,28 @@ import { ActionButton } from "../ui/ActionButton";
 import { Loading, StateMessage, TextInput } from "../ui/Field";
 
 /**
- * A public share (§§3.2, 5.2) — the page `/s/<id>` opens for a visitor.
+ * A public share (§§3.2, 5.2) — the page `/s/<path>` opens for a visitor.
  *
  * It deliberately renders *without* the app's chrome, without a session and
  * without an api token: a person who was handed a link is not a user, and asking
  * them to sign in would defeat the share. The only fetch it makes is to
- * `/api/s/<id>`, which is unauthenticated for the same reason.
+ * `/api/s/<path>`, which is unauthenticated for the same reason.
  *
- * The download is a plain anchor to `/s/<id>` with the code appended, not a blob
- * built from a fetched body. That is the one place in this app where a bare link
- * is correct: the route is public, so the browser can stream it directly, and a
- * large file never has to pass through a JavaScript `Blob`.
+ * The address is the file's own path, so the page keeps the shape of the thing
+ * being shared: `/s/waynecos/token.md`. The download is the same path with
+ * `/download` appended.
+ *
+ * The download is a plain anchor, not a blob built from a fetched body. That is
+ * the one place in this app where a bare link is correct: the route is public, so
+ * the browser can stream it directly, and a large file never has to pass through
+ * a JavaScript `Blob`.
  */
 type SharePageData = {
-	id: string;
 	path: string;
 	name: string;
 	url: string;
 	raw_url: string;
+	storage: { id: number; name: string; mount_path: string };
 	remark: string;
 	code_required: boolean;
 	expires: string;
@@ -39,7 +43,9 @@ type SharePageData = {
 
 export function SharePage() {
 	const t = useT();
-	const { id = "" } = useParams();
+	const { pathname } = useLocation();
+	const sharePath = sharePathOf(pathname);
+	const apiUrl = `/api/s/${encodePath(sharePath)}`;
 	const [data, setData] = useState<SharePageData | null>(null);
 	const [error, setError] = useState("");
 	const [code, setCode] = useState("");
@@ -54,9 +60,7 @@ export function SharePage() {
 		setError("");
 		void (async () => {
 			try {
-				const response = await fetch(
-					`/api/s/${encodeURIComponent(id)}${code ? `?code=${encodeURIComponent(code)}` : ""}`,
-				);
+				const response = await fetch(`${apiUrl}${code ? `?code=${encodeURIComponent(code)}` : ""}`);
 				const body = (await response.json()) as { code: number; message: string; data: SharePageData };
 				if (cancelled) return;
 				if (response.status === 401) {
@@ -79,7 +83,7 @@ export function SharePage() {
 		return () => {
 			cancelled = true;
 		};
-	}, [id, code, t]);
+	}, [apiUrl, code, t]);
 
 	if (pending && !data) {
 		return (
@@ -110,7 +114,7 @@ export function SharePage() {
 						setPending(true);
 						setError("");
 						void (async () => {
-							const response = await fetch(`/api/s/${encodeURIComponent(id)}?code=${encodeURIComponent(code)}`);
+							const response = await fetch(`${apiUrl}?code=${encodeURIComponent(code)}`);
 							const body = (await response.json()) as { code: number; message: string; data: SharePageData };
 							if (response.ok && body.code === 200) {
 								setData(body.data);
@@ -160,6 +164,10 @@ export function SharePage() {
 						<dd className="text-neutral-11 tabular-nums">{formatSize(data.size)}</dd>
 					</div>
 					<div>
+						<dt className="text-neutral-10">{t("share.storage")}</dt>
+						<dd className="text-neutral-11">{data.storage.name}</dd>
+					</div>
+					<div>
 						<dt className="text-neutral-10">{t("share.expires")}</dt>
 						<dd className="text-neutral-11">{data.expires ? formatDate(data.expires) : "-"}</dd>
 					</div>
@@ -189,4 +197,25 @@ export function SharePage() {
 			</div>
 		</div>
 	);
+}
+
+/** The virtual path inside a `/s/...` location, decoded once. */
+function sharePathOf(pathname: string): string {
+	let decoded = pathname;
+	try {
+		decoded = decodeURIComponent(pathname);
+	} catch {
+		/* a stray `%` is a path, not an escape */
+	}
+	const rest = decoded.replace(/^\/s\/?/, "");
+	return `/${rest.replace(/^\/+|\/+$/g, "")}`;
+}
+
+/** Each segment on its own, so the slashes stay slashes. */
+function encodePath(path: string): string {
+	return path
+		.split("/")
+		.filter(Boolean)
+		.map((segment) => encodeURIComponent(segment))
+		.join("/");
 }

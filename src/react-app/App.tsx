@@ -107,8 +107,9 @@ export default function App() {
 				<Route path={ROUTES.login} element={<SignIn />} />
 				{/* Public on purpose: a share is the one page reached without a session.
 				    It is declared outside `RequireAuth` so a visitor is never bounced
-				    to the sign-in screen for following a link they were given. */}
-				<Route path="/s/:id" element={page(<SharePage />)} />
+				    to the sign-in screen for following a link they were given. The
+				    address is the file's own path, so the splat is deliberate. */}
+				<Route path="/s/*" element={page(<SharePage />)} />
 				<Route element={<RequireAuth />}>
 					<Route element={<WorkspaceGate />}>
 						<Route

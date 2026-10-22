@@ -298,13 +298,14 @@ export function fileUrl(path: string): string {
 /* -------------------------------------------------------------------- shares */
 
 export type ShareView = {
-	id: string;
 	path: string;
 	name: string;
 	/** The share page, for a person. */
 	url: string;
-	/** The raw file, for a program. */
+	/** The raw file, for a program or a browser. */
 	raw_url: string;
+	/** The storage serving this path, recorded when the share was made. */
+	storage: { id: number; name: string; mount_path: string };
 	remark: string;
 	code_required: boolean;
 	expires: string;
@@ -330,22 +331,21 @@ export function shareStateOf(path: string): Promise<ShareState> {
 
 export function createShare(input: {
 	path: string;
-	share_id?: string;
-	share_code?: string;
-	share_expires?: string;
-	share_max_views?: number;
-	share_remark?: string;
+	code?: string;
+	expires?: string;
+	max_views?: number;
+	remark?: string;
 }): Promise<ShareView> {
 	return post<ShareView>("/api/share/create", input);
 }
 
 export function updateShare(input: {
 	path: string;
-	share_enabled?: boolean;
-	share_code?: string;
-	share_expires?: string;
-	share_max_views?: number;
-	share_remark?: string;
+	enabled?: boolean;
+	code?: string;
+	expires?: string;
+	max_views?: number;
+	remark?: string;
 }): Promise<ShareView> {
 	return post<ShareView>("/api/share/update", input);
 }

@@ -37,11 +37,10 @@ export function ShareDialog({
 	const t = useT();
 	const existing = state?.share ?? null;
 	const [draft, setDraft] = useState({
-		share_id: existing?.id ?? "",
-		share_code: "",
-		share_expires: toLocalInput(existing?.expires ?? ""),
-		share_max_views: existing?.max_views ?? 0,
-		share_remark: existing?.remark ?? "",
+		code: "",
+		expires: toLocalInput(existing?.expires ?? ""),
+		max_views: existing?.max_views ?? 0,
+		remark: existing?.remark ?? "",
 	});
 	const [enabled, setEnabled] = useState(existing?.enabled ?? true);
 	const [share, setShare] = useState<ShareView | null>(existing);
@@ -66,11 +65,10 @@ export function ShareDialog({
 				if (found.share) {
 					setShare(found.share);
 					setDraft({
-						share_id: found.share.id,
-						share_code: "",
-						share_expires: toLocalInput(found.share.expires),
-						share_max_views: found.share.max_views,
-						share_remark: found.share.remark,
+						code: "",
+						expires: toLocalInput(found.share.expires),
+						max_views: found.share.max_views,
+						remark: found.share.remark,
 					});
 					setEnabled(found.share.enabled);
 				}
@@ -92,19 +90,18 @@ export function ShareDialog({
 			const saved = share
 				? await updateShare({
 						path,
-						share_enabled: enabled,
-						share_code: draft.share_code || undefined,
-						share_expires: fromLocalInput(draft.share_expires),
-						share_max_views: draft.share_max_views,
-						share_remark: draft.share_remark,
+						enabled,
+						code: draft.code || undefined,
+						expires: fromLocalInput(draft.expires),
+						max_views: draft.max_views,
+						remark: draft.remark,
 					})
 				: await createShare({
 						path,
-						share_id: draft.share_id || undefined,
-						share_code: draft.share_code || undefined,
-						share_expires: fromLocalInput(draft.share_expires),
-						share_max_views: draft.share_max_views,
-						share_remark: draft.share_remark,
+						code: draft.code || undefined,
+						expires: fromLocalInput(draft.expires),
+						max_views: draft.max_views,
+						remark: draft.remark,
 					});
 			setShare(saved);
 			notify.success(share ? t("share.updated") : t("share.created"));
@@ -150,9 +147,8 @@ export function ShareDialog({
 			) : (
 				<div className="flex flex-col gap-3">
 					{/* The name is the last segment of the path, so printing both
-					    read "token.md/token.md" — only the path is shown when they
-					    agree, and both when the record was reached through a
-					    custom link id. */}
+					    reads "token.md/token.md" — the full path is only shown
+					    when it adds something. */}
 					<p className="text-[13px] text-neutral-11">
 						<span className="font-medium text-foreground">{name}</span>
 						{path.replace(/\/$/, "") !== `/${name}` && <span className="ml-1 break-all text-neutral-10">{path}</span>}
@@ -161,27 +157,33 @@ export function ShareDialog({
 					{share && (
 						<div className="rounded-lg border border-hairline bg-neutral-2 px-3 py-2">
 							{/* Two links, because they answer two different questions.
-							    The page is what a person opens; the direct link is what an
-							    app, a player or a download manager is given, and it serves
-							    the original bytes with Range support. Printing only one of
-							    them makes the other unguessable. */}
+							    The download is what the owner is asked for — a URL that
+							    opens the file, in a browser or in another app. The page
+							    is the human-readable wrapper around it. Printing only one
+							    of them makes the other unguessable. */}
 							<LinkRow
-								label={t("share.link")}
-								value={share.url}
-								hint={t("share.link_help")}
-								onCopy={() => void copyValue(share.url)}
+								label={t("share.raw_link")}
+								value={share.raw_url}
+								hint={t("share.raw_link_help")}
+								onCopy={() => void copyValue(share.raw_url)}
 								copyLabel={t("share.copy_link")}
 							/>
 							<div className="mt-2 border-t border-hairline pt-2">
 								<LinkRow
-									label={t("share.raw_link")}
-									value={share.raw_url}
-									hint={t("share.raw_link_help")}
-									onCopy={() => void copyValue(share.raw_url)}
+									label={t("share.link")}
+									value={share.url}
+									hint={t("share.link_help")}
+									onCopy={() => void copyValue(share.url)}
 									copyLabel={t("global.copy")}
 								/>
 							</div>
-							<div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-neutral-10">
+							<div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-hairline pt-2 text-[11px] text-neutral-10">
+								<span>
+									{t("share.storage")}: <span className="text-neutral-11">{share.storage.name}</span>
+									{share.storage.name !== share.storage.mount_path && (
+										<span className="ml-1 font-mono">{share.storage.mount_path}</span>
+									)}
+								</span>
 								<Chip tone={stateTone(share, state?.state)}>
 									{t(`share.state.${stateOf(share, state?.state)}` as "share.state.work")}
 								</Chip>
@@ -202,28 +204,14 @@ export function ShareDialog({
 					)}
 
 					<div className="grid gap-3 sm:grid-cols-2">
-						<Field label={t("share.id")} hint={t("share.id_help")}>
-							{(fieldId) => (
-								<TextInput
-									id={fieldId}
-									value={draft.share_id}
-									// An id is the address of the link. Changing it would silently
-									// break every copy already handed out, so it is fixed once made.
-									disabled={Boolean(share)}
-									maxLength={64}
-									placeholder={t("share.id_placeholder")}
-									onChange={(event) => setDraft({ ...draft, share_id: event.target.value })}
-								/>
-							)}
-						</Field>
 						<Field label={t("share.code")} hint={t("share.code_help")}>
 							{(fieldId) => (
 								<TextInput
 									id={fieldId}
 									type="password"
-									value={draft.share_code}
+									value={draft.code}
 									placeholder={share?.code_required ? "••••••" : ""}
-									onChange={(event) => setDraft({ ...draft, share_code: event.target.value })}
+									onChange={(event) => setDraft({ ...draft, code: event.target.value })}
 								/>
 							)}
 						</Field>
@@ -232,8 +220,8 @@ export function ShareDialog({
 								<TextInput
 									id={fieldId}
 									type="datetime-local"
-									value={draft.share_expires}
-									onChange={(event) => setDraft({ ...draft, share_expires: event.target.value })}
+									value={draft.expires}
+									onChange={(event) => setDraft({ ...draft, expires: event.target.value })}
 								/>
 							)}
 						</Field>
@@ -243,10 +231,8 @@ export function ShareDialog({
 									id={fieldId}
 									type="number"
 									min={0}
-									value={String(draft.share_max_views)}
-									onChange={(event) =>
-										setDraft({ ...draft, share_max_views: Math.max(0, Number(event.target.value) || 0) })
-									}
+									value={String(draft.max_views)}
+									onChange={(event) => setDraft({ ...draft, max_views: Math.max(0, Number(event.target.value) || 0) })}
 								/>
 							)}
 						</Field>
@@ -257,8 +243,8 @@ export function ShareDialog({
 							<TextArea
 								id={fieldId}
 								rows={2}
-								value={draft.share_remark}
-								onChange={(event) => setDraft({ ...draft, share_remark: event.target.value })}
+								value={draft.remark}
+								onChange={(event) => setDraft({ ...draft, remark: event.target.value })}
 							/>
 						)}
 					</Field>

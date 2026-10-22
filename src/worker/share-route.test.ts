@@ -2,21 +2,32 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 import app from "./index";
 import { CONFIG_KEYS } from "./env";
 import type { MetaConfig } from "./meta";
+import type { ShareRecord } from "./share";
 
 /**
  * The share routes, end to end through the Worker.
  *
- * These exercise the promise the feature makes: nothing is public until a record
- * says so, and the public routes enforce expiry, the view ceiling and the code
- * without a session. The store is a real in-memory KV so the tests go through
- * `readConfig`/`put` exactly as the deployment does — a mock that answers any key
- * would hide a wrong key, which is a bug this repo has already had once.
+ * These exercise the promise the feature makes: nothing is public until a share
+ * record names the path, the public routes enforce expiry, the view ceiling and
+ * the code without a session, and the address is the file's own path. The store
+ * is a real in-memory KV so the tests go through `readConfig`/`put` exactly as
+ * the deployment does — a mock that answers any key would hide a wrong key,
+ * which is a bug this repo has already had once.
  */
 
 const AUTH = { accessKey: "key", secretKey: "secret" };
+const STORAGE = {
+	id: 1,
+	mount_path: "/",
+	order: 0,
+	driver: "object",
+	addition: "{}",
+	remark: "Primary",
+	disabled: false,
+};
 
 /**
- * A storage serving one small file, so the download route's headers can be
+ * A storage serving a few small files, so the download route's headers can be
  * asserted. Without a mount the route stops at "Storage not found", which hides
  * the CORS and content-type behaviour — the tests would pass by failing earlier.
  *
@@ -27,6 +38,8 @@ const FILES: Record<string, string> = {
 	"/photo.png": "PNGDATA",
 	"/bundle.zip": "ZIPDATA",
 	"/token.md": "# token file",
+	"/waynecos/token.md": "# nested token",
+	"/my file.md": "# spaces",
 	"/clip.mp4": "MP4DATA",
 };
 
@@ -69,7 +82,15 @@ function fakeAdapter() {
 // download would stop at "Storage not found" before any header was set.
 vi.mock("./storage/factory", () => ({
 	resolveStorage: async (_env: unknown, path: string) => ({
-		config: { id: 1, mount_path: "/", order: 0, driver: "object", addition: "{}", remark: "", disabled: false },
+		config: {
+			id: 1,
+			mount_path: "/",
+			order: 0,
+			driver: "object",
+			addition: "{}",
+			remark: "Primary",
+			disabled: false,
+		},
 		path,
 		adapter: fakeAdapter(),
 	}),
@@ -92,20 +113,19 @@ function memoryKv(seed: Record<string, unknown> = {}) {
 	};
 }
 
-function makeEnv(metas: MetaConfig[] = []) {
+function makeEnv(shares: ShareRecord[] = [], metas: MetaConfig[] = []) {
 	const kv = memoryKv({
 		[CONFIG_KEYS.auth]: AUTH,
-		[CONFIG_KEYS.storages]: [
-			{ id: 1, mount_path: "/", order: 0, driver: "object", addition: "{}", remark: "", disabled: false },
-		],
+		[CONFIG_KEYS.storages]: [STORAGE],
 		[CONFIG_KEYS.metas]: metas,
+		[CONFIG_KEYS.shares]: shares,
 	});
 	return { env: { EDGE_CONFIG: kv } as unknown as Env, kv };
 }
 
-/** The record as it now stands in the store, which is the only place it lives. */
-function stored(kv: { store: Map<string, string> }): MetaConfig[] {
-	return JSON.parse(kv.store.get(CONFIG_KEYS.metas) ?? "[]") as MetaConfig[];
+/** The shares as they now stand in the store, which is the only place they live. */
+function stored(kv: { store: Map<string, string> }): ShareRecord[] {
+	return JSON.parse(kv.store.get(CONFIG_KEYS.shares) ?? "[]") as ShareRecord[];
 }
 
 async function token(env: Env): Promise<string> {
@@ -122,8 +142,14 @@ async function token(env: Env): Promise<string> {
 	return body.data.token;
 }
 
-function shareRecord(overrides: Partial<MetaConfig> = {}): MetaConfig {
-	return { id: 1, path: "/token.md", share: true, share_id: "abc123", ...overrides };
+function shareRecord(overrides: Partial<ShareRecord> = {}): ShareRecord {
+	return {
+		path: "/token.md",
+		storage_id: 1,
+		storage_name: "Primary",
+		storage_mount: "/",
+		...overrides,
+	};
 }
 
 const post = (authorization: string, body: unknown) => ({
@@ -140,77 +166,90 @@ describe("public share routes", () => {
 	});
 
 	it("refuses a path that was never shared", async () => {
-		const response = await app.request("/api/s/abc123", {}, env as never);
-		expect(response.status).toBe(404);
-	});
-
-	// The default is the whole point: a file is private until a record says so.
-	it("does not publish a path whose rule lacks the share flag", async () => {
-		({ env } = makeEnv([{ id: 1, path: "/token.md", readme: "hi" }]));
-		const response = await app.request("/api/s/abc123", {}, env as never);
-		expect(response.status).toBe(404);
-	});
-
-	it("does not inherit a share from a parent rule", async () => {
-		// A rule that shares a directory must not publish what is inside it; the
-		// listing is how a directory share exposes its children, not the share id.
-		({ env } = makeEnv([shareRecord({ path: "/docs", share_id: "docs" })]));
 		const response = await app.request("/api/s/token.md", {}, env as never);
 		expect(response.status).toBe(404);
 	});
 
+	// The default is the whole point: a file is private until a record says so.
+	// Metadata may still carry a legacy `share` flag; it must not publish anything.
+	it("does not publish a path through a metadata rule", async () => {
+		({ env } = makeEnv([], [{ id: 1, path: "/token.md", share: true } as MetaConfig]));
+		const page = await app.request("/api/s/token.md", {}, env as never);
+		const file = await app.request("/s/token.md/download", {}, env as never);
+		expect(page.status).toBe(404);
+		expect(file.status).toBe(404);
+	});
+
+	it("does not inherit a share from a parent path", async () => {
+		({ env } = makeEnv([shareRecord({ path: "/waynecos" })]));
+		const response = await app.request("/api/s/waynecos/token.md", {}, env as never);
+		expect(response.status).toBe(404);
+	});
+
+	it("answers a nested path by its own address", async () => {
+		({ env } = makeEnv([shareRecord({ path: "/waynecos/token.md" })]));
+		const response = await app.request("/api/s/waynecos/token.md", {}, env as never);
+		expect(response.status).toBe(200);
+		const body = (await response.json()) as {
+			data: { name: string; path: string; storage: { name: string; mount_path: string } };
+		};
+		expect(body.data.name).toBe("token.md");
+		expect(body.data.path).toBe("/waynecos/token.md");
+		expect(body.data.storage).toEqual({ id: 1, name: "Primary", mount_path: "/" });
+	});
+
 	it("answers an expired share with 410, not 404", async () => {
-		({ env } = makeEnv([shareRecord({ share_expires: "2000-01-01T00:00:00Z" })]));
-		const response = await app.request("/api/s/abc123", {}, env as never);
+		({ env } = makeEnv([shareRecord({ expires: "2000-01-01T00:00:00Z" })]));
+		const response = await app.request("/api/s/token.md", {}, env as never);
 		expect(response.status).toBe(410);
 	});
 
 	it("answers a disabled share with 404 and says it is disabled", async () => {
-		({ env } = makeEnv([shareRecord({ share_enabled: false })]));
-		const response = await app.request("/api/s/abc123", {}, env as never);
+		({ env } = makeEnv([shareRecord({ enabled: false })]));
+		const response = await app.request("/api/s/token.md", {}, env as never);
 		expect(response.status).toBe(404);
 		const body = (await response.json()) as { message: string };
 		expect(body.message).toMatch(/disabled/i);
 	});
 
 	it("requires the code, and rejects a wrong one", async () => {
-		({ env } = makeEnv([shareRecord({ share_code: "letmein" })]));
-		const missing = await app.request("/api/s/abc123", {}, env as never);
+		({ env } = makeEnv([shareRecord({ code: "letmein" })]));
+		const missing = await app.request("/api/s/token.md", {}, env as never);
 		expect(missing.status).toBe(401);
-		const wrong = await app.request("/api/s/abc123?code=nope", {}, env as never);
+		const wrong = await app.request("/api/s/token.md?code=nope", {}, env as never);
 		expect(wrong.status).toBe(401);
-		const right = await app.request("/api/s/abc123?code=letmein", {}, env as never);
+		const right = await app.request("/api/s/token.md?code=letmein", {}, env as never);
 		expect(right.status).toBe(200);
-		expect(((await right.json()) as { data: { id: string } }).data.id).toBe("abc123");
+		expect(((await right.json()) as { data: { path: string } }).data.path).toBe("/token.md");
 	});
 
 	it("does not spend a download on a page view", async () => {
 		// "Maximum downloads" is a promise about downloads. Counting the page that
 		// precedes one halved the usable limit.
-		const { env: local, kv } = makeEnv([shareRecord({ share_max_views: 2 })]);
-		await app.request("/api/s/abc123", {}, local as never);
-		await app.request("/api/s/abc123", {}, local as never);
-		expect(stored(kv)[0].share_views ?? 0).toBe(0);
+		const { env: local, kv } = makeEnv([shareRecord({ max_views: 2 })]);
+		await app.request("/api/s/token.md", {}, local as never);
+		await app.request("/api/s/token.md", {}, local as never);
+		expect(stored(kv)[0].views ?? 0).toBe(0);
 	});
 });
 
 /**
- * The direct link, and the two routes it is split from.
+ * The direct link, and the page it is split from.
  *
- * `/s/<id>` has to render a page for a browser and `/s/<id>/f` has to serve the
- * file for a program. One route cannot answer both: whichever it chose, the other
- * would be unreachable, and an `<img src>` pointing at a page is as useless as a
- * browser showing raw bytes for a link somebody clicked.
+ * `/s/<path>` has to render a page for a browser and `/s/<path>/download` has to
+ * serve the file for a program. One route cannot answer both: whichever it
+ * chose, the other would be unreachable, and an `<img src>` pointing at a page is
+ * as useless as a browser showing raw bytes for a link somebody clicked.
  */
 describe("the direct link", () => {
-	it("is offered separately from the page", async () => {
-		const { env: local } = makeEnv([shareRecord({ path: "/photo.png" })]);
+	it("is the file's path with /download, and the page is the path", async () => {
+		const { env: local } = makeEnv([shareRecord({ path: "/waynecos/token.md" })]);
 		const authorization = await token(local);
 		const listed = await app.request("/api/share/list", { headers: { Authorization: authorization } }, local as never);
 		const page = (await listed.json()) as { data: { content: { url: string; raw_url: string }[] } };
 		const [share] = page.data.content;
-		expect(share.url).toMatch(/\/s\/abc123$/);
-		expect(share.raw_url).toMatch(/\/s\/abc123\/f$/);
+		expect(share.url).toMatch(/\/s\/waynecos\/token\.md$/);
+		expect(share.raw_url).toMatch(/\/s\/waynecos\/token\.md\/download$/);
 	});
 
 	it("answers the file itself with its own type and an open CORS policy", async () => {
@@ -218,7 +257,11 @@ describe("the direct link", () => {
 		// as a download; a missing `Access-Control-Allow-Origin` makes an embedding
 		// page fail even though the bytes are public.
 		const { env: local } = makeEnv([shareRecord({ path: "/photo.png" })]);
-		const response = await app.request("/s/abc123/f", { headers: { Origin: "https://example.com" } }, local as never);
+		const response = await app.request(
+			"/s/photo.png/download",
+			{ headers: { Origin: "https://example.com" } },
+			local as never,
+		);
 		expect(response.status).toBe(200);
 		expect(response.headers.get("access-control-allow-origin")).toBe("*");
 		expect(response.headers.get("accept-ranges")).toBe("bytes");
@@ -226,15 +269,30 @@ describe("the direct link", () => {
 		expect(response.headers.get("content-type")).toBe("image/png");
 	});
 
+	it("serves a nested path through the same route", async () => {
+		const { env: local } = makeEnv([shareRecord({ path: "/waynecos/token.md" })]);
+		const response = await app.request("/s/waynecos/token.md/download", {}, local as never);
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("# nested token");
+		expect(response.headers.get("content-type")).toContain("text/markdown");
+	});
+
+	it("decodes an escaped path back to the file it names", async () => {
+		const { env: local } = makeEnv([shareRecord({ path: "/my file.md" })]);
+		const response = await app.request("/s/my%20file.md/download", {}, local as never);
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("# spaces");
+	});
+
 	it("saves anything a browser cannot render", async () => {
 		const { env: local } = makeEnv([shareRecord({ path: "/bundle.zip" })]);
-		const response = await app.request("/s/abc123/f", {}, local as never);
+		const response = await app.request("/s/bundle.zip/download", {}, local as never);
 		expect(response.headers.get("content-disposition")).toContain("attachment");
 	});
 
 	it("passes a Range request through and answers 206", async () => {
 		const { env: local } = makeEnv([shareRecord()]);
-		const response = await app.request("/s/abc123/f", { headers: { Range: "bytes=2-5" } }, local as never);
+		const response = await app.request("/s/token.md/download", { headers: { Range: "bytes=2-5" } }, local as never);
 		expect(response.status).toBe(206);
 		expect(response.headers.get("content-range")).toMatch(/^bytes 2-5\//);
 	});
@@ -242,16 +300,16 @@ describe("the direct link", () => {
 	it("does not spend a download on a HEAD probe", async () => {
 		// A link checker or a player asking how big the file is must not consume
 		// the owner's quota; only a body transferred is a download.
-		const { env: local, kv } = makeEnv([shareRecord({ share_max_views: 1 })]);
-		const head = await app.request("/s/abc123/f", { method: "HEAD" }, local as never);
+		const { env: local, kv } = makeEnv([shareRecord({ max_views: 1 })]);
+		const head = await app.request("/s/token.md/download", { method: "HEAD" }, local as never);
 		expect(head.status).toBe(200);
-		expect(stored(kv)[0].share_views ?? 0).toBe(0);
+		expect(stored(kv)[0].views ?? 0).toBe(0);
 	});
 
 	it("answers a preflight without opening the share", async () => {
 		const { env: local } = makeEnv([shareRecord()]);
 		const response = await app.request(
-			"/s/abc123/f",
+			"/s/token.md/download",
 			{ method: "OPTIONS", headers: { Origin: "https://example.com", "Access-Control-Request-Method": "GET" } },
 			local as never,
 		);
@@ -263,76 +321,72 @@ describe("the direct link", () => {
 	it("still enforces the share on the direct link", async () => {
 		// The point of a public route is that it is *still* a share: expiry, the
 		// ceiling and the code apply to the file exactly as they do to the page.
-		const { env: local } = makeEnv([shareRecord({ share_expires: "2000-01-01T00:00:00Z" })]);
-		const response = await app.request("/s/abc123/f", {}, local as never);
+		const { env: local } = makeEnv([shareRecord({ expires: "2000-01-01T00:00:00Z" })]);
+		const response = await app.request("/s/token.md/download", {}, local as never);
 		expect(response.status).toBe(410);
 	});
 });
 
 describe("share management", () => {
-	it("creates a share with a generated id, and lists it", async () => {
-		const { env: local } = makeEnv([]);
+	it("creates a share keyed by the path, with the storage that serves it", async () => {
+		const { env: local, kv } = makeEnv([]);
 		const authorization = await token(local);
 		const created = await app.request("/api/share/create", post(authorization, { path: "/token.md" }), local as never);
 		expect(created.status).toBe(200);
-		const body = (await created.json()) as { data: { id: string; url: string } };
-		expect(body.data.id).toMatch(/^[2-9a-hjkmnp-z]{8}$/);
-		expect(body.data.url).toContain(`/s/${body.data.id}`);
+		const body = (await created.json()) as {
+			data: { url: string; raw_url: string; storage: { name: string; mount_path: string } };
+		};
+		expect(body.data.url).toMatch(/\/s\/token\.md$/);
+		expect(body.data.raw_url).toMatch(/\/s\/token\.md\/download$/);
+		expect(body.data.storage).toEqual({ id: 1, name: "Primary", mount_path: "/" });
+
+		const shares = stored(kv);
+		expect(shares).toHaveLength(1);
+		expect(shares[0]).toMatchObject({ path: "/token.md", storage_id: 1, storage_mount: "/" });
 
 		const listed = await app.request("/api/share/list", { headers: { Authorization: authorization } }, local as never);
-		const page = (await listed.json()) as { data: { content: { path: string }[] } };
+		const page = (await listed.json()) as {
+			data: { content: { path: string; storage: { name: string } }[] };
+		};
 		expect(page.data.content.map((share) => share.path)).toEqual(["/token.md"]);
+		expect(page.data.content[0].storage.name).toBe("Primary");
 	});
 
 	it("updates a share in place rather than creating a second record", async () => {
 		const { env: local, kv } = makeEnv([]);
 		const authorization = await token(local);
 		await app.request("/api/share/create", post(authorization, { path: "/token.md" }), local as never);
-		await app.request(
-			"/api/share/create",
-			post(authorization, { path: "/token.md", share_max_views: 5 }),
-			local as never,
-		);
+		await app.request("/api/share/create", post(authorization, { path: "/token.md", max_views: 5 }), local as never);
 
 		expect(stored(kv)).toHaveLength(1);
-		expect(stored(kv)[0].share_max_views).toBe(5);
+		expect(stored(kv)[0].max_views).toBe(5);
 	});
 
-	it("refuses a custom id that another share already uses", async () => {
-		const { env: local } = makeEnv([shareRecord({ path: "/other.md", share_id: "taken" })]);
+	it("changes a share's settings without touching metadata", async () => {
+		const { env: local, kv } = makeEnv([shareRecord()], [{ id: 1, path: "/token.md", readme: "Keep me" }]);
 		const authorization = await token(local);
-		const response = await app.request(
-			"/api/share/create",
-			post(authorization, { path: "/token.md", share_id: "taken" }),
+		const updated = await app.request(
+			"/api/share/update",
+			post(authorization, { path: "/token.md", enabled: false }),
 			local as never,
 		);
-		expect(response.status).toBe(409);
+		expect(updated.status).toBe(200);
+		expect(stored(kv)[0].enabled).toBe(false);
+		const metas = JSON.parse(kv.store.get(CONFIG_KEYS.metas) ?? "[]") as MetaConfig[];
+		expect(metas).toMatchObject([{ path: "/token.md", readme: "Keep me" }]);
 	});
 
-	it("removes a rule that existed only to be a share, and keeps one with other work", async () => {
-		const { env: local, kv } = makeEnv([
-			shareRecord({ id: 1, path: "/bare.md" }),
-			shareRecord({ id: 2, path: "/with-readme.md", readme: "Keep me" }),
-		]);
+	it("makes the link stop working the moment it is deleted, and keeps metadata", async () => {
+		const { env: local, kv } = makeEnv([shareRecord()], [{ id: 1, path: "/token.md", readme: "Keep me" }]);
 		const authorization = await token(local);
-		for (const path of ["/bare.md", "/with-readme.md"]) {
-			await app.request("/api/share/delete", post(authorization, { path }), local as never);
-		}
-		// The empty share is gone; the one that still carries a readme survives
-		// with its share fields stripped.
-		expect(stored(kv).map((rule) => rule.path)).toEqual(["/with-readme.md"]);
-		expect(stored(kv)[0].share).toBeUndefined();
-		expect(stored(kv)[0].readme).toBe("Keep me");
-	});
-
-	it("makes the link stop working the moment it is deleted", async () => {
-		const { env: local } = makeEnv([shareRecord()]);
-		const authorization = await token(local);
-		const before = await app.request("/api/s/abc123", {}, local as never);
+		const before = await app.request("/api/s/token.md", {}, local as never);
 		expect(before.status).toBe(200);
 		await app.request("/api/share/delete", post(authorization, { path: "/token.md" }), local as never);
-		const after = await app.request("/api/s/abc123", {}, local as never);
+		const after = await app.request("/api/s/token.md", {}, local as never);
 		expect(after.status).toBe(404);
+		// Deleting a share is not deleting the rule that carries the owner's note.
+		const metas = JSON.parse(kv.store.get(CONFIG_KEYS.metas) ?? "[]") as MetaConfig[];
+		expect(metas).toMatchObject([{ path: "/token.md", readme: "Keep me" }]);
 	});
 
 	it("requires a session to manage shares", async () => {

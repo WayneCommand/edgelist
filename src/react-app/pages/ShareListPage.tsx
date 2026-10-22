@@ -11,16 +11,15 @@ import { ManageHeading } from "./ManageShell";
 /**
  * Shares (§12.11).
  *
- * A share is a metadata rule with `share: true`, so this page is a *view* over
- * the metadata store rather than a store of its own: removing a row here makes
- * the link stop working, and deleting the rule from the Metas page does the same
- * thing. That is the point of modelling it this way — there is one answer to
- * "what is shared", and these rows are it.
+ * A share is its own record now, not a metadata rule: this page lists the
+ * deployment's shares and nothing else, so deleting a row cannot delete a
+ * password or a readme, and editing a metadata rule cannot publish a file.
  *
- * The columns are the ones that change a decision: what is shared, whether it
- * works right now, how close it is to its limit, and when it lapses. The link
- * itself is one click away rather than printed in the table, because a table full
- * of URLs is unreadable and the URL is the thing you copy, not the thing you scan.
+ * The columns are the ones that change a decision: what is shared, which storage
+ * serves it, whether it works right now, how close it is to its limit, and when
+ * it lapses. The link itself is one click away rather than printed in the table,
+ * because a table full of URLs is unreadable and the URL is the thing you copy,
+ * not the thing you scan.
  */
 export function ShareListPage() {
 	const t = useT();
@@ -47,7 +46,7 @@ export function ShareListPage() {
 
 	async function copyLink(share: ShareView) {
 		try {
-			await navigator.clipboard.writeText(share.url);
+			await navigator.clipboard.writeText(share.raw_url);
 			notify.success(t("global.copied"));
 		} catch {
 			notify.error(t("global.clipboard_denied"));
@@ -55,9 +54,9 @@ export function ShareListPage() {
 	}
 
 	async function toggle(share: ShareView) {
-		setBusy(share.id);
+		setBusy(share.path);
 		try {
-			await updateShare({ path: share.path, share_enabled: !share.enabled });
+			await updateShare({ path: share.path, enabled: !share.enabled });
 			await refresh();
 		} catch (reason) {
 			notify.error(reason);
@@ -74,7 +73,7 @@ export function ShareListPage() {
 			danger: true,
 		});
 		if (!ok) return;
-		setBusy(share.id);
+		setBusy(share.path);
 		try {
 			await deleteShare(share.path);
 			notify.success(t("share.deleted"));
@@ -106,7 +105,7 @@ export function ShareListPage() {
 						<thead>
 							<tr className="border-b border-hairline bg-neutral-3/40 text-left text-[11px] font-semibold tracking-[0.04em] text-neutral-11 uppercase">
 								<th className="px-3 py-2">{t("share.path")}</th>
-								<th className="px-3 py-2">{t("share.id")}</th>
+								<th className="px-3 py-2">{t("share.storage")}</th>
 								<th className="px-3 py-2">{t("share.status")}</th>
 								<th className="px-3 py-2">{t("share.expires")}</th>
 								<th className="px-3 py-2">{t("share.views")}</th>
@@ -118,9 +117,15 @@ export function ShareListPage() {
 								<tr key={share.path} className="border-b border-hairline last:border-0 hover:bg-row-hover">
 									<td className="px-3 py-2">
 										<div className="font-medium break-all">{share.name}</div>
+										<div className="font-mono text-[11px] break-all text-neutral-10">{share.path}</div>
 										{share.remark && <div className="text-[11px] text-neutral-10">{share.remark}</div>}
 									</td>
-									<td className="px-3 py-2 font-mono text-[12px] text-neutral-11">{share.id}</td>
+									<td className="px-3 py-2">
+										<div className="text-[12px] text-neutral-11">{share.storage.name}</div>
+										{share.storage.name !== share.storage.mount_path && (
+											<div className="font-mono text-[11px] break-all text-neutral-10">{share.storage.mount_path}</div>
+										)}
+									</td>
 									<td className="px-3 py-2">
 										<Chip tone={share.state === "work" ? "success" : share.state === "disabled" ? "neutral" : "danger"}>
 											{t(`share.state.${share.state}` as "share.state.work")}
@@ -144,7 +149,7 @@ export function ShareListPage() {
 											<ActionButton
 												tone="ghost"
 												size="sm"
-												isPending={busy === share.id}
+												isPending={busy === share.path}
 												onPress={() => void toggle(share)}
 											>
 												{share.enabled ? t("global.disable") : t("global.enable")}
