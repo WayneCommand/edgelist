@@ -13,6 +13,7 @@ export const CONFIG_KEYS = {
 	storages: "config:storages",
 	metas: "config:metas",
 	shares: "config:shares",
+	passkeys: "config:passkeys",
 	settings: "config:settings",
 } as const;
 

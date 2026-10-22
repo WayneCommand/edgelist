@@ -56,6 +56,19 @@ interface LoginBody {
 	secret_key?: string;
 }
 
+/**
+ * The session token for the single principal this deployment knows.
+ *
+ * Shared by the password login and the passkey login: both prove the same claim
+ * — that the caller is the owner — and the rest of the Worker only ever checks
+ * the signature, so a passkey session is not a second kind of session.
+ */
+export async function createSessionToken(config: EdgeListConfig): Promise<string> {
+	const now = Math.floor(Date.now() / 1000);
+	const payload = base64url(JSON.stringify({ sub: config.accessKey, iat: now, exp: now + TOKEN_TTL_SECONDS }));
+	return `${payload}.${await sign(payload, config.secretKey)}`;
+}
+
 export async function login(c: Context<{ Bindings: Env & EdgeListBindings }>, hashed = false) {
 	const body = await c.req.json<LoginBody>().catch(() => ({}) as LoginBody);
 	const accessKey = body.access_key ?? body.username ?? "";
@@ -69,9 +82,7 @@ export async function login(c: Context<{ Bindings: Env & EdgeListBindings }>, ha
 	) {
 		return failure("Invalid username or password", 401);
 	}
-	const now = Math.floor(Date.now() / 1000);
-	const payload = base64url(JSON.stringify({ sub: config.accessKey, iat: now, exp: now + TOKEN_TTL_SECONDS }));
-	const token = `${payload}.${await sign(payload, config.secretKey)}`;
+	const token = await createSessionToken(config);
 	return respond(c, { token });
 }
 

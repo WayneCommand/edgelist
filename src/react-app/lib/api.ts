@@ -39,6 +39,12 @@ import type {
 	BackupData,
 	RestoreResult,
 } from "./types";
+import type {
+	PasskeyAuthenticationPayload,
+	PasskeyCreationOptionsJSON,
+	PasskeyRegistrationPayload,
+	PasskeyRequestOptionsJSON,
+} from "./passkey";
 
 const TOKEN_KEY = "edgelist:token";
 
@@ -161,6 +167,51 @@ export async function logout(): Promise<void> {
 
 export function fetchMe(): Promise<MeResult> {
 	return request<MeResult>("/api/me");
+}
+
+/* ------------------------------------------------------------------ passkeys */
+
+/** A credential as the profile lists it — no public key, no secret. */
+export type PasskeySummary = {
+	id: string;
+	name: string;
+	created_at: string;
+	last_used_at: string;
+	backed_up: boolean;
+	transports: string[];
+};
+
+export type PasskeyOptions<T> = { challenge_id: string; options: T };
+
+/** The challenge a passkey signs during sign-in. Public: no session yet. */
+export function passkeyLoginOptions(): Promise<PasskeyOptions<PasskeyRequestOptionsJSON>> {
+	return post<PasskeyOptions<PasskeyRequestOptionsJSON>>("/api/auth/passkey/login/options", {});
+}
+
+/** Exchanges a signed challenge for the same session token the password gets. */
+export function passkeyLogin(challengeId: string, credential: PasskeyAuthenticationPayload): Promise<LoginResult> {
+	return post<LoginResult>("/api/auth/passkey/login", { challenge_id: challengeId, credential });
+}
+
+/** The challenge a new credential is created against. Requires a session. */
+export function passkeyRegisterOptions(): Promise<PasskeyOptions<PasskeyCreationOptionsJSON>> {
+	return post<PasskeyOptions<PasskeyCreationOptionsJSON>>("/api/auth/passkey/register/options", {});
+}
+
+export function registerPasskey(
+	challengeId: string,
+	credential: PasskeyRegistrationPayload,
+	name?: string,
+): Promise<PasskeySummary> {
+	return post<PasskeySummary>("/api/auth/passkey/register", { challenge_id: challengeId, credential, name });
+}
+
+export function listPasskeys(): Promise<{ content: PasskeySummary[]; total: number }> {
+	return request<{ content: PasskeySummary[]; total: number }>("/api/auth/passkey/list");
+}
+
+export function deletePasskey(id: string): Promise<null> {
+	return post<null>("/api/auth/passkey/delete", { id });
 }
 
 /* --------------------------------------------------------------------- files */

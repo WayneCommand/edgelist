@@ -43,12 +43,29 @@ import {
 } from "./admin";
 import { backupExport, backupRestore } from "./backup";
 import { shareCreate, shareDelete, shareDownload, shareGet, shareList, shareState, shareUpdate } from "./share";
+import {
+	passkeyDelete,
+	passkeyList,
+	passkeyLogin,
+	passkeyLoginOptions,
+	passkeyRegister,
+	passkeyRegisterOptions,
+} from "./passkey";
 
 const app = new Hono<{ Bindings: Env & EdgeListBindings }>();
 
 app.get("/api/", (c) => respond(c, { name: "EdgeList" }));
 app.post("/api/auth/login", (c) => login(c));
 app.post("/api/auth/login/hash", (c) => login(c, true));
+// Passkeys. The two login routes are public — a visitor who has a passkey is the
+// point — while registering, listing and deleting require the session that
+// registration is meant to replace. Both login paths end in the same token.
+app.post("/api/auth/passkey/login/options", passkeyLoginOptions);
+app.post("/api/auth/passkey/login", passkeyLogin);
+app.get("/api/auth/passkey/list", requireAuth, passkeyList);
+app.post("/api/auth/passkey/register/options", requireAuth, passkeyRegisterOptions);
+app.post("/api/auth/passkey/register", requireAuth, passkeyRegister);
+app.post("/api/auth/passkey/delete", requireAuth, passkeyDelete);
 app.get("/api/auth/logout", requireAuth, logout);
 app.get("/api/me", requireAuth, currentUser);
 app.post("/api/fs/list", requireAuth, fsList);

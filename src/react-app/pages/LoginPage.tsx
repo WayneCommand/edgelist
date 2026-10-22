@@ -1,11 +1,14 @@
 import { type FormEvent, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { login } from "../lib/api";
+import { ApiError, login, passkeyLogin, passkeyLoginOptions } from "../lib/api";
+import { getPasskey, passkeysAvailable, passkeysSecure, PasskeyClientError } from "../lib/passkey";
 import { useLocale } from "../hooks/useStore";
+import type { Translate } from "../hooks/useStore";
 import { ROUTES } from "../routes";
 import { ActionButton } from "../ui/ActionButton";
 import { LocaleMenu, LogoMark, ThemeMenu } from "../ui/Chrome";
 import { Field, TextInput } from "../ui/Field";
+import { Icon } from "../ui/Icon";
 
 /**
  * The sign-in screen, drawn to §10.
@@ -24,6 +27,12 @@ import { Field, TextInput } from "../ui/Field";
  * field would have to be split back into two anyway. The labels keep their own words
  * and the fields keep them above, which is what the spec's layout does for its own
  * fields.
+ *
+ * **The passkey button is a sign-in, not a bypass.** It takes the place of the
+ * spec's guest entry because a visitor with a passkey is not a guest: the
+ * authenticator signs a server challenge and the Worker issues the same token
+ * the form below would. The guest link only ever navigated to a page the router
+ * then bounced back here, so nothing is lost by replacing it.
  */
 export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void }) {
 	const { t } = useLocale();
@@ -33,6 +42,9 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 	const [secretKey, setSecretKey] = useState("");
 	const [error, setError] = useState("");
 	const [pending, setPending] = useState(false);
+	const [passkeyPending, setPasskeyPending] = useState(false);
+	const passkeyAvailable = passkeysAvailable();
+	const passkeyReady = passkeyAvailable && passkeysSecure();
 
 	// §1.2: `?redirect=` carries the path the user was refused at. Decoding it is
 	// what makes a deep link survive a sign-in; a value that is not a path is
@@ -63,6 +75,39 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 			setError(reason instanceof Error ? reason.message : t("login.failed"));
 		} finally {
 			setPending(false);
+		}
+	}
+
+	/**
+	 * Passkey sign-in.
+	 *
+	 * The server hands out a challenge and keeps it; the browser signs it with an
+	 * authenticator the owner registered earlier; the Worker verifies the
+	 * signature and issues the same token the password form would. No username
+	 * and no password are involved, which is why this can replace the guest
+	 * entry rather than sit beside it.
+	 */
+	async function signInWithPasskey() {
+		setError("");
+		if (!passkeysAvailable()) {
+			setError(t("login.passkey_unsupported"));
+			return;
+		}
+		if (!passkeysSecure()) {
+			setError(t("login.passkey_insecure"));
+			return;
+		}
+		setPasskeyPending(true);
+		try {
+			const { challenge_id, options } = await passkeyLoginOptions();
+			const credential = await getPasskey(options);
+			const result = await passkeyLogin(challenge_id, credential);
+			onSignedIn(result.token);
+			navigate(redirect, { replace: true });
+		} catch (reason) {
+			setError(passkeyMessage(reason, t));
+		} finally {
+			setPasskeyPending(false);
 		}
 	}
 
@@ -154,16 +199,29 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 							</div>
 						</form>
 
-						{/* §10.2's guest entry, as a quiet text action rather than a third
-						    filled button: the page had three saturated buttons in a row,
-						    and only one of them can be the thing to press. */}
-						<button
-							type="button"
-							onClick={() => navigate(ROUTES.files())}
-							className="tap mt-4 w-full rounded-lg py-2 text-[13px] font-medium text-info-9 hover:underline"
-						>
-							{t("login.use_guest")}
-						</button>
+						{/* Passkey entry, where the spec's guest entry used to be. A
+						    passkey is a sign-in, not a third path through the app: the
+						    visitor who has one does not need to type the access key at
+						    all, which is exactly what the guest link used to offer
+						    (without ever signing anyone in). */}
+						<div className="mt-4 border-t border-hairline pt-3">
+							<button
+								type="button"
+								onClick={() => void signInWithPasskey()}
+								disabled={passkeyPending || !passkeyReady}
+								className="tap flex w-full items-center justify-center gap-2 rounded-lg border border-hairline px-3 py-2 text-[13px] font-medium text-info-9 hover:bg-info-3 disabled:opacity-50"
+							>
+								<Icon name="key" className="size-4" />
+								{passkeyPending ? t("login.passkey_pending") : t("login.use_passkey")}
+							</button>
+							<p className="mt-1.5 text-center text-[11px] text-neutral-10">
+								{passkeyAvailable
+									? passkeyReady
+										? t("login.passkey_hint")
+										: t("login.passkey_insecure")
+									: t("login.passkey_unsupported")}
+							</p>
+						</div>
 
 						<div className="mt-5 flex items-center justify-evenly border-t border-hairline pt-4 text-xs text-neutral-10">
 							<span>{t("about.tagline")}</span>
@@ -184,4 +242,20 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 			</main>
 		</div>
 	);
+}
+
+/** The cases a person can act on, rather than the DOM's own error names. */
+function passkeyMessage(reason: unknown, t: Translate): string {
+	if (reason instanceof PasskeyClientError) {
+		if (reason.code === "unsupported") return t("login.passkey_unsupported");
+		if (reason.code === "insecure") return t("login.passkey_insecure");
+		if (reason.code === "cancelled") return t("login.passkey_cancelled");
+		return t("login.passkey_failed");
+	}
+	if (reason instanceof ApiError) {
+		// The one server failure with a next step the visitor can take.
+		if (reason.status === 404) return t("login.passkey_none");
+		return reason.message;
+	}
+	return t("login.passkey_failed");
 }

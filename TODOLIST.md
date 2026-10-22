@@ -664,6 +664,11 @@
 - [x] `App.tsx` 只剩路由壳；`pnpm lint` 无超长行报错。
 - [x] `pnpm test` / `pnpm lint` / `pnpm build` 全绿。
 - [x] 登录卡片加宽到 480px，登录与通行密钥按钮放在同一行；英文文案改为 `Use a passkey` 以保证单行展示。
+- [x] 通行密钥（WebAuthn / Passkey）登录与个人资料管理。
+  - `config:passkeys` 保存凭据公钥、计数器、传输方式与最近使用时间；注册、列表、删除需要会话，登录的两个接口公开。
+  - 服务端校验 challenge（KV 单次使用，5 分钟过期）、origin、RP ID、UP 标志与 ES256 签名；登录成功复用 AK/SK 的会话令牌格式。
+  - 登录页把「以访客身份浏览」替换为「使用 Passkey 登录」（无需用户名和密码）；个人资料页可添加、查看和删除 Passkey。
+  - `src/worker/passkey.test.ts` 用真实 P-256 密钥构造 CBOR/authData，覆盖注册、断言、防重放与 HTTP 全流程。
 
 ## 待办（验收后剩下的）
 
