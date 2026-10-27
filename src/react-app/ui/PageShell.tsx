@@ -16,7 +16,9 @@ import type { ReactNode } from "react";
  */
 export function PageShell({ children, className = "" }: { children: ReactNode; className?: string }) {
 	return (
-		<div className={`mx-auto flex min-h-dvh w-full max-w-[1000px] flex-col px-5 sm:px-7 ${className}`}>{children}</div>
+		<div className={`mx-auto flex min-h-[var(--app-vh)] w-full max-w-[1000px] flex-col px-5 sm:px-7 ${className}`}>
+			{children}
+		</div>
 	);
 }
 

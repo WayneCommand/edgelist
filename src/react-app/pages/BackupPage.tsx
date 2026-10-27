@@ -162,7 +162,7 @@ export function BackupPage() {
 						// on the node's own scroll position avoids a second effect per line.
 						if (node) node.scrollTop = node.scrollHeight;
 					}}
-					className="flex h-[60vh] flex-col gap-1 overflow-y-auto rounded-2xl border border-hairline bg-neutral-3/50 p-3 font-mono text-[12.5px]"
+					className="flex h-[calc(var(--app-vh)*0.6)] flex-col gap-1 overflow-y-auto rounded-2xl border border-hairline bg-neutral-3/50 p-3 font-mono text-[12.5px]"
 				>
 					{log.length === 0 ? (
 						<p className="font-sans text-[12.5px] text-neutral-10">{t("backup.start_backup")}…</p>

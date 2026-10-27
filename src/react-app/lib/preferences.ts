@@ -22,8 +22,12 @@
  */
 
 import { useSyncExternalStore } from "react";
+import { DEFAULT_VIEWPORT_ZOOM_MAX, MAX_VIEWPORT_ZOOM_MAX, MIN_VIEWPORT_ZOOM } from "./viewport-zoom";
 
-const PREFIX = "edgelist:";
+/** Every key this app stores is namespaced, so clearing one prefix clears it all. */
+export const PREFERENCE_PREFIX = "edgelist:";
+
+const PREFIX = PREFERENCE_PREFIX;
 
 /* --------------------------------------------------------------- the schema */
 
@@ -45,7 +49,7 @@ type PreferenceOption = { value: string; label: string };
 
 type PreferenceSpec =
 	| { kind: "text"; default: string; label: string; placeholder?: string }
-	| { kind: "number"; default: number; label: string; min: number; max?: number }
+	| { kind: "number"; default: number; label: string; min: number; max?: number; decimals?: number }
 	| { kind: "enum"; default: string; label: string; options: readonly PreferenceOption[] };
 
 const layoutOptions: readonly PreferenceOption[] = [
@@ -55,13 +59,36 @@ const layoutOptions: readonly PreferenceOption[] = [
 ];
 
 /**
- * Every setting, in the order §8 lists them.
+ * Every setting: §8's table in its own order, with adaptive zoom first.
  *
  * `label` and each option's `label` are message keys, not text: the drawer
  * translates them, so this module stays free of the language store and can be
  * imported by a plain unit test.
  */
 export const PREFERENCE_SPECS = {
+	/**
+	 * Adaptive zoom is a schema entry rather than a separate store, but its
+	 * control is not the generic stepper: the ceiling is a fractional value and
+	 * the drawer draws it as a slider. Both keys therefore stay out of
+	 * `PREFERENCE_ORDER`, which is the generic list.
+	 */
+	auto_viewport_zoom: {
+		kind: "enum",
+		default: "on",
+		label: "local.auto_viewport_zoom",
+		options: [
+			{ value: "off", label: "local.off" },
+			{ value: "on", label: "local.on" },
+		],
+	},
+	auto_viewport_zoom_max: {
+		kind: "number",
+		default: DEFAULT_VIEWPORT_ZOOM_MAX,
+		label: "local.auto_viewport_zoom_max",
+		min: MIN_VIEWPORT_ZOOM,
+		max: MAX_VIEWPORT_ZOOM_MAX,
+		decimals: 2,
+	},
 	aria2_rpc_url: {
 		kind: "text",
 		default: "http://localhost:6800/jsonrpc",
@@ -183,7 +210,7 @@ export type PreferenceValue<K extends PreferenceKey> = (typeof PREFERENCE_SPECS)
 		? number
 		: (typeof PREFERENCE_SPECS)[K]["default"];
 
-/** The settings in the order the drawer shows them: §8's table. */
+/** The §8 settings in the drawer's generated order; adaptive zoom has its own section. */
 export const PREFERENCE_ORDER: PreferenceKey[] = [
 	"aria2_rpc_url",
 	"aria2_rpc_secret",
@@ -235,7 +262,9 @@ function coerce(key: PreferenceKey, raw: string | null): string | number {
 		const parsed = Number(raw);
 		if (!Number.isFinite(parsed)) return spec.default;
 		const clamped = Math.max(spec.min, spec.max === undefined ? parsed : Math.min(spec.max, parsed));
-		return Math.trunc(clamped);
+		if (!("decimals" in spec)) return Math.trunc(clamped);
+		const factor = 10 ** spec.decimals;
+		return Math.round(clamped * factor) / factor;
 	}
 	if (spec.kind === "enum") {
 		const allowed = spec.options.map((option) => option.value as string);
@@ -248,7 +277,9 @@ const values = new Map<PreferenceKey, string | number>();
 const listeners = new Set<() => void>();
 
 function load() {
-	for (const key of PREFERENCE_ORDER) {
+	// Every spec, not only the visible order: the zoom settings are drawn by
+	// their own section and still need a value (and a first-run default) here.
+	for (const key of Object.keys(PREFERENCE_SPECS) as PreferenceKey[]) {
 		const stored = read(key);
 		// §8: first run writes the default, so nothing downstream has to tell
 		// "not chosen" from "chosen as the default".

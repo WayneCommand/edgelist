@@ -199,7 +199,7 @@ export function ShareDialog({
 					{share && (
 						<label className="flex items-center justify-between gap-3 rounded-lg border border-hairline px-3 py-2">
 							<span className="text-[13px]">{t("share.enabled")}</span>
-							<Switch checked={enabled} onChange={setEnabled} />
+							<Switch checked={enabled} aria-label={t("share.enabled")} onChange={setEnabled} />
 						</label>
 					)}
 

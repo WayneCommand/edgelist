@@ -1,17 +1,19 @@
 import { Drawer } from "@heroui/react/drawer";
 import { PREFERENCE_ORDER, PREFERENCE_SPECS, setPreference, type PreferenceKey } from "../lib/preferences";
+import { MAX_VIEWPORT_ZOOM_MAX, MIN_VIEWPORT_ZOOM, VIEWPORT_ZOOM_MAX_STEP } from "../lib/viewport-zoom";
 import { usePreference, useT, useTheme } from "../hooks/useStore";
 import { Icon } from "../ui/Icon";
 import { LocaleMenu, ThemeMenu } from "../ui/Chrome";
-import { NumberStepper, Select, TextInput } from "../ui/Field";
+import { NumberStepper, Select, Switch, TextInput } from "../ui/Field";
 
 /**
  * The local settings drawer (§8).
  *
- * Fourteen settings, and the drawer is a loop over them: §8 gives each one a label, a
- * control type, its options and its default, and `preferences.ts` states that as a
- * schema. So this file has no per-setting code at all, only the three controls the
- * types name.
+ * The §8 settings, and the drawer mostly is a loop over them: §8 gives each one a
+ * label, a control type, its options and its default, and `preferences.ts` states that
+ * as a schema. The adaptive-zoom pair is the exception — a fractional ceiling wants a
+ * slider, not the whole-numbered stepper — so it is one small hand-drawn section above
+ * the generated rows.
  *
  * Everything is applied on change and persisted immediately — there is no Save button,
  * which is what §8 asks for. That works because every reader subscribes to the store
@@ -29,26 +31,80 @@ export function LocalSettingsDrawer({ isOpen, onClose }: { isOpen: boolean; onCl
 	return (
 		<Drawer>
 			<Drawer.Backdrop isOpen={isOpen} onOpenChange={(open) => !open && onClose()}>
-				<Drawer.Content placement="right" className="w-[min(24rem,100vw)]">
-					<Drawer.Header>
-						<Drawer.Heading className="text-base font-semibold text-info-11">
-							{t("toolbar.local_settings")}
-						</Drawer.Heading>
-						<Drawer.CloseTrigger />
-					</Drawer.Header>
-					<Drawer.Body className="flex flex-col gap-3">
-						{PREFERENCE_ORDER.map((key) => (
-							<SettingRow key={key} setting={key} />
-						))}
-					</Drawer.Body>
-					<Drawer.Footer className="justify-center gap-4 border-t border-hairline py-2 text-neutral-11">
-						<LocaleMenu />
-						<ThemeMenu />
-						<span className="text-[11px]">{theme === "dark" ? t("local.dark") : t("local.light")}</span>
-					</Drawer.Footer>
+				<Drawer.Content placement="right">
+					<Drawer.Dialog className="w-[min(24rem,100vw)]">
+						<Drawer.Header>
+							<Drawer.Heading className="text-base font-semibold text-info-11">
+								{t("toolbar.local_settings")}
+							</Drawer.Heading>
+							<Drawer.CloseTrigger />
+						</Drawer.Header>
+						<Drawer.Body className="flex flex-col gap-3">
+							<ViewportZoomSetting />
+							<div className="h-px bg-hairline" />
+							{PREFERENCE_ORDER.map((key) => (
+								<SettingRow key={key} setting={key} />
+							))}
+						</Drawer.Body>
+						<Drawer.Footer className="justify-center gap-4 border-t border-hairline py-2 text-neutral-11">
+							<LocaleMenu />
+							<ThemeMenu />
+							<span className="text-[11px]">{theme === "dark" ? t("local.dark") : t("local.light")}</span>
+						</Drawer.Footer>
+					</Drawer.Dialog>
 				</Drawer.Content>
 			</Drawer.Backdrop>
 		</Drawer>
+	);
+}
+
+/**
+ * Adaptive zoom, drawn as a switch and a range rather than a generic row.
+ *
+ * The maximum is a fractional value (`1.5`), and the shared stepper deliberately
+ * works in whole numbers; a separate control is smaller than widening that
+ * component for one caller. The slider is the interaction the setting wants
+ * anyway — dragging it shows the result immediately, because the zoom component
+ * writes CSS variables instead of re-rendering the page.
+ */
+function ViewportZoomSetting() {
+	const t = useT();
+	const enabled = usePreference("auto_viewport_zoom") === "on";
+	const maxZoom = usePreference("auto_viewport_zoom_max");
+
+	return (
+		<div className="flex flex-col gap-2">
+			<div className="flex items-center justify-between gap-3">
+				<span className="text-[13px] font-medium text-neutral-11">{t("local.auto_viewport_zoom")}</span>
+				<Switch
+					checked={enabled}
+					aria-label={t("local.auto_viewport_zoom")}
+					onChange={(next) => setPreference("auto_viewport_zoom", next ? "on" : "off")}
+				/>
+			</div>
+
+			<div className={`flex flex-col gap-1.5 ${enabled ? "" : "opacity-50"}`}>
+				<div className="flex items-center justify-between text-[12px] text-neutral-10">
+					<span>{t("local.auto_viewport_zoom_max")}</span>
+					<span className="numeric tabular-nums">{maxZoom.toFixed(2)}×</span>
+				</div>
+				<input
+					// The app's field styling is for text boxes; a range keeps the
+					// platform's own track and thumb.
+					data-plain
+					type="range"
+					min={MIN_VIEWPORT_ZOOM}
+					max={MAX_VIEWPORT_ZOOM_MAX}
+					step={VIEWPORT_ZOOM_MAX_STEP}
+					value={maxZoom}
+					disabled={!enabled}
+					aria-label={t("local.auto_viewport_zoom_max")}
+					onChange={(event) => setPreference("auto_viewport_zoom_max", Number(event.target.value))}
+					className="h-4 w-full cursor-pointer accent-[var(--info-9)] disabled:cursor-not-allowed"
+				/>
+				<p className="text-[11px] leading-snug text-neutral-10">{t("local.auto_viewport_zoom_hint")}</p>
+			</div>
+		</div>
 	);
 }
 

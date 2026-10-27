@@ -622,12 +622,35 @@ html {
 	 * the colour a page without one falls back to — `WindowBackdrop` paints the
 	 * real background and sits above it. */
 	background-color: var(--background);
+	/* Adaptive zoom. The variable is written by the head script before the
+	 * first paint and by `ViewportZoom` on resize; the fallback is what a
+	 * browser with no script, or a user with the setting off, gets. */
+	zoom: var(--app-zoom, 1);
+	scrollbar-gutter: stable;
+}
+
+/* The layout-pixel viewport height.
+ *
+ * `100dvh` is a *visual* length; inside `html { zoom }` it is multiplied by
+ * the factor again. Dividing it here gives the height a page should use when
+ * it wants to fill the screen. The `@supports` guard matters for a browser
+ * that ignores CSS `zoom` (old Firefox): there `--app-zoom` may still be set,
+ * and an unguarded division would make every page shorter than the viewport.
+ */
+:root {
+	--app-vh: 100dvh;
+}
+
+@supports (zoom: 1) {
+	:root {
+		--app-vh: calc(100dvh / var(--app-zoom, 1));
+	}
 }
 
 body {
 	margin: 0;
 	min-width: 320px;
-	min-height: 100vh;
+	min-height: var(--app-vh);
 	/* Transparent on purpose: the body's own background would paint over the
 	 * fixed backdrop, which is exactly the bug that made the wallpaper invisible.
 	 * `html` still carries the colour for overscroll. */
@@ -1082,4 +1105,47 @@ input[type="checkbox"] {
 /* A row's ring belongs inside its own bounds, not two pixels outside them. */
 :where([role="option"], [role="row"], [data-focus-ring="inset"]):focus-visible {
 	outline-offset: -2px;
+}
+
+/* --------------------------------------------------------------------------
+ * Adaptive zoom: the parts the page cannot express with `--app-vh`.
+ * ------------------------------------------------------------------------ */
+
+/* HeroUI measures its modal and drawer overlays from the *visual* viewport and
+ * writes that height into the layout. Inside `html { zoom }` the value is
+ * multiplied again, so the overlay would be taller than the screen. The
+ * unlayered rule wins over the library's utility class (which lives in a
+ * Cascade Layer), and `--app-vh` is the same height in layout pixels.
+ */
+.modal__backdrop,
+.modal__container,
+.modal__container--scroll-outside,
+.drawer__backdrop,
+.drawer__content {
+	height: var(--app-vh);
+}
+
+.modal__container--scroll-outside {
+	min-height: var(--app-vh);
+}
+
+/* A dropdown is positioned by React Aria from client rectangles — visual
+ * coordinates — and then written as `left`/`top` on an element that would
+ * inherit the page's zoom. Undoing the factor here makes those coordinates
+ * mean visual pixels again, which is exactly the space the library measured.
+ */
+.dropdown__popover {
+	zoom: var(--app-zoom-inv, 1);
+}
+
+/* A printed page has no window to adapt to; the scaled layout would paginate
+ * into half-pages. */
+@media print {
+	html {
+		zoom: 1 !important;
+	}
+
+	:root {
+		--app-vh: 100vh;
+	}
 }

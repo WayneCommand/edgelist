@@ -112,7 +112,7 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 	}
 
 	return (
-		<div className="relative flex min-h-dvh flex-col bg-[var(--page)]">
+		<div className="relative flex min-h-[var(--app-vh)] flex-col bg-[var(--page)]">
 			<main className="relative z-docked mx-auto flex w-full max-w-[1000px] flex-1 flex-col px-5 py-6 sm:px-7">
 				<header className="flex items-start justify-between gap-4">
 					<span className="flex items-center gap-2.5">

@@ -87,7 +87,7 @@ export function SharePage() {
 
 	if (pending && !data) {
 		return (
-			<div className="flex min-h-dvh items-center justify-center">
+			<div className="flex min-h-[var(--app-vh)] items-center justify-center">
 				<Loading size="lg" />
 			</div>
 		);
@@ -95,7 +95,7 @@ export function SharePage() {
 
 	if (error && !needsCode) {
 		return (
-			<div className="flex min-h-dvh items-center justify-center px-4">
+			<div className="flex min-h-[var(--app-vh)] items-center justify-center px-4">
 				<StateMessage icon="alert-triangle" tone="danger" title={error} className="max-w-sm" />
 			</div>
 		);
@@ -103,7 +103,7 @@ export function SharePage() {
 
 	if (needsCode && !data) {
 		return (
-			<div className="flex min-h-dvh items-center justify-center px-4">
+			<div className="flex min-h-[var(--app-vh)] items-center justify-center px-4">
 				<form
 					className="glass-panel flex w-full max-w-sm flex-col gap-3 rounded-2xl border border-hairline p-5 shadow-lg"
 					onSubmit={(event) => {
@@ -148,7 +148,7 @@ export function SharePage() {
 	const remaining = data.max_views > 0 ? Math.max(0, data.max_views - data.views) : null;
 
 	return (
-		<div className="flex min-h-dvh items-center justify-center px-4 py-10">
+		<div className="flex min-h-[var(--app-vh)] items-center justify-center px-4 py-10">
 			<div className="glass-panel flex w-full max-w-lg flex-col gap-4 rounded-2xl border border-hairline p-6 shadow-lg">
 				<div>
 					<div className="text-[11px] font-semibold tracking-[0.04em] text-neutral-10 uppercase">

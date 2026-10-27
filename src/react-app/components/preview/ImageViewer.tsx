@@ -5,6 +5,7 @@ import { useT } from "../../hooks/useStore";
 import { IconButton } from "../../ui/ActionButton";
 import { Loading, StateMessage } from "../../ui/Field";
 import { readFile } from "../../lib/api";
+import { currentViewportZoom } from "../../lib/viewport-zoom-dom";
 
 /**
  * The image viewer (§5.3).
@@ -180,7 +181,10 @@ export function ImageViewer({
 				: "w-full max-h-none object-contain";
 
 	return (
-		<div className="flex w-full flex-col overflow-hidden rounded-xl bg-neutral-2" style={{ height: "70vh" }}>
+		<div
+			className="flex w-full flex-col overflow-hidden rounded-xl bg-neutral-2"
+			style={{ height: "calc(var(--app-vh) * 0.7)" }}
+		>
 			<div className="flex items-center gap-1.5 bg-neutral-1 px-2 py-1.5">
 				{index > 0 && <IconButton icon="chevron-left" label={t("preview.previous")} size="sm" onPress={previous} />}
 				<span className="hidden max-w-[280px] truncate text-xs text-neutral-11 sm:block">{item.name}</span>
@@ -243,9 +247,13 @@ export function ImageViewer({
 				onWheel={(event) => {
 					event.preventDefault();
 					const rect = event.currentTarget.getBoundingClientRect();
+					// `rect` and `clientX/Y` are visual; the transform's offsets are
+					// layout pixels inside the zoomed page. Dividing by the factor is
+					// what keeps the pixel under the cursor still.
+					const zoom = currentViewportZoom();
 					zoomBy(event.deltaY < 0 ? 1.08 : 1 / 1.08, {
-						x: event.clientX - rect.left - rect.width / 2,
-						y: event.clientY - rect.top - rect.height / 2,
+						x: (event.clientX - rect.left - rect.width / 2) / zoom,
+						y: (event.clientY - rect.top - rect.height / 2) / zoom,
 					});
 				}}
 				onPointerDown={(event) => {
@@ -257,8 +265,9 @@ export function ImageViewer({
 				onPointerMove={(event) => {
 					const origin = dragOrigin.current;
 					if (!origin) return;
-					setTx(origin.tx + (event.clientX - origin.x));
-					setTy(origin.ty + (event.clientY - origin.y));
+					const zoom = currentViewportZoom();
+					setTx(origin.tx + (event.clientX - origin.x) / zoom);
+					setTy(origin.ty + (event.clientY - origin.y) / zoom);
 				}}
 				onPointerUp={() => {
 					dragOrigin.current = null;

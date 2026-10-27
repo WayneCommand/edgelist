@@ -76,7 +76,7 @@ export function ManageShell() {
 	}
 
 	return (
-		<div className="flex min-h-dvh flex-col">
+		<div className="flex min-h-[var(--app-vh)] flex-col">
 			{/* §12.1: a glass toolbar over the window, not a coloured bar. The
 			    sidebar below it is the same material, so the two read as one
 			    chrome rather than as two panels that happen to touch. */}
@@ -112,7 +112,7 @@ export function ManageShell() {
 				</div>
 			</header>
 
-			<div className="flex min-h-0 flex-1" style={{ height: "calc(100dvh - 3.5rem)" }}>
+			<div className="flex min-h-0 flex-1" style={{ height: "calc(var(--app-vh) - 3.5rem)" }}>
 				{/* The desktop sidebar. Hidden below `sm`, where the same list is a drawer.
 				    A translucent panel inset from the edge, the way a macOS source list
 				    sits inside the window rather than flush against it. */}

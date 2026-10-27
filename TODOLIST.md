@@ -669,6 +669,12 @@
   - 服务端校验 challenge（KV 单次使用，5 分钟过期）、origin、RP ID、UP 标志与 ES256 签名；登录成功复用 AK/SK 的会话令牌格式。
   - 登录页把「以访客身份浏览」替换为「使用 Passkey 登录」（无需用户名和密码）；个人资料页可添加、查看和删除 Passkey。
   - `src/worker/passkey.test.ts` 用真实 P-256 密钥构造 CBOR/authData，覆盖注册、断言、防重放与 HTTP 全流程。
+- [x] 全局自适应缩放。
+  - 以 1440×900 为基准，取宽高比例较小者，下限 1、默认上限 1.5（可调 1–3）；`viewport-zoom.ts` 是唯一算法来源。
+  - Vite 插件把同一模块生成的同步脚本注入 `<head>`，首屏直接写 `--app-zoom` / `--app-zoom-inv`，刷新不闪；`ViewportZoom` 只在 resize / 改设置时用 rAF 更新 CSS 变量，不进入 React 渲染。
+  - 设置抽屉加入开关与 0.05 步进的上限滑杆；关闭时删除变量而不是写 1，保留 CSS fallback。
+  - `--app-vh` 统一承接 `100dvh` 的布局高度；页面、预览器、编辑器与 HeroUI 弹层的高度全部改用布局视口；右键菜单与图片拖拽/滚轮做了视觉坐标 → 布局坐标换算；下拉浮层用 `--app-zoom-inv` 抵消。
+  - `pnpm test` 新增 12 个用例，直接执行首屏脚本并与纯函数对拍。
 
 ## 待办（验收后剩下的）
 

@@ -122,7 +122,7 @@ export function FilePage() {
 		   `fs/get` is in flight — while a spinner in the middle would move
 		   everything down the moment the real bar appears. */
 		return (
-			<PageShell className="min-h-dvh">
+			<PageShell>
 				<div role="status" aria-label={t("global.loading")} className="flex items-center gap-2 py-2">
 					<div className="skeleton h-5 w-16 rounded-md" />
 					<div className="skeleton h-4 w-32 rounded-full" />
@@ -131,7 +131,7 @@ export function FilePage() {
 					<div className="skeleton h-7 w-24 rounded-md" />
 					<div className="skeleton h-7 w-28 rounded-md" />
 				</div>
-				<div className="glass-panel flex min-h-[45vh] items-center justify-center rounded-2xl border border-hairline shadow-sm">
+				<div className="glass-panel flex min-h-[calc(var(--app-vh)*0.45)] items-center justify-center rounded-2xl border border-hairline shadow-sm">
 					<Loading size="lg" />
 				</div>
 			</PageShell>
@@ -151,14 +151,14 @@ export function FilePage() {
 							{t("global.back")}
 						</ActionButton>
 					}
-					className="min-h-[50vh] justify-center"
+					className="min-h-[calc(var(--app-vh)*0.5)] justify-center"
 				/>
 			</PageShell>
 		);
 	}
 
 	return (
-		<PageShell className="min-h-dvh">
+		<PageShell>
 			{/* §5: a file page had no chrome at all, so the only way back was the
 			    browser's own button. One bar: where you came from, what you are
 			    looking at, and the actions that apply to the whole file. */}

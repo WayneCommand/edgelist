@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Icon, type IconName } from "../ui/Icon";
+import { currentViewportZoom } from "../lib/viewport-zoom-dom";
 
 /**
  * The right-click menu (§6.4).
@@ -68,12 +69,19 @@ export function ContextMenu({
 	const WIDTH = 224;
 	const MAX_HEIGHT = 320;
 	const GAP = 8;
+	// The pointer gave us visual coordinates; the menu inherits `html { zoom }`,
+	// so its own `left`/`top` and its width are layout pixels. Converting the
+	// pointer and the viewport into that space is what keeps the menu under the
+	// cursor instead of `zoom` times away from it.
+	const zoom = currentViewportZoom();
+	const viewportWidth = typeof window === "undefined" ? 0 : window.innerWidth / zoom;
+	const viewportHeight = typeof window === "undefined" ? 0 : window.innerHeight / zoom;
+	const pointerX = position.x / zoom;
+	const pointerY = position.y / zoom;
 	const left =
-		typeof window === "undefined" ? position.x : Math.max(GAP, Math.min(position.x, window.innerWidth - WIDTH - GAP));
+		typeof window === "undefined" ? position.x : Math.max(GAP, Math.min(pointerX, viewportWidth - WIDTH - GAP));
 	const top =
-		typeof window === "undefined"
-			? position.y
-			: Math.max(GAP, Math.min(position.y, window.innerHeight - MAX_HEIGHT - GAP));
+		typeof window === "undefined" ? position.y : Math.max(GAP, Math.min(pointerY, viewportHeight - MAX_HEIGHT - GAP));
 
 	return (
 		<div

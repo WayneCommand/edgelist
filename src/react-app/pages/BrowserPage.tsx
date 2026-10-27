@@ -307,7 +307,7 @@ export function BrowserPage() {
 	const showSidebar = readShowSidebar();
 
 	return (
-		<div className="mx-auto flex min-h-dvh w-full max-w-[1000px] flex-col px-5 sm:px-7">
+		<div className="mx-auto flex min-h-[var(--app-vh)] w-full max-w-[1000px] flex-col px-5 sm:px-7">
 			{/* ---------------------------------------------------------- header (§3.3)
 			    A floating glass toolbar rather than a full-bleed strip: it is inset
 			    from the window edge, rounded, and sits over the content with a
@@ -603,7 +603,7 @@ export function BrowserPage() {
 					onMouseEnter={() => setSidebarHover(true)}
 					onMouseLeave={() => setSidebarHover(false)}
 					style={{ transform: sidebarHover ? "translateX(0)" : "translateX(calc(-100% + 3px))" }}
-					className="fixed top-[3px] left-[3px] z-overlay hidden h-[calc(100vh-6px)] min-w-[180px] overflow-y-auto rounded-lg bg-surface p-2 shadow-lg transition-transform duration-200 md:block"
+					className="fixed top-[3px] left-[3px] z-overlay hidden h-[calc(var(--app-vh)_-_6px)] min-w-[180px] overflow-y-auto rounded-lg bg-surface p-2 shadow-lg transition-transform duration-200 md:block"
 				>
 					<DirectoryTree value={path} onSelect={go} className="border-0" />
 				</aside>

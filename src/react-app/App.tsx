@@ -7,6 +7,7 @@ import { ConfirmHost, Toaster } from "./ui/Feedback";
 import { WindowBackdrop } from "./ui/PageShell";
 import { LoginPage } from "./pages/LoginPage";
 import { Loading } from "./ui/Field";
+import { ViewportZoom } from "./components/ViewportZoom";
 
 /**
  * The app, split so the sign-in screen does not carry the file manager.
@@ -37,7 +38,7 @@ const SharePage = lazy(() => import("./pages/SharePage").then((m) => ({ default:
 /** A chunk's loading state: full-height, centred, and the same spinner as the first paint. */
 function RouteFallback() {
 	return (
-		<div className="flex min-h-[60vh] items-center justify-center">
+		<div className="flex min-h-[calc(var(--app-vh)*0.6)] items-center justify-center">
 			<Loading size="lg" />
 		</div>
 	);
@@ -99,6 +100,7 @@ function ShellBackdrop() {
 export default function App() {
 	return (
 		<>
+			<ViewportZoom />
 			<ShellBackdrop />
 			<Toaster />
 			<ConfirmHost />

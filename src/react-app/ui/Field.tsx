@@ -169,12 +169,14 @@ export function Switch({
 	label,
 	disabled,
 	className = "",
+	"aria-label": ariaLabel,
 }: {
 	checked: boolean;
 	onChange: (checked: boolean) => void;
 	label?: ReactNode;
 	disabled?: boolean;
 	className?: string;
+	"aria-label"?: string;
 }) {
 	return (
 		<label className={`inline-flex cursor-pointer items-center gap-2.5 select-none ${className}`}>
@@ -182,6 +184,7 @@ export function Switch({
 				type="button"
 				role="switch"
 				aria-checked={checked}
+				aria-label={ariaLabel}
 				disabled={disabled}
 				onClick={() => onChange(!checked)}
 				className={`tint relative inline-flex h-[22px] w-[38px] shrink-0 items-center rounded-full p-[3px] disabled:opacity-50 ${

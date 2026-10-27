@@ -83,7 +83,7 @@ export function useFileContents(item: FileObject | null, mode: "text" | "blob" |
  */
 export function ViewerFrame({
 	children,
-	height = "70vh",
+	height = "calc(var(--app-vh) * 0.7)",
 	extra,
 	className = "",
 }: {

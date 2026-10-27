@@ -189,6 +189,9 @@ export const EN = {
 	"toolbar.conflict_merge": "Only Copy new files and subdirectories",
 	"toolbar.conflict_cancel": "Cancel if file exists",
 
+	"local.auto_viewport_zoom": "Adaptive zoom",
+	"local.auto_viewport_zoom_max": "Maximum zoom",
+	"local.auto_viewport_zoom_hint": "Scales the whole interface on large screens. 1 means no zoom.",
 	"local.aria2_rpc_url": "Aria2 RPC URL",
 	"local.aria2_rpc_secret": "Aria2 RPC secret",
 	"local.global_default_layout": "Global default layout",
@@ -692,6 +695,9 @@ export const ZH: Partial<Record<MessageKey, string>> = {
 	"toolbar.conflict_merge": "仅复制新增的文件与子目录",
 	"toolbar.conflict_cancel": "目标存在时中止",
 
+	"local.auto_viewport_zoom": "自适应缩放",
+	"local.auto_viewport_zoom_max": "最大缩放",
+	"local.auto_viewport_zoom_hint": "在大屏上整体放大界面；1 表示不缩放。",
 	"local.aria2_rpc_url": "Aria2 RPC 地址",
 	"local.aria2_rpc_secret": "Aria2 RPC 密钥",
 	"local.global_default_layout": "全局默认布局",

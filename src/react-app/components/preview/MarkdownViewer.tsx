@@ -44,7 +44,7 @@ export function MarkdownViewer({
 					aria-label={t("toolbar.toggle_markdown_toc")}
 					onMouseEnter={() => setExpanded(true)}
 					onMouseLeave={() => setExpanded(false)}
-					className="fixed top-1/3 right-0 z-docked hidden max-h-[50vh] w-52 overflow-y-auto rounded-l-lg border border-r-0 border-border bg-surface/95 py-1 shadow-lg backdrop-blur-sm transition-transform duration-200 md:block"
+					className="fixed top-1/3 right-0 z-docked hidden max-h-[calc(var(--app-vh)*0.5)] w-52 overflow-y-auto rounded-l-lg border border-r-0 border-border bg-surface/95 py-1 shadow-lg backdrop-blur-sm transition-transform duration-200 md:block"
 					style={{ transform: expanded ? "translateX(0)" : "translateX(calc(100% - 20px))" }}
 				>
 					<p className="px-3 pb-1 text-[11px] font-semibold tracking-wide text-neutral-10 uppercase">

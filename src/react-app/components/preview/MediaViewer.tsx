@@ -33,7 +33,7 @@ export function MediaViewer({ item, kind }: { item: FileObject; kind: "video" | 
 	const loaded = useFileContents(item, kind === "pdf" ? "blob" : "blob");
 
 	return (
-		<ViewerFrame height={kind === "audio" ? "auto" : kind === "pdf" ? "60vh" : "auto"}>
+		<ViewerFrame height={kind === "audio" ? "auto" : kind === "pdf" ? "calc(var(--app-vh) * 0.6)" : "auto"}>
 			{loaded.state === "loading" && <ViewerLoading />}
 			{loaded.state === "error" && (
 				<StateMessage
@@ -48,7 +48,7 @@ export function MediaViewer({ item, kind }: { item: FileObject; kind: "video" | 
 					src={loaded.url}
 					controls
 					preload="metadata"
-					className="mx-auto max-h-[70vh] w-full rounded-lg bg-black"
+					className="mx-auto max-h-[calc(var(--app-vh)*0.7)] w-full rounded-lg bg-black"
 					// §5.4: the container takes the picture's own ratio once it is known.
 					onLoadedMetadata={(event) => {
 						const video = event.currentTarget;
@@ -126,7 +126,7 @@ export function HtmlViewer({ item }: { item: FileObject }) {
 	const url = useObjectUrl(text);
 
 	return (
-		<ViewerFrame height="70vh">
+		<ViewerFrame height="calc(var(--app-vh) * 0.7)">
 			{loaded.state === "loading" && <ViewerLoading />}
 			{loaded.state === "error" && (
 				<StateMessage

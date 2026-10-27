@@ -291,7 +291,7 @@ export function TextEditor({
 				/* The preview is the same document the editor holds, not a re-read of
 				   the file, so an unsaved edit is previewable. `wordWrap` is always on
 				   here: a preview that scrolls sideways is not a preview. */
-				<div className="max-h-[70vh] min-h-[55vh] overflow-y-auto bg-surface px-6 py-5">
+				<div className="max-h-[calc(var(--app-vh)*0.7)] min-h-[calc(var(--app-vh)*0.55)] overflow-y-auto bg-surface px-6 py-5">
 					<MarkdownViewer text={buffer} wordWrap />
 				</div>
 			) : (
@@ -325,7 +325,7 @@ export function TextEditor({
 					<div
 						ref={mirror}
 						aria-hidden="true"
-						className="pointer-events-none invisible absolute top-0 left-0 min-h-[55vh] px-3 py-2 font-mono leading-relaxed break-words"
+						className="pointer-events-none invisible absolute top-0 left-0 min-h-[calc(var(--app-vh)*0.55)] px-3 py-2 font-mono leading-relaxed break-words"
 						style={{
 							fontSize: `${font}px`,
 							tabSize: 2,
@@ -353,7 +353,7 @@ export function TextEditor({
 						   stylesheet, so which one wins depends on their order in the
 						   build rather than on the state — the toggle silently did
 						   nothing. */
-						className="min-h-[55vh] flex-1 resize-none rounded-none border-0 bg-transparent px-3 py-2 font-mono leading-relaxed break-words outline-none"
+						className="min-h-[calc(var(--app-vh)*0.55)] flex-1 resize-none rounded-none border-0 bg-transparent px-3 py-2 font-mono leading-relaxed break-words outline-none"
 						style={{
 							fontSize: `${font}px`,
 							tabSize: 2,
