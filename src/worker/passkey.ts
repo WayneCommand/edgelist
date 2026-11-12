@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { createSessionToken, getAuthConfig } from "./auth";
+import { createSessionToken, getAuthConfig, setDownloadSessionCookie } from "./auth";
 import { CONFIG_KEYS, readConfig, type EdgeListBindings } from "./env";
 import { failure, respond } from "./response";
 
@@ -546,7 +546,9 @@ export async function passkeyLogin(c: PasskeyContext) {
 
 		const config = await getAuthConfig(c.env.EDGE_CONFIG);
 		if (!config) return failure("Authentication is not configured", 500);
-		return respond(c, { token: await createSessionToken(config) });
+		const token = await createSessionToken(config);
+		setDownloadSessionCookie(c, token);
+		return respond(c, { token });
 	} catch (error) {
 		if (error instanceof PasskeyError) return failure(error.message, error.status);
 		return failure(error instanceof Error ? error.message : "Passkey sign-in failed", 400);

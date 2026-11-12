@@ -49,7 +49,7 @@ pnpm deploy
 前端以单页应用方式托管（`assets.not_found_handling` 为 `single-page-application`），未命中的路径会回退到 `index.html`。因此由 Worker 直接返回内容的顶层路径必须列在 `assets.run_worker_first` 中：
 
 - `/api/*`：OpenList API、分片上传与认证
-- `/d/*`：文件预览与下载（通过 `Authorization` 头鉴权）
+- `/d/*`：文件预览与下载（通过 `Authorization` 头或仅限 `/d` 的下载会话 Cookie 鉴权）
 - `/s/*/download`：分享直链
 
 新增这类路由时要同步更新该列表；`src/worker/routing.test.ts` 会在某个顶层路径未被覆盖时失败。

@@ -157,6 +157,18 @@ export function login(accessKey: string, secretKey: string): Promise<LoginResult
 	return post<LoginResult>("/api/auth/login", { access_key: accessKey, secret_key: secretKey });
 }
 
+/**
+ * Put the current session into the download cookie.
+ *
+ * `/d/*` is opened by a browser navigation when a copied link is pasted, and a
+ * navigation cannot carry the `Authorization` header. The Worker issues the
+ * cookie on sign-in; this covers a session that predates it, and is called just
+ * before the SPA hands a download URL back to the browser.
+ */
+export function establishDownloadSession(): Promise<null> {
+	return post<null>("/api/auth/download-session");
+}
+
 export async function logout(): Promise<void> {
 	try {
 		await request<null>("/api/auth/logout");

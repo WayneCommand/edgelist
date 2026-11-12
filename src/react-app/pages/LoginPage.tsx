@@ -1,10 +1,8 @@
 import { type FormEvent, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
 import { ApiError, login, passkeyLogin, passkeyLoginOptions } from "../lib/api";
 import { getPasskey, passkeysAvailable, passkeysSecure, PasskeyClientError } from "../lib/passkey";
 import { useLocale } from "../hooks/useStore";
 import type { Translate } from "../hooks/useStore";
-import { ROUTES } from "../routes";
 import { ActionButton } from "../ui/ActionButton";
 import { LocaleMenu, LogoMark, ThemeMenu } from "../ui/Chrome";
 import { Field, TextInput } from "../ui/Field";
@@ -36,8 +34,6 @@ import { Icon } from "../ui/Icon";
  */
 export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void }) {
 	const { t } = useLocale();
-	const navigate = useNavigate();
-	const [params] = useSearchParams();
 	const [accessKey, setAccessKey] = useState("");
 	const [secretKey, setSecretKey] = useState("");
 	const [error, setError] = useState("");
@@ -46,31 +42,16 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 	const passkeyAvailable = passkeysAvailable();
 	const passkeyReady = passkeyAvailable && passkeysSecure();
 
-	// §1.2: `?redirect=` carries the path the user was refused at. Decoding it is
-	// what makes a deep link survive a sign-in; a value that is not a path is
-	// discarded rather than navigated to.
-	const redirectParam = params.get("redirect");
-	const redirect = (() => {
-		if (!redirectParam) return ROUTES.files();
-		try {
-			const target = decodeURIComponent(redirectParam);
-			return target.startsWith("/") ? target : ROUTES.files();
-		} catch {
-			return ROUTES.files();
-		}
-	})();
-
 	async function submit(event: FormEvent) {
 		event.preventDefault();
 		setError("");
 		setPending(true);
 		try {
 			const result = await login(accessKey, secretKey);
-			// The token is written by the caller's `signIn`, which also re-renders
-			// the router out of this page — so a navigate here only picks the
-			// destination.
+			// The token is written by the caller's `signIn`. The router then leaves
+			// this page for the `?redirect=` destination, which is one decision and
+			// belongs in one place — see `SignIn` in `App.tsx`.
 			onSignedIn(result.token);
-			navigate(redirect, { replace: true });
 		} catch (reason) {
 			setError(reason instanceof Error ? reason.message : t("login.failed"));
 		} finally {
@@ -103,7 +84,6 @@ export function LoginPage({ onSignedIn }: { onSignedIn: (token: string) => void 
 			const credential = await getPasskey(options);
 			const result = await passkeyLogin(challenge_id, credential);
 			onSignedIn(result.token);
-			navigate(redirect, { replace: true });
 		} catch (reason) {
 			setError(passkeyMessage(reason, t));
 		} finally {

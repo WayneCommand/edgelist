@@ -1,7 +1,8 @@
 import { Suspense, lazy, useEffect } from "react";
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router";
-import { ROUTES, routeFor } from "./routes";
+import { isDownloadPath, loginRedirect, ROUTES, routeFor } from "./routes";
 import { useAuth } from "./hooks/useStore";
+import { establishDownloadSession } from "./lib/api";
 import { loadWorkspace, resetWorkspace } from "./lib/workspace";
 import { ConfirmHost, Toaster } from "./ui/Feedback";
 import { WindowBackdrop } from "./ui/PageShell";
@@ -152,7 +153,15 @@ function page(element: React.ReactNode) {
 /** The sign-in page, which leaves as soon as the token exists. */
 function SignIn() {
 	const { signedIn, signIn } = useAuth();
-	if (signedIn) return <Navigate to={ROUTES.files()} replace />;
+	const { search } = useLocation();
+	const redirect = loginRedirect(search);
+	if (signedIn) {
+		// A `/d/...` destination is answered by the Worker, not by the router:
+		// only a document navigation sends the download cookie, and a client-side
+		// navigation would draw the file path as a directory instead.
+		if (isDownloadPath(redirect)) return <DownloadRedirect to={redirect} />;
+		return <Navigate to={redirect} replace />;
+	}
 	return (
 		<LoginPage
 			onSignedIn={(next) => {
@@ -161,6 +170,22 @@ function SignIn() {
 			}}
 		/>
 	);
+}
+
+/** Hands a Worker-owned URL back to the browser, after giving it the cookie it needs. */
+function DownloadRedirect({ to }: { to: string }) {
+	useEffect(() => {
+		let cancelled = false;
+		void establishDownloadSession()
+			.catch(() => undefined)
+			.then(() => {
+				if (!cancelled) window.location.replace(to);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [to]);
+	return <RouteFallback />;
 }
 
 /**

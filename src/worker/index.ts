@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { EdgeListBindings } from "./env";
 import { respond } from "./response";
-import { currentUser, login, logout, requireAuth } from "./auth";
+import { currentUser, downloadSession, login, logout, requireAuth, requireDownloadAuth } from "./auth";
 import {
 	fileDownload,
 	fsCopy,
@@ -57,6 +57,9 @@ const app = new Hono<{ Bindings: Env & EdgeListBindings }>();
 app.get("/api/", (c) => respond(c, { name: "EdgeList" }));
 app.post("/api/auth/login", (c) => login(c));
 app.post("/api/auth/login/hash", (c) => login(c, true));
+// The SPA already has a session in `sessionStorage`; this is what lets a
+// clipboard link carry it into a browser navigation. See `requireDownloadAuth`.
+app.post("/api/auth/download-session", requireAuth, downloadSession);
 // Passkeys. The two login routes are public — a visitor who has a passkey is the
 // point — while registering, listing and deleting require the session that
 // registration is meant to replace. Both login paths end in the same token.
@@ -92,7 +95,7 @@ app.post("/api/fs/multipart/abort", requireAuth, fsMultipartAbort);
 // The wildcard must be named. Hono does not expose a bare `*` as a param, so
 // `/d/*` left `c.req.param("*")` null, the path collapsed to "/", and every
 // download — and every URL `/api/fs/link` hands out — answered 404.
-app.on(["GET", "HEAD"], "/d/:name{.*}", requireAuth, fileDownload);
+app.on(["GET", "HEAD"], "/d/:name{.*}", requireDownloadAuth, fileDownload);
 app.get("/api/admin/storage/list", requireAuth, storageList);
 app.get("/api/admin/storage/get", requireAuth, storageGet);
 app.post("/api/admin/storage/create", requireAuth, storageCreate);

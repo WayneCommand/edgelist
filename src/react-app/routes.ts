@@ -44,6 +44,40 @@ export function normalize(path: string): string {
 }
 
 /**
+ * Where to go after signing in, from the `?redirect=` the refusal carried.
+ *
+ * Only an in-app absolute path is accepted. A protocol-relative `//host` or a
+ * backslash that a browser might normalise into one would turn the sign-in
+ * screen into an open redirect, so both are discarded rather than navigated to.
+ * The value is decoded twice on purpose: `RequireAuth` encodes the path, then
+ * the query string decodes once, and a path that itself contains an escaped
+ * name (`/my%20folder`) still has one layer left. A malformed escape falls back
+ * instead of throwing.
+ */
+export function loginRedirect(search: string, fallback: string = ROUTES.files()): string {
+	const raw = new URLSearchParams(search).get("redirect");
+	if (!raw) return fallback;
+	try {
+		const target = decodeURIComponent(raw);
+		if (!target.startsWith("/") || target.startsWith("//") || target.startsWith("/\\")) return fallback;
+		return target;
+	} catch {
+		return fallback;
+	}
+}
+
+/**
+ * A download link is a Worker route, not a React one.
+ *
+ * Navigating to it inside the router would render the file path as a directory
+ * listing, so the sign-in screen has to hand it back to the browser instead.
+ * That document navigation is also what sends the download cookie.
+ */
+export function isDownloadPath(path: string): boolean {
+	return /^\/d\/.+$/.test(path);
+}
+
+/**
  * `location.pathname` keeps percent escapes, so `/@login` can arrive as
  * `/%40login` and `my folder` as `/my%20folder`. The file API wants decoded
  * names, so decode once here and tolerate a stray `%`.
