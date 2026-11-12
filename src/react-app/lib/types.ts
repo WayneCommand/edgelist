@@ -59,32 +59,6 @@ export type DirectoryNode = { name: string; path: string; children?: DirectoryNo
 
 export type RemoveResult = { removed: string[]; failed: Array<{ name: string; error: string }> };
 
-export type TransferRequest = {
-	src_dir: string;
-	dst_dir: string;
-	names: string[];
-	overwrite?: boolean;
-	skip_existing?: boolean;
-	merge?: boolean;
-};
-
-export type TransferItemResult = {
-	name: string;
-	source: string;
-	destination?: string;
-	status: "accepted" | "skipped" | "failed";
-	error?: string;
-	code?: string;
-};
-
-export type TransferResult = {
-	operation: "copy" | "move";
-	results: TransferItemResult[];
-	accepted: number;
-	skipped: number;
-	failed: number;
-};
-
 export type MultipartStatus = {
 	upload_id: string;
 	path: string;

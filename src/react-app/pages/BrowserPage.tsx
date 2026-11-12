@@ -4,7 +4,6 @@ import {
 	fileLink,
 	listFiles,
 	makeDirectory,
-	movePaths,
 	removeEmptyDirectories,
 	removePaths,
 	rename as renamePath,
@@ -30,7 +29,7 @@ import { DirectorySkeleton } from "../components/Skeletons";
 import { DirectoryTree } from "../components/DirectoryTree";
 import { FileGrid, FileImages, FileList, type ItemHandlers } from "../components/FileViews";
 import { LocalSettingsDrawer } from "../components/LocalSettingsDrawer";
-import { DeleteDialog, RemoveEmptyDialog, TransferDialog } from "../components/TransferDialog";
+import { DeleteDialog, RemoveEmptyDialog } from "../components/ConfirmationDialogs";
 import { NameDialog } from "../components/NameDialog";
 import { BatchRenameDialog } from "../components/BatchRenameDialog";
 import { SearchDialog } from "../components/SearchDialog";
@@ -69,16 +68,12 @@ type ActiveDialog =
 	| { kind: "mkdir" }
 	| { kind: "new-file" }
 	| { kind: "rename"; item: FileObject }
-	| { kind: "copy" }
-	| { kind: "move" }
 	| { kind: "delete" }
 	| { kind: "remove-empty" }
 	| { kind: "upload" }
 	| { kind: "search" }
-	| { kind: "transfer"; mode: "copy" | "move" } // alias kept off the union's face
 	| { kind: "batch-rename" }
-	| { kind: "share"; item: FileObject }
-	| { kind: "recursive-move" };
+	| { kind: "share"; item: FileObject };
 
 export function BrowserPage() {
 	const t = useT();
@@ -237,10 +232,6 @@ export function BrowserPage() {
 				onSelect: () => setDialog({ kind: "rename", item }),
 			});
 		}
-		if (allows.move.allowed && canCreate)
-			entries.push({ label: t("toolbar.move"), icon: "folder-arrow", onSelect: () => setDialog({ kind: "move" }) });
-		if (allows.copy.allowed && canCreate)
-			entries.push({ label: t("toolbar.copy"), icon: "copy", onSelect: () => setDialog({ kind: "copy" }) });
 		if (allows.remove.allowed && canCreate) {
 			entries.push({
 				label: t("toolbar.delete"),
@@ -502,8 +493,6 @@ export function BrowserPage() {
 				permissions={permissions}
 				writable={canCreate}
 				onRename={() => single && setDialog({ kind: "rename", item: single })}
-				onCopy={() => setDialog({ kind: "copy" })}
-				onMove={() => setDialog({ kind: "move" })}
 				onDelete={() => setDialog({ kind: "delete" })}
 				onDownload={() => void download(selection.items)}
 			/>
@@ -528,12 +517,6 @@ export function BrowserPage() {
 							label={t("toolbar.mkdir")}
 							show={canCreate}
 							onPress={() => setDialog({ kind: "mkdir" })}
-						/>
-						<ClusterButton
-							icon="folder-arrow"
-							label={t("toolbar.recursive_move")}
-							show={canCreate}
-							onPress={() => setDialog({ kind: "recursive-move" })}
 						/>
 						<ClusterButton
 							icon="trash"
@@ -663,36 +646,6 @@ export function BrowserPage() {
 					}}
 				/>
 			)}
-			{dialog.kind === "copy" && (
-				<TransferDialog
-					mode="copy"
-					srcDir={path}
-					names={selection.items.map((item) => item.name)}
-					onClose={() => setDialog({ kind: "none" })}
-					onDone={(result) => {
-						notify.success(
-							t("toolbar.transfer_done", { accepted: result.accepted, skipped: result.skipped, failed: result.failed }),
-						);
-						setDialog({ kind: "none" });
-						void afterWrite();
-					}}
-				/>
-			)}
-			{dialog.kind === "move" && (
-				<TransferDialog
-					mode="move"
-					srcDir={path}
-					names={selection.items.map((item) => item.name)}
-					onClose={() => setDialog({ kind: "none" })}
-					onDone={(result) => {
-						notify.success(
-							t("toolbar.transfer_done", { accepted: result.accepted, skipped: result.skipped, failed: result.failed }),
-						);
-						setDialog({ kind: "none" });
-						void afterWrite();
-					}}
-				/>
-			)}
 			{dialog.kind === "delete" && (
 				<DeleteDialog
 					names={selection.items.map((item) => item.name)}
@@ -756,36 +709,6 @@ export function BrowserPage() {
 					}}
 				/>
 			)}
-			{dialog.kind === "recursive-move" && (
-				<NameDialog
-					title={t("toolbar.recursive_move")}
-					initialValue=""
-					hint={t("toolbar.recursive_move_directory-tips")}
-					placeholder={t("toolbar.choose_dst_folder")}
-					onClose={() => setDialog({ kind: "none" })}
-					onSubmit={async (destination) => {
-						try {
-							const result = await movePaths({
-								src_dir: path,
-								dst_dir: normalizePath(destination),
-								names: items.map((item) => item.name),
-							});
-							notify.success(
-								t("toolbar.transfer_done", {
-									accepted: result.accepted,
-									skipped: result.skipped,
-									failed: result.failed,
-								}),
-							);
-							setDialog({ kind: "none" });
-							await afterWrite();
-						} catch (reason) {
-							notify.error(reason);
-						}
-					}}
-				/>
-			)}
-
 			{dialog.kind === "share" && (
 				<ShareDialog
 					path={dialog.item.path}
@@ -863,8 +786,6 @@ function SelectionBar({
 	permissions,
 	writable,
 	onRename,
-	onCopy,
-	onMove,
 	onDelete,
 	onDownload,
 }: {
@@ -872,8 +793,6 @@ function SelectionBar({
 	permissions: ReturnType<typeof permissionsFor>;
 	writable: boolean;
 	onRename: () => void;
-	onCopy: () => void;
-	onMove: () => void;
 	onDelete: () => void;
 	onDownload: () => void;
 }) {
@@ -885,10 +804,6 @@ function SelectionBar({
 			{permissions.rename.allowed && writable && (
 				<BarButton icon="pencil" label={t("toolbar.rename")} onPress={onRename} />
 			)}
-			{permissions.move.allowed && writable && (
-				<BarButton icon="folder-arrow" label={t("toolbar.move")} onPress={onMove} />
-			)}
-			{permissions.copy.allowed && writable && <BarButton icon="copy" label={t("toolbar.copy")} onPress={onCopy} />}
 			{permissions.remove.allowed && writable && (
 				<BarButton icon="trash" label={t("toolbar.delete")} onPress={onDelete} danger />
 			)}

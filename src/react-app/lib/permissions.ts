@@ -11,10 +11,9 @@
  */
 
 import { ObjMask, type FileObject } from "./types";
-import { parentOf } from "./paths";
 import type { MessageKey } from "./i18n";
 
-export type ActionName = "open" | "rename" | "copy" | "move" | "remove" | "download" | "link" | "share" | "extract";
+export type ActionName = "open" | "rename" | "remove" | "download" | "link" | "share" | "extract";
 export type Permission = { allowed: boolean; reason?: MessageKey };
 export type Permissions = Record<ActionName, Permission>;
 
@@ -73,21 +72,6 @@ export function unwritableReason(path: string, mounts: readonly string[] | null)
 	return "toolbar.no_mount";
 }
 
-function transferPermission(items: readonly FileObject[], kind: "copy" | "move"): Permission {
-	// A transfer names one source directory, so a selection spanning directories
-	// — what a search produces — has nothing to send.
-	if (new Set(items.map((item) => parentOf(item.path))).size > 1) {
-		return denied(kind === "copy" ? "permission.copy_one_folder" : "permission.move_one_folder");
-	}
-	if (items.some((item) => blocks(item.mask, ObjMask.Virtual))) return denied("permission.virtual_transfer");
-	if (items.some((item) => blocks(item.mask, kind === "copy" ? ObjMask.NoCopy : ObjMask.NoMove)))
-		return denied(kind === "copy" ? "permission.no_copy" : "permission.no_move");
-	// A move deletes the original, so `NoRemove` blocks it even without `NoMove`.
-	if (kind === "move" && items.some((item) => blocks(item.mask, ObjMask.NoRemove)))
-		return denied("permission.move_no_remove");
-	return OK;
-}
-
 /** What the current selection permits. */
 export function permissionsFor(items: readonly FileObject[]): Permissions {
 	const nothing = items.length === 0;
@@ -104,8 +88,6 @@ export function permissionsFor(items: readonly FileObject[]): Permissions {
 				? denied("permission.no_rename")
 				: OK
 			: denied("permission.rename_one"),
-		copy: nothing ? empty : transferPermission(items, "copy"),
-		move: nothing ? empty : transferPermission(items, "move"),
 		remove: nothing
 			? empty
 			: items.some((item) => blocks(item.mask, ObjMask.NoRemove))

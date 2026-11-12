@@ -33,8 +33,6 @@ import type {
 	SearchResult,
 	StorageConfig,
 	StorageList,
-	TransferRequest,
-	TransferResult,
 	DriverInfo,
 	BackupData,
 	RestoreResult,
@@ -251,14 +249,6 @@ export function makeDirectory(path: string, createParent = false): Promise<null>
 
 export function rename(path: string, name: string, overwrite = false): Promise<null> {
 	return post<null>("/api/fs/rename", { path, name, overwrite });
-}
-
-export function copyPaths(input: TransferRequest): Promise<TransferResult> {
-	return post<TransferResult>("/api/fs/copy", input);
-}
-
-export function movePaths(input: TransferRequest): Promise<TransferResult> {
-	return post<TransferResult>("/api/fs/move", input);
 }
 
 export function removePaths(dir: string, names: string[]): Promise<RemoveResult> {
